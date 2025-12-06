@@ -131,7 +131,7 @@ def get_company_applications():
     user = get_current_user()
     if not user or user.role != 'hr':
         return jsonify({'error': 'Unauthorized: HR role required'}), 403
-    
+
     job_id = request.args.get('job_id')
     status = request.args.get('status')
     

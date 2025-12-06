@@ -41,7 +41,7 @@ export const register = async (userData) => {
 
 export const getJobs = async () => {
   // Returns { pagination: {...}, jobs: [...] }
-  // Frontend might expect array directly, let's check. 
+  // Frontend might expect array directly, let's check.
   // DashboardApplicant: const jobs = await getJobs(); setRecommendedJobs(jobs.slice(0, 2));
   // So it expects an array.
   const res = await axiosAuth.get('/jobs')
@@ -60,7 +60,7 @@ export const getApplications = async () => {
   // Backend returns: [{ application_details: {...}, job_details: {...} }]
   // Frontend expects: [{ id, status, title, company, ... }]
   const res = await axiosAuth.get('/applications/my')
-  
+
   if (Array.isArray(res.data)) {
     return res.data.map(item => ({
       id: item.application_details.id,
@@ -95,7 +95,7 @@ export const uploadResume = async (userId, file) => {
   formData.append('resume', file);
   // Use axiosAuth for token
   const res = await axiosAuth.post('/profiles/me/resume', formData, {
-    headers: { 
+    headers: {
       'Content-Type': 'multipart/form-data',
       ...(userId ? { 'X-User-Id': userId } : {})
     }
@@ -107,7 +107,7 @@ export const uploadProfilePic = async (userId, file) => {
   const formData = new FormData();
   formData.append('profile_pic', file);
   const res = await axiosAuth.post('/profiles/me/avatar', formData, {
-    headers: { 
+    headers: {
       'Content-Type': 'multipart/form-data',
       ...(userId ? { 'X-User-Id': userId } : {})
     }
@@ -169,7 +169,7 @@ export const getProfileByUserId = async (userId) => {
 
 export const getProfiles = async () => {
     // Legacy endpoint? Not in YAML. Maybe for HR viewing list of candidates?
-    // Using /hr/profiles isn't a list endpoint in my spec. 
+    // Using /hr/profiles isn't a list endpoint in my spec.
     // Assuming /users/basic or similar is used elsewhere.
     // Leaving empty or mapped to something safe if needed.
     return [];
