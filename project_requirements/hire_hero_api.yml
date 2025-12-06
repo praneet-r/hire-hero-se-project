@@ -1,0 +1,3251 @@
+openapi: 3.0.0
+
+# -----------------------------------------------------------------------------
+# 1. API Information
+# Basic metadata about the API.
+# -----------------------------------------------------------------------------
+info:
+  title: Hire Hero
+  description: >-
+    ![Hire Hero Logo](https://raw.githubusercontent.com/siddhiloganathan/photo/269b23b29dc1af58bbf87fe9b6d0409a5a423b65/yaml_image.jpeg)
+
+    This is the official API documentation for Hire Hero, an advanced
+    Human Resource Management (HRM) platform powered by Generative AI.
+    It provides a complete set of endpoints for managing the entire hiring
+    lifecycle, from job posting and candidate application to interview
+    scheduling and AI-powered assistance.
+    
+    The API is divided into three main sections:
+    1.  **Job Seeker:** Endpoints for candidates to search for jobs, manage their
+        profiles, and track their applications.
+    2.  **HR (Employer):** Endpoints for company representatives to post jobs,
+        manage applicants, and oversee employee data.
+    3.  **Generative AI:** Powerful AI endpoints for resume parsing, job
+        description generation, and an intelligent chatbot.
+  version: 1.0.0
+  termsOfService: https://hirehero.example.com/terms
+  contact:
+    name: Hire Hero API Support
+    url: https://hirehero.example.com/support
+    email: api-support@hirehero.example.com
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+
+# -----------------------------------------------------------------------------
+# 2. Server Information
+# Defines the API server environments (e.g., production, staging, development).
+# -----------------------------------------------------------------------------
+servers:
+  - url: https://api.hirehero.example.com/v1
+    description: Production Server
+  - url: http://localhost:5000/api
+    description: Local Development Server (as per Flask app)
+
+# -----------------------------------------------------------------------------
+# 3. Tags
+# Used to group related API endpoints in the documentation.
+# -----------------------------------------------------------------------------
+tags:
+  - name: Authentication
+    description: >-
+      User registration, login, and authentication (JWT & Google OAuth).
+      Handles all aspects of user identity.
+  - name: Job Seeker - Profile
+    description: >-
+      Endpoints for a job seeker to manage their own personal profile,
+      experiences, education, and file uploads (resume, avatar).
+  - name: Job Seeker - Jobs
+    description: >-
+      Endpoints for job seekers to search, browse, and view job listings.
+  - name: Job Seeker - Applications
+    description: >-
+      Endpoints for job seekers to create and track their job applications.
+  - name: Job Seeker - Interviews
+    description: >-
+      Endpoints for job seekers to view their scheduled interviews.
+  - name: Job Seeker - Timeline
+    description: >-
+      Endpoint for a job seeker to view their personal activity timeline.
+  - name: HR - Jobs
+    description: >-
+      (HR Role Required) Endpoints for managing company job listings
+      (Create, Update, Delete).
+  - name: HR - Applications
+    description: >-
+      (HR Role Required) Endpoints for viewing and managing applications
+      received for their company's jobs, including screening and feedback.
+  - name: HR - AI Matching
+    description: >-
+      (HR Role Required) Endpoints for AI-powered resume-to-JD matching
+      (Implements US-1, US-2).
+  - name: HR - Employees
+    description: >-
+      (HR Role Required) Endpoints for managing company employee data
+      and performance reviews.
+  - name: HR - Profiles
+    description: >-
+      (HR Role Required) Endpoints for viewing candidate and employee profiles.
+  - name: Generative AI
+    description: >-
+      Powerful AI-driven endpoints for chatbot, resume parsing,
+      job description generation, and cover letter assistance.
+  - name: Utility
+    description: >-
+      Health checks and other utility endpoints.
+
+# -----------------------------------------------------------------------------
+# 4. Security Definitions
+# Defines the authentication methods used by the API.
+# -----------------------------------------------------------------------------
+components:
+  securitySchemes:
+    # This is the primary authentication method for the API.
+    # The token is obtained from the /auth/login endpoint.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        JWT (JSON Web Token) obtained from the `/auth/login` or
+        `/auth/register` endpoints. All protected endpoints
+        require this token in the `Authorization` header.
+        
+        Format: `Authorization: Bearer <token>`
+
+    # This is the secondary/legacy auth method, as seen in the user's code.
+    # We will primarily use bearerAuth, but this is documented for completeness.
+    customHeaderAuth:
+      type: apiKey
+      in: header
+      name: X-User-Id
+      description: >-
+        A custom header for authentication.
+        (Note: Replaced by bearerAuth in most new endpoints).
+
+# -----------------------------------------------------------------------------
+# 5. Reusable Schemas
+# Defines data models used throughout the API.
+# -----------------------------------------------------------------------------
+  schemas:
+    
+    # --- Base Schemas (Errors, Messages) ---
+    
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: A human-readable error message.
+          example: Invalid credentials
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: An internal error code.
+          example: INVALID_INPUT
+        message:
+          type: string
+          description: A human-readable error message.
+          example: Email address is already in use.
+        field:
+          type: string
+          description: The specific field that caused the error.
+          example: email
+    ErrorValidation:
+      type: object
+      required: [errors]
+      properties:
+        errors:
+          type: array
+          description: A list of validation errors.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+            
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: A simple success message.
+          example: Profile updated successfully
+          
+    MessageWithID:
+      type: object
+      required: [message, id]
+      properties:
+        message:
+          type: string
+          description: A simple success message.
+          example: Job created successfully
+        id:
+          type: integer
+          description: The ID of the newly created resource.
+          example: 123
+          
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: The current page number.
+          example: 1
+        per_page:
+          type: integer
+          description: The number of items per page.
+          example: 20
+        total_items:
+          type: integer
+          description: The total number of items available.
+          example: 150
+        total_pages:
+          type: integer
+          description: The total number of pages.
+          example: 8
+
+    # --- Authentication Schemas ---
+
+    UserRegister:
+      type: object
+      description: Payload for registering a new user.
+      required: [firstName, email, password, phone, role]
+      properties:
+        firstName:
+          type: string
+          description: User's first name.
+          example: Jane
+        lastName:
+          type: string
+          description: User's last name.
+          example: Doe
+        companyName:
+          type: string
+          description: Company name (required if role is 'hr').
+          example: Example Corp
+        email:
+          type: string
+          format: email
+          description: User's unique email address.
+          example: jane.doe@example.com
+        role:
+          type: string
+          description: The role the user is registering for.
+          enum: [job_seeker, hr]
+          example: job_seeker
+        password:
+          type: string
+          format: password
+          description: User's password (min 8 characters).
+          example: S3cur3P@ssw0rd!
+        phone:
+          type: string
+          description: User's phone number.
+          example: "+15551234567"
+          
+    UserLogin:
+      type: object
+      description: Payload for user login.
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address.
+          example: jane.doe@example.com
+        password:
+          type: string
+          format: password
+          description: User's password.
+          example: S3cur3P@ssw0rd!
+          
+    TokenResponse:
+      type: object
+      description: Successful authentication response.
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: The JWT bearer token.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/User'
+          
+    User:
+      type: object
+      description: Basic information about a user.
+      required: [id, email, role, first_name]
+      properties:
+        id:
+          type: integer
+          description: The user's unique ID.
+          example: 42
+        first_name:
+          type: string
+          description: User's first name.
+          example: Jane
+        last_name:
+          type: string
+          description: User's last name.
+          example: Doe
+        email:
+          type: string
+          format: email
+          description: User's email address.
+          example: jane.doe@example.com
+        role:
+          type: string
+          description: The user's role in the system.
+          enum: [job_seeker, hr, admin]
+          example: job_seeker
+        created_at:
+          type: string
+          format: date-time
+          description: The timestamp when the user was created.
+          example: "2025-01-10T10:30:00Z"
+          
+    # --- Profile & Experience Schemas (Job Seeker) ---
+
+    Address:
+      type: object
+      description: A structured address.
+      properties:
+        city:
+          type: string
+          example: San Francisco
+        state:
+          type: string
+          example: CA
+        country:
+          type: string
+          example: USA
+        postal_code:
+          type: string
+          example: "94105"
+          
+    Experience:
+      type: object
+      description: A single professional experience entry.
+      properties:
+        id:
+          type: integer
+          description: Unique ID for the experience.
+          example: 101
+        title:
+          type: string
+          description: Job title.
+          example: Senior Software Engineer
+        company:
+          type: string
+          description: Company name.
+          example: Tech Solutions Inc.
+        location:
+          type: string
+          description: Job location.
+          example: New York, NY
+        start_date:
+          type: string
+          format: date
+          description: Start date (YYYY-MM-DD).
+          example: "2020-01-15"
+        end_date:
+          type: string
+          format: date
+          description: End date (YYYY-MM-DD). Null if current.
+          example: "2024-06-30"
+        is_current:
+          type: boolean
+          description: True if this is the user's current job.
+          example: false
+        description:
+          type: string
+          description: A summary of responsibilities and achievements.
+          example: Developed and maintained web applications...
+          
+    ExperienceInput:
+      type: object
+      description: Payload for creating or updating an experience entry.
+      required: [title, company, start_date]
+      properties:
+        title:
+          type: string
+          example: Senior Software Engineer
+        company:
+          type: string
+          example: Tech Solutions Inc.
+        location:
+          type: string
+          example: New York, NY
+        start_date:
+          type: string
+          format: date
+          example: "2020-01-15"
+        end_date:
+          type: string
+          format: date
+          example: "2024-06-30"
+        is_current:
+          type: boolean
+          example: false
+        description:
+          type: string
+          example: Developed and maintained web applications...
+          
+    Education:
+      type: object
+      description: A single educational entry.
+      properties:
+        id:
+          type: integer
+          description: Unique ID for the education entry.
+          example: 51
+        institution:
+          type: string
+          description: Name of the school or university.
+          example: University of Technology
+        degree:
+          type: string
+          description: Degree obtained.
+          example: Master of Science
+        field_of_study:
+          type: string
+          description: Field of study.
+          example: Computer Science
+        start_date:
+          type: string
+          format: date
+          description: Start date (YYYY-MM-DD).
+          example: "2018-09-01"
+        end_date:
+          type: string
+          format: date
+          description: End date or graduation date (YYYY-MM-DD).
+          example: "2020-06-01"
+        description:
+          type: string
+          description: Additional notes, thesis, or honors.
+          example: Graduated with High Honors.
+          
+    EducationInput:
+      type: object
+      description: Payload for creating or updating an education entry.
+      required: [institution, degree, field_of_study, start_date]
+      properties:
+        institution:
+          type: string
+          example: University of Technology
+        degree:
+          type: string
+          example: Master of Science
+        field_of_study:
+          type: string
+          example: Computer Science
+        start_date:
+          type: string
+          format: date
+          example: "2018-09-01"
+        end_date:
+          type: string
+          format: date
+          example: "2020-06-01"
+        description:
+          type: string
+          example: Graduated with High Honors.
+          
+    Profile:
+      type: object
+      description: The complete profile for a job seeker.
+      properties:
+        user_id:
+          type: integer
+          description: The user ID associated with this profile.
+          example: 42
+        first_name:
+          type: string
+          description: User's first name.
+          example: Jane
+        last_name:
+          type: string
+          description: User's last name.
+          example: Doe
+        email:
+          type: string
+          format: email
+          description: User's email.
+          example: jane.doe@example.com
+        role:
+          type: string
+          enum: [job_seeker, hr, admin]
+          example: job_seeker
+        phone:
+          type: string
+          description: Contact phone number.
+          example: "+15551234567"
+        location:
+          $ref: '#/components/schemas/Address'
+        summary:
+          type: string
+          description: A professional summary or "bio".
+          example: Experienced software engineer...
+        profile_pic_url:
+          type: string
+          format: uri
+          description: URL to the user's profile picture.
+          example: https://hirehero.example.com/uploads/avatar_42.jpg
+        resume_url:
+          type: string
+          format: uri
+          description: URL to the user's uploaded resume.
+          example: https://hirehero.example.com/uploads/resume_42.pdf
+        linkedin_profile:
+          type: string
+          format: uri
+          description: URL to the user's LinkedIn profile.
+          example: https://www.linkedin.com/in/janedoe
+        github_profile:
+          type: string
+          format: uri
+          description: URL to the user's GitHub profile.
+          example: https://github.com/janedoe
+        portfolio_url:
+          type: string
+          format: uri
+          description: URL to the user's personal portfolio.
+          example: https://janedoe.dev
+        skills:
+          type: array
+          description: A list of the user's skills.
+          items:
+            type: string
+          example: ["Python", "Flask", "React", "PostgreSQL"]
+        experiences:
+          type: array
+          description: List of professional experiences.
+          items:
+            $ref: '#/components/schemas/Experience'
+        educations:
+          type: array
+          description: List of educational qualifications.
+          items:
+            $ref: '#/components/schemas/Education'
+        completeness:
+          type: integer
+          description: A score (0-100) representing profile completeness.
+          example: 85
+          
+    ProfileInput:
+      type: object
+      description: Payload for updating a user's profile.
+      properties:
+        first_name:
+          type: string
+          example: Jane
+        last_name:
+          type: string
+          example: Doe
+        phone:
+          type: string
+          example: "+15551234567"
+        location:
+          $ref: '#/components/schemas/Address'
+        summary:
+          type: string
+          example: Experienced software engineer...
+        linkedin_profile:
+          type: string
+          format: uri
+          example: https://www.linkedin.com/in/janedoe
+        github_profile:
+          type: string
+          format: uri
+          example: https://github.com/janedoe
+        portfolio_url:
+          type: string
+          format: uri
+          example: https://janedoe.dev
+        skills:
+          type: array
+          items:
+            type: string
+          example: ["Python", "Flask", "React", "PostgreSQL"]
+
+    # --- Job & Company Schemas (HR & Job Seeker) ---
+
+    Job:
+      type: object
+      description: A job listing.
+      required: [id, title, company_name, location]
+      properties:
+        id:
+          type: integer
+          description: Unique ID for the job.
+          example: 201
+        title:
+          type: string
+          description: The title of the job.
+          example: Senior Python Developer
+        company_name:
+          type: string
+          description: Name of the hiring company.
+          example: Example Corp
+        location:
+          $ref: '#/components/schemas/Address'
+        description:
+          type: string
+          description: A detailed description of the job.
+          example: We are seeking a Senior Python Developer...
+        responsibilities:
+          type: array
+          description: List of key responsibilities.
+          items:
+            type: string
+          example: ["Design and implement scalable APIs", "Write clean, testable code"]
+        qualifications:
+          type: array
+          description: List of required qualifications.
+          items:
+            type: string
+          example: ["5+ years of Python experience", "Experience with Flask or Django"]
+        employment_type:
+          type: string
+          description: The type of employment.
+          enum: [full_time, part_time, contract, freelance, internship]
+          example: full_time
+        job_type:
+          type: string
+          description: The work location type.
+          enum: [on_site, remote, hybrid]
+          example: hybrid
+        salary_min:
+          type: integer
+          description: Minimum annual salary (in currency units).
+          example: 120000
+        salary_max:
+          type: integer
+          description: Maximum annual salary (in currency units).
+          example: 160000
+        salary_currency:
+          type: string
+          description: 3-letter currency code (ISO 4217).
+          example: USD
+        tags:
+          type: array
+          description: Keywords or tags related to the job.
+          items:
+            type: string
+          example: ["Python", "FinTech", "API"]
+        created_at:
+          type: string
+          format: date-time
+          description: The timestamp when the job was posted.
+          example: "2025-10-20T14:00:00Z"
+        company_logo_url:
+          type: string
+          format: uri
+          description: URL to the company's logo.
+          example: https://hirehero.example.com/uploads/company_logo_3.png
+
+    JobInput:
+      type: object
+      description: Payload for creating or updating a job.
+      required: [title, company_name, description]
+      properties:
+        title:
+          type: string
+          example: Senior Python Developer
+        company_name:
+          type: string
+          example: Example Corp
+        location:
+          $ref: '#/components/schemas/Address'
+        description:
+          type: string
+          example: We are seeking a Senior Python Developer...
+        responsibilities:
+          type: array
+          items:
+            type: string
+          example: ["Design and implement scalable APIs"]
+        qualifications:
+          type: array
+          items:
+            type: string
+          example: ["5+ years of Python experience"]
+        employment_type:
+          type: string
+          enum: [full_time, part_time, contract, freelance, internship]
+          example: full_time
+        job_type:
+          type: string
+          enum: [on_site, remote, hybrid]
+          example: hybrid
+        salary_min:
+          type: integer
+          example: 120000
+        salary_max:
+          type: integer
+          example: 160000
+        salary_currency:
+          type: string
+          example: USD
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["Python", "FinTech", "API"]
+
+    # --- Application Schemas (HR & Job Seeker) ---
+
+    Application:
+      type: object
+      description: A job application submitted by a user.
+      required: [id, user_id, job_id, status, applied_at]
+      properties:
+        id:
+          type: integer
+          description: Unique ID for the application.
+          example: 301
+        user_id:
+          type: integer
+          description: The ID of the user who applied.
+          example: 42
+        job_id:
+          type: integer
+          description: The ID of the job applied for.
+          example: 201
+        status:
+          type: string
+          description: The current status of the application.
+          enum: [applied, under_review, interviewing, offer_extended, rejected, withdrawn]
+          example: under_review
+        applied_at:
+          type: string
+          format: date-time
+          description: The timestamp when the application was submitted.
+          example: "2025-10-21T09:15:00Z"
+        cover_letter:
+          type: string
+          description: The cover letter text submitted with the application.
+          
+    ApplicationInput:
+      type: object
+      description: Payload for creating a new job application.
+      required: [job_id]
+      properties:
+        job_id:
+          type: integer
+          description: The ID of the job to apply for.
+          example: 201
+        cover_letter:
+          type: string
+          description: A cover letter for the application.
+          example: Dear Hiring Manager, I am excited to apply...
+          
+    ApplicationDetailed:
+      type: object
+      description: An application with job and user details.
+      properties:
+        application_details:
+          $ref: '#/components/schemas/Application'
+        job_details:
+          $ref: '#/components/schemas/Job'
+        user_details:
+          $ref: '#/components/schemas/User' # or a subset
+          
+    ApplicationStatusUpdate:
+      type: object
+      description: Payload for an HR user to update an application's status.
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: The new status for the application.
+          enum: [under_review, interviewing, offer_extended, rejected]
+          example: interviewing
+        message_to_candidate:
+          type: string
+          description: An optional message to send to the candidate.
+          example: We'd like to schedule an interview.
+
+    # --- Interview Schemas (HR & Job Seeker) ---
+    
+    Interview:
+      type: object
+      description: Details of a scheduled interview.
+      required: [id, application_id, stage, scheduled_at, location_type]
+      properties:
+        id:
+          type: integer
+          description: Unique ID for the interview.
+          example: 401
+        application_id:
+          type: integer
+          description: The application this interview is for.
+          example: 301
+        stage:
+          type: string
+          description: The stage of this interview.
+          enum: [screening, technical, behavioral, final]
+          example: technical
+        scheduled_at:
+          type: string
+          format: date-time
+          description: The date and time of the interview.
+          example: "2025-10-25T14:00:00Z"
+        duration_minutes:
+          type: integer
+          description: The planned duration of the interview in minutes.
+          example: 60
+        location_type:
+          type: string
+          description: The type of interview location.
+          enum: [video, phone, in_person]
+          example: video
+        location_detail:
+          type: string
+          description: >-
+            Details for the location (e.g., Google Meet link,
+            conference room, phone number).
+          example: https://meet.google.com/xyz-abc-def
+        interviewers:
+          type: array
+          description: List of people conducting the interview.
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: Bob Smith
+              title:
+                type: string
+                example: Engineering Manager
+              email:
+                type: string
+                format: email
+                example: bob.smith@example.com
+                
+    InterviewInput:
+      type: object
+      description: Payload for scheduling a new interview.
+      required: [application_id, stage, scheduled_at, location_type, location_detail]
+      properties:
+        application_id:
+          type: integer
+          example: 301
+        stage:
+          type: string
+          enum: [screening, technical, behavioral, final]
+          example: technical
+        scheduled_at:
+          type: string
+          format: date-time
+          example: "2025-10-25T14:00:00Z"
+        duration_minutes:
+          type: integer
+          example: 60
+        location_type:
+          type: string
+          enum: [video, phone, in_person]
+          example: video
+        location_detail:
+          type: string
+          example: https://meet.google.com/xyz-abc-def
+        interviewer_emails:
+          type: array
+          description: A list of user emails for the interviewers.
+          items:
+            type: string
+            format: email
+          example: ["bob.smith@example.com", "alice.jones@example.com"]
+
+    # --- Timeline Schemas (Job Seeker) ---
+
+    TimelineEvent:
+      type: object
+      description: A single event in a user's activity timeline.
+      required: [id, timestamp, type, title]
+      properties:
+        id:
+          type: string
+          description: Unique ID for the event.
+          example: evt_123456789
+        timestamp:
+          type: string
+          format: date-time
+          description: The time the event occurred.
+          example: "2025-10-21T09:15:00Z"
+        type:
+          type: string
+          description: The type of event.
+          enum: [application_submitted, status_update, interview_scheduled, profile_updated, message_received]
+          example: status_update
+        title:
+          type: string
+          description: A short title for the event.
+          example: Application Status Changed
+        description:
+          type: string
+          description: A longer description of the event.
+          example: >-
+            Your application for "Senior Python Developer" was
+            moved to "Under Review" by Example Corp.
+        link_url:
+          type: string
+          format: uri
+          description: A URL to view more details (e.g., the application page).
+          example: /applications/301
+
+    # --- Employee & Performance Schemas (HR) ---
+
+    Employee:
+      type: object
+      description: An employee of a company.
+      required: [id, user_id, job_title, department]
+      properties:
+        id:
+          type: integer
+          description: The employee's unique internal ID.
+          example: 501
+        user_id:
+          type: integer
+          description: The user ID associated with this employee.
+          example: 88
+        job_title:
+          type: string
+          description: The employee's job title.
+          example: Software Engineer
+        department:
+          type: string
+          description: The employee's department.
+          example: Engineering
+        hired_at:
+          type: string
+          format: date-time
+          description: The timestamp when the employee was hired.
+          example: "2023-05-01T09:00:00Z"
+        photo_url:
+          type: string
+          format: uri
+          description: URL to the employee's photo.
+          example: https://hirehero.example.com/uploads/emp_photo_88.jpg
+        manager_id:
+          type: integer
+          description: The ID of the employee's manager.
+          example: 500
+
+    EmployeeInput:
+      type: object
+      description: Payload to create or update an employee.
+      required: [user_id, job_title, department]
+      properties:
+        user_id:
+          type: integer
+          example: 88
+        job_title:
+          type: string
+          example: Software Engineer
+        department:
+          type: string
+          example: Engineering
+        hired_at:
+          type: string
+          format: date-time
+          example: "2023-05-01T09:00:00Z"
+        manager_id:
+          type: integer
+          example: 500
+
+    PerformanceReview:
+      type: object
+      description: A performance review for an employee.
+      required: [id, employee_id, reviewer_id, review_date, rating]
+      properties:
+        id:
+          type: integer
+          description: Unique ID for the review.
+          example: 601
+        employee_id:
+          type: integer
+          description: The ID of the employee being reviewed.
+          example: 501
+        reviewer_id:
+          type: integer
+          description: The ID of the manager/reviewer.
+          example: 500
+        review_date:
+          type: string
+          format: date
+          description: The date the review was conducted.
+          example: "2024-12-15"
+        rating:
+          type: number
+          format: float
+          description: The overall performance rating (e.g., 1.0 - 5.0).
+          example: 4.5
+        metric:
+          type: string
+          description: (Legacy) Simple metric name.
+          example: "Quarterly Review"
+        value:
+          type: string
+          description: (Legacy) Simple metric value.
+          example: "Exceeds Expectations"
+        comments:
+          type: string
+          description: Detailed comments from the reviewer.
+          example: "John consistently delivers high-quality code..."
+          
+    PerformanceReviewInput:
+      type: object
+      description: Payload to create a performance review.
+      required: [employee_id, review_date, rating, comments]
+      properties:
+        employee_id:
+          type: integer
+          example: 501
+        review_date:
+          type: string
+          format: date
+          example: "2024-12-15"
+        rating:
+          type: number
+          format: float
+          example: 4.5
+        comments:
+          type: string
+          example: "John consistently delivers high-quality code..."
+
+    # --- Generative AI Schemas ---
+    
+    ChatRequest:
+      type: object
+      description: Payload for sending a message to the AI chatbot.
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          description: The user's message to the chatbot.
+          example: What are some tips for a technical interview?
+        session_id:
+          type: string
+          description: >-
+            A unique ID to maintain conversation history.
+            If not provided, a new session may be started.
+          example: chat_session_abc123
+        context:
+          type: object
+          description: >-
+            Optional context for the chatbot, e.g., the job they are
+            viewing or an application they are asking about.
+          properties:
+            job_id:
+              type: integer
+              example: 201
+            application_id:
+              type: integer
+              description: The application ID to discuss (fulfills CH-4).
+              example: 301
+            
+    ChatResponse:
+      type: object
+      description: The AI chatbot's reply.
+      required: [reply, session_id]
+      properties:
+        reply:
+          type: string
+          description: The chatbot's response message.
+          example: "Great question! For a technical interview,..."
+        session_id:
+          type: string
+          description: The session ID for this conversation.
+          example: chat_session_abc123
+        follow_up_questions:
+          type: array
+          description: Optional suggested follow-up prompts.
+          items:
+            type: string
+          example: ["Tell me about STAR method", "How to answer 'What's your weakness?'"]
+          
+    ResumeParseRequest:
+      type: object
+      description: Payload to parse a resume.
+      required: [resume_file]
+      properties:
+        resume_file:
+          type: string
+          format: binary
+          description: The resume file (PDF, DOCX) to be parsed.
+          
+    ResumeParseResponse:
+      type: object
+      description: The structured data extracted from the resume.
+      properties:
+        parsed_profile:
+          # This schema contains the fields AI can reliably extract
+          type: object
+          properties:
+            first_name:
+              type: string
+              example: Jane
+            last_name:
+              type: string
+              example: Doe
+            email:
+              type: string
+              format: email
+              example: jane.doe@example.com
+            phone:
+              type: string
+              example: "+15551234567"
+            location:
+              $ref: '#/components/schemas/Address'
+            summary:
+              type: string
+              example: Experienced software engineer...
+            skills:
+              type: array
+              items:
+                type: string
+              example: ["Python", "Flask", "React"]
+            experiences:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExperienceInput'
+            educations:
+              type: array
+              items:
+                $ref: '#/components/schemas/EducationInput'
+                
+    JDGenerateRequest:
+      type: object
+      description: Payload to generate a job description.
+      required: [title, company_name, employment_type, job_type]
+      properties:
+        title:
+          type: string
+          description: The job title.
+          example: Mid-Level Backend Engineer
+        company_name:
+          type: string
+          description: The name of the company.
+          example: Example Corp
+        employment_type:
+          type: string
+          enum: [full_time, part_time, contract, freelance, internship]
+          example: full_time
+        job_type:
+          type: string
+          enum: [on_site, remote, hybrid]
+          example: remote
+        key_responsibilities:
+          type: array
+          description: A few key responsibility bullet points (optional).
+          items:
+            type: string
+          example: ["Develop new API endpoints"]
+        required_skills:
+          type: array
+          description: A few key required skills (optional).
+          items:
+            type: string
+          example: ["Python", "PostgreSQL"]
+            
+    JDGenerateResponse:
+      type: object
+      description: The AI-generated job description.
+      required: [generated_description, generated_responsibilities, generated_qualifications]
+      properties:
+        generated_description:
+          type: string
+          description: The main summary/description.
+          example: Example Corp is seeking a motivated Mid-Level...
+        generated_responsibilities:
+          type: array
+          description: A list of generated responsibilities.
+          items:
+            type: string
+          example: ["Design, build, and maintain efficient APIs"]
+        generated_qualifications:
+          type: array
+          description: A list of generated qualifications.
+          items:
+            type: string
+          example: ["3+ years of experience in backend development"]
+            
+    CoverLetterGenerateRequest:
+      type: object
+      description: Payload to generate a cover letter.
+      required: [job_id]
+      properties:
+        job_id:
+          type: integer
+          description: The ID of the job the user is applying for.
+          example: 201
+        user_notes:
+          type: string
+          description: >-
+            Optional notes from the user on what to emphasize.
+            The AI will use their profile by default.
+          example: "Please emphasize my 5 years of Python experience."
+          
+    CoverLetterGenerateResponse:
+      type: object
+      description: The AI-generated draft of a cover letter.
+      required: [generated_draft]
+      properties:
+        generated_draft:
+          type: string
+          description: A draft of the cover letter.
+          example: "Dear Hiring Manager,\n\nI am writing to express my..."
+          
+    # --- User Story Schemas (US & CH) ---
+    # These schemas are added to fulfill the User Stories
+    
+    JDRankingRequest:
+      type: object
+      description: Payload for US-1. Requires a JD and multiple resume files.
+      required: [job_description, resumes]
+      properties:
+        job_description:
+          type: string
+          description: The full text of the Job Description.
+          example: "We are seeking a Senior Python Developer..."
+        resumes:
+          type: array
+          description: An array of resume files (PDF, DOCX) to be ranked.
+          items:
+            type: string
+            format: binary
+            
+    JDRankingResponse:
+      type: object
+      description: Response for US-1 & US-2. A ranked list of candidates with explanations.
+      properties:
+        ranking:
+          type: array
+          description: The top 10 ranked candidates.
+          items:
+            $ref: '#/components/schemas/RankedCandidate'
+            
+    RankedCandidate:
+      type: object
+      description: A single ranked candidate, fulfilling US-1 and US-2.
+      properties:
+        rank:
+          type: integer
+          example: 1
+        match_score:
+          type: number
+          format: float
+          description: The match score (0.0 to 100.0).
+          example: 92.5
+        file_name:
+          type: string
+          description: The original filename of the resume.
+          example: "jane_doe_resume.pdf"
+        parsed_name:
+          type: string
+          example: "Jane Doe"
+        parsed_email:
+          type: string
+          format: email
+          example: "jane.doe@example.com"
+        match_explanation:
+          $ref: '#/components/schemas/MatchExplanation'
+          
+    MatchExplanation:
+      type: object
+      description: An explainable match view (fulfills US-2).
+      properties:
+        summary:
+          type: string
+          example: "Strong match based on 5+ years of Python and Flask experience."
+        matched_skills:
+          type: array
+          items:
+            type: string
+          example: ["Python", "Flask", "PostgreSQL"]
+        missing_skills:
+          type: array
+          items:
+            type: string
+          example: ["Kubernetes"]
+        experience_highlights:
+          type: string
+          example: "Led a team of 3 engineers on a critical FinTech project."
+          
+    ScreeningFormInput:
+      type: object
+      description: Payload for US-3. Used by HR to create a screening form.
+      required: [job_id, questions]
+      properties:
+        job_id:
+          type: integer
+          description: The job this screening form is for.
+          example: 201
+        questions:
+          type: array
+          description: The list of questions for the form.
+          items:
+            $ref: '#/components/schemas/ScreeningQuestionInput'
+            
+    ScreeningQuestionInput:
+      type: object
+      properties:
+        question_text:
+          type: string
+          example: "How many years of experience do you have with Python?"
+        question_type:
+          type: string
+          enum: [multiple_choice, text, yes_no]
+          example: multiple_choice
+        options:
+          type: array
+          items:
+            type: string
+          example: ["0-1 years", "2-4 years", "5+ years"]
+            
+    ScreeningFormResponse:
+      type: object
+      description: The screening form to be filled out by the candidate.
+      properties:
+        application_id:
+          type: integer
+          example: 301
+        job_title:
+          type: string
+          example: "Senior Python Developer"
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScreeningQuestionInput' # (Response version might have IDs)
+            
+    ScreeningAnswerSubmission:
+      type: object
+      description: Payload for US-3. Used by candidates to submit answers.
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScreeningAnswerInput'
+            
+    ScreeningAnswerInput:
+      type: object
+      properties:
+        question_id:
+          type: integer
+          example: 101
+        answer:
+          type: string
+          example: "5+ years"
+          
+    ScreeningResult:
+      type: object
+      description: The auto-scored result for US-3, viewed by HR.
+      properties:
+        application_id:
+          type: integer
+          example: 301
+        candidate_name:
+          type: string
+          example: "Jane Doe"
+        score:
+          type: number
+          format: float
+          description: The total score (0.0 to 100.0).
+          example: 88.0
+        summary:
+          type: string
+          example: "Strongly qualified. Scored high on all 'must-have' questions."
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              question_text:
+                type: string
+                example: "How many years of experience..."
+              answer:
+                type: string
+                example: "5+ years"
+              is_correct:
+                type: boolean
+                example: true
+                
+    FeedbackInput:
+      type: object
+      description: Payload for US-4. A panel member submits feedback.
+      required: [interviewer_name, rating, notes]
+      properties:
+        interviewer_name:
+          type: string
+          example: "Bob Smith"
+        rating:
+          type: number
+          format: float
+          description: Overall rating (1-5).
+          example: 4.0
+        notes:
+          type: string
+          description: Detailed interview notes.
+          example: "Great technical skills, clear communicator..."
+          
+    FeedbackSummary:
+      type: object
+      description: Response for US-4. An AI-generated summary of all feedback.
+      properties:
+        application_id:
+          type: integer
+          example: 301
+        candidate_name:
+          type: string
+          example: "Jane Doe"
+        overall_recommendation:
+          type: string
+          enum: [hire, no_hire, strong_hire, needs_discussion]
+          example: "strong_hire"
+        strengths:
+          type: array
+          items:
+            type: string
+          example: ["Strong Python knowledge", "Good team fit"]
+        weaknesses:
+          type: array
+          items:
+            type: string
+          example: ["Limited Kubernetes experience"]
+        detailed_feedback:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedbackInput'
+            
+    InterviewGuideRequest:
+      type: object
+      description: Payload for CH-1.
+      properties:
+        job_description:
+          type: string
+          description: Full text of the Job Description.
+          example: "We are seeking a..."
+        candidate_resume:
+          type: string
+          description: (Optional) Full text of the candidate's resume.
+          example: "Jane Doe - Senior Software Engineer..."
+          
+    InterviewGuideResponse:
+      type: object
+      description: Response for CH-1. A structured interview guide.
+      properties:
+        job_title:
+          type: string
+          example: "Senior Python Developer"
+        behavioral_questions:
+          type: array
+          items:
+            type: string
+          example: ["Tell me about a time you had a conflict with a teammate."]
+        technical_questions:
+          type: array
+          items:
+            type: string
+          example: ["What is the difference between a list and a tuple in Python?"]
+        scoring_rubric:
+          type: string
+          description: A simple rubric or guide for scoring answers.
+          example: "1=Poor, 3=Meets Expectations, 5=Exceptional"
+          
+    FeedbackSummarizeRequest:
+      type: object
+      description: Payload for CH-2.
+      required: [raw_feedback_notes]
+      properties:
+        raw_feedback_notes:
+          type: string
+          description: A copy-paste of all panel feedback notes.
+          example: "Bob said: Great technical skills. Alice said: A bit quiet..."
+          
+    FeedbackSummarizeResponse:
+      type: object
+      description: Response for CH-2. A concise summary of the notes.
+      properties:
+        summary:
+          type: string
+          example: "The panel was positive, highlighting strong technical skills..."
+        strengths:
+          type: array
+          items:
+            type: string
+          example: ["Technical skills", "Clear communication"]
+        weaknesses:
+          type: array
+          items:
+            type: string
+          example: ["Seems quiet", "Lacks Kubernetes experience"]
+        recommendation:
+          type: string
+          example: "Hire"
+
+# -----------------------------------------------------------------------------
+# 6. API Endpoints (Paths)
+# The complete definition of all available API routes.
+# -----------------------------------------------------------------------------
+paths:
+
+  # --- Utility Endpoints ---
+  
+  /health:
+    get:
+      tags:
+        - Utility
+      summary: API Health Check
+      description: >-
+        A simple endpoint to check if the API server is up and running.
+        Does not require authentication.
+      operationId: getHealth
+      responses:
+        '200':
+          description: API is healthy and running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '503':
+          description: Service Unavailable (e.g., database connection is down).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  database:
+                    type: string
+                    example: disconnected
+                    
+  /uploads/{filename}:
+    get:
+      tags:
+        - Utility
+      summary: Serve an Uploaded File
+      description: >-
+        Serves static files (resumes, profile pictures)
+        from the upload directory.
+      operationId: getUploadedFile
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          description: The full filename of the file to retrieve.
+          schema:
+            type: string
+            example: resume_42_JaneDoe.pdf
+      responses:
+        '200':
+          description: The requested file.
+          content:
+            application/pdf: {}
+            image/jpeg: {}
+            image/png: {}
+        '404':
+          description: The requested file was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  # --- Authentication Endpoints ---
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a New User
+      description: >-
+        Creates a new user account (Job Seeker or HR).
+        Returns a JWT token and user object upon successful registration.
+      operationId: registerUser
+      requestBody:
+        description: User registration details.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '201':
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Validation error (e.g., email already exists).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorValidation'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Log In a User
+      description: >-
+        Authenticates a user with their email and password.
+        Returns a JWT token and user object upon successful login.
+      operationId: loginUser
+      requestBody:
+        description: User login credentials.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid credentials (wrong email or password).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get Current User
+      description: >-
+        Retrieves the user object for the currently authenticated user
+        (based on the JWT token).
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized (token is missing, invalid, or expired).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found (e.g., user deleted after token was issued).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  # (Google OAuth endpoints from user's code are omitted for brevity,
+  # as they are redirect-based and less common in pure-JSON APIs.
+  # But they would be documented here.)
+  
+  # --- Job Seeker - Profile Endpoints ---
+
+  /profiles/me:
+    get:
+      tags:
+        - Job Seeker - Profile
+      summary: Get My Profile
+      description: >-
+        Retrieves the complete profile for the
+        currently authenticated job seeker.
+      operationId: getMyProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The user's complete profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Profile not found for this user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+    put:
+      tags:
+        - Job Seeker - Profile
+      summary: Update My Profile
+      description: >-
+        Updates the core details of the
+        currently authenticated job seeker's profile.
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: The profile fields to update.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileInput'
+      responses:
+        '200':
+          description: Profile updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorValidation'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /profiles/me/resume:
+    post:
+      tags:
+        - Job Seeker - Profile
+      summary: Upload My Resume
+      description: >-
+        Uploads a resume file (PDF, DOCX) for the current user.
+        This will replace any existing resume.
+      operationId: uploadMyResume
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: The resume file to upload.
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [resume]
+              properties:
+                resume:
+                  type: string
+                  format: binary
+                  description: The resume file.
+      responses:
+        '200':
+          description: Resume uploaded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Resume uploaded successfully
+                  resume_url:
+                    type: string
+                    format: uri
+                    example: https://hirehero.example.com/uploads/resume_42_v2.pdf
+        '400':
+          description: Bad request (e.g., no file, wrong file type).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /profiles/me/avatar:
+    post:
+      tags:
+        - Job Seeker - Profile
+      summary: Upload My Profile Picture
+      description: >-
+        Uploads a profile picture (JPG, PNG) for the current user.
+        This will replace any existing avatar.
+      operationId: uploadMyAvatar
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: The image file to upload.
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [profile_pic]
+              properties:
+                profile_pic:
+                  type: string
+                  format: binary
+                  description: The image file.
+      responses:
+        '200':
+          description: Profile picture uploaded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Profile picture uploaded successfully
+                  profile_pic_url:
+                    type: string
+                    format: uri
+                    example: https://hirehero.example.com/uploads/avatar_42_v2.jpg
+        '400':
+          description: Bad request (e.g., no file, wrong file type).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # --- Job Seeker - Profile Experience ---
+
+  /profiles/me/experiences:
+    post:
+      tags:
+        - Job Seeker - Profile
+      summary: Add Experience
+      description: Adds a new professional experience to the current user's profile.
+      operationId: addMyExperience
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperienceInput'
+      responses:
+        '201':
+          description: Experience added successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experience'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorValidation'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /profiles/me/experiences/{exp_id}:
+    put:
+      tags:
+        - Job Seeker - Profile
+      summary: Update Experience
+      description: Updates an existing professional experience on the current user's profile.
+      operationId: updateMyExperience
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: exp_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the experience to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperienceInput'
+      responses:
+        '200':
+          description: Experience updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experience'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorValidation'
+        '401':
+          description: Unauthorized.
+        '404':
+          description: Experience not found.
+          
+    delete:
+      tags:
+        - Job Seeker - Profile
+      summary: Delete Experience
+      description: Deletes an existing professional experience from the current user's profile.
+      operationId: deleteMyExperience
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: exp_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the experience to delete.
+      responses:
+        '204':
+          description: Experience deleted successfully (No Content).
+        '401':
+          description: Unauthorized.
+        '404':
+          description: Experience not found.
+
+  # --- Job Seeker - Jobs Endpoints ---
+
+  /jobs:
+    get:
+      tags:
+        - Job Seeker - Jobs
+      summary: Get All Jobs (Paginated)
+      description: >-
+        Retrieves a paginated list of all active job listings.
+        This is for general browsing. Use `/jobs/search` for filtering.
+      operationId: getAllJobs
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: The page number to retrieve.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: The number of jobs per page.
+      responses:
+        '200':
+          description: A paginated list of jobs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
+                      
+  /jobs/search:
+    get:
+      tags:
+        - Job Seeker - Jobs
+      summary: Search for Jobs
+      description: >-
+        A powerful search endpoint to find jobs based on keywords,
+        location, job type, and more.
+      operationId: searchJobs
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search keyword (e.g., "Python", "Marketing Manager").
+        - in: query
+          name: location
+          schema:
+            type: string
+          description: City, state, or "remote".
+          example: "New York, NY"
+        - in: query
+          name: employment_type
+          schema:
+            type: string
+            enum: [full_time, part_time, contract, internship]
+          description: Filter by employment type.
+        - in: query
+          name: job_type
+          schema:
+            type: string
+            enum: [on_site, remote, hybrid]
+          description: Filter by job type.
+        - in: query
+          name: min_salary
+          schema:
+            type: integer
+          description: Filter for jobs with a minimum salary >= this value.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: A paginated list of matching jobs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
+                      
+  /jobs/{job_id}:
+    get:
+      tags:
+        - Job Seeker - Jobs
+      summary: Get Job by ID
+      description: Retrieves the full details for a single job listing.
+      operationId: getJobById
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the job to retrieve.
+      responses:
+        '200':
+          description: The job details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          description: Job not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # --- Job Seeker - Applications Endpoints ---
+
+  /applications:
+    post:
+      tags:
+        - Job Seeker - Applications
+      summary: Apply for a Job
+      description: >-
+        Submits a new application for a job. The user must be
+        authenticated as a 'job_seeker'. The system will use the
+        user's 'default' or 'latest' resume.
+      operationId: applyForJob
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationInput'
+      responses:
+        '201':
+          description: Application submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          description: Bad request (e.g., already applied, job not found).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden (e.g., an HR user cannot apply for a job).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /applications/my:
+    get:
+      tags:
+        - Job Seeker - Applications
+      summary: Get My Applications
+      description: >-
+        Retrieves a list of all applications submitted by the
+        currently authenticated user.
+        
+        **Fulfills User Story US-5: Candidate Status Tracker.**
+      operationId: getMyApplications
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [applied, under_review, interviewing, offer_extended, rejected, withdrawn]
+          description: Filter applications by status.
+      responses:
+        '200':
+          description: A list of the user's applications.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplicationDetailed'
+        '401':
+          description: Unauthorized.
+          
+  /applications/my/{app_id}:
+    get:
+      tags:
+        - Job Seeker - Applications
+      summary: Get My Application by ID
+      description: >-
+        Retrieves the details of a single application submitted by
+        the currently authenticated user.
+        
+        **Fulfills User Story US-5: Candidate Status Tracker.**
+      operationId: getMyApplicationById
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application.
+      responses:
+        '200':
+          description: The application details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetailed'
+        '401':
+          description: Unauthorized.
+        '404':
+          description: Application not found or does not belong to user.
+          
+    delete:
+      tags:
+        - Job Seeker - Applications
+      summary: Withdraw My Application
+      description: >-
+        Allows a job seeker to withdraw their application.
+        The status will be set to 'withdrawn'.
+      operationId: withdrawMyApplication
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application to withdraw.
+      responses:
+        '200':
+          description: Application withdrawn successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          description: Unauthorized.
+        '404':
+          description: Application not found or does not belong to user.
+
+  # --- Job Seeker - Screening Form (US-3) ---
+  
+  /applications/{app_id}/screening-form:
+    get:
+      tags:
+        - Job Seeker - Applications
+      summary: Get Screening Form
+      description: >-
+        (Job Seeker Role Required) Retrieves the screening form
+        questions for a specific application.
+        
+        **Part of User Story US-3: Candidate Screening.**
+      operationId: getScreeningForm
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application.
+      responses:
+        '200':
+          description: The screening form questions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScreeningFormResponse'
+        '401':
+          description: Unauthorized.
+        '404':
+          description: Application or form not found.
+          
+    post:
+      tags:
+        - Job Seeker - Applications
+      summary: Submit Screening Form
+      description: >-
+        (Job Seeker Role Required) Submits the answers for a
+        screening form.
+        
+        **Part of User Story US-3: Candidate Screening.**
+      operationId: submitScreeningForm
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScreeningAnswerSubmission'
+      responses:
+        '200':
+          description: Form submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: Validation error (e.g., incomplete form).
+        '401':
+          description: Unauthorized.
+        '404':
+          description: Application or form not found.
+
+  # --- Job Seeker - Interviews Endpoints (New) ---
+
+  /interviews/my:
+    get:
+      tags:
+        - Job Seeker - Interviews
+      summary: Get My Interviews
+      description: >-
+        Retrieves a list of all upcoming and past interviews
+        for the currently authenticated user.
+      operationId: getMyInterviews
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: period
+          schema:
+            type: string
+            enum: [upcoming, past, all]
+            default: upcoming
+          description: Filter interviews by time.
+      responses:
+        '200':
+          description: A list of the user's interviews.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Interview'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  # --- Job Seeker - Timeline Endpoints (New) ---
+
+  /timeline/my:
+    get:
+      tags:
+        - Job Seeker - Timeline
+      summary: Get My Activity Timeline
+      description: >-
+        Retrieves a reverse-chronological list of all activities
+        related to the user (application updates, messages, etc.).
+      operationId: getMyTimeline
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 25
+          description: Number of events to retrieve.
+      responses:
+        '200':
+          description: A list of timeline events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimelineEvent'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  # --- HR - Jobs Endpoints ---
+
+  /hr/jobs:
+    post:
+      tags:
+        - HR - Jobs
+      summary: Create Job Listing
+      description: >-
+        (HR Role Required) Creates a new job listing for the
+        HR user's company.
+      operationId: createJob
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: The details of the job to create.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobInput'
+      responses:
+        '201':
+          description: Job created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: Validation error.
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden (user is not an HR).
+
+  /hr/jobs/{job_id}:
+    put:
+      tags:
+        - HR - Jobs
+      summary: Update Job Listing
+      description: >-
+        (HR Role Required) Updates an existing job listing
+        owned by the HR user's company.
+      operationId: updateJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the job to update.
+      requestBody:
+        description: The job fields to update.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobInput'
+      responses:
+        '200':
+          description: Job updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: Validation error.
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Job not found.
+          
+    delete:
+      tags:
+        - HR - Jobs
+      summary: Delete Job Listing
+      description: >-
+        (HR Role Required) Deletes a job listing.
+        This is a permanent action.
+      operationId: deleteJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the job to delete.
+      responses:
+        '204':
+          description: Job deleted successfully (No Content).
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Job not found.
+          
+  # --- HR - AI Matching Endpoints (US-1, US-2) ---
+  
+  /hr/matching/rank-resumes:
+    post:
+      tags:
+        - HR - AI Matching
+      summary: Rank Resumes against a Job Description
+      description: >-
+        (HR Role Required) Uploads one job description and multiple resumes.
+        Returns a ranked shortlist of the top 10 candidates.
+        
+        **Fulfills User Story US-1: Resume-JD Matching.**
+        The response includes detailed explanations,
+        **fulfilling User Story US-2: Explainable Match View.**
+      operationId: rankResumes
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: The Job Description and resume files to rank.
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JDRankingRequest'
+      responses:
+        '200':
+          description: A ranked list of the top 10 candidates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JDRankingResponse'
+        '400':
+          description: Bad request (e.g., no JD, no resumes).
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+          
+  # --- HR - Applications Endpoints ---
+
+  /hr/applications:
+    get:
+      tags:
+        - HR - Applications
+      summary: Get All Applications for Company
+      description: >-
+        (HR Role Required) Retrieves all applications for all jobs
+        at the HR user's company.
+      operationId: getCompanyApplications
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: job_id
+          schema:
+            type: integer
+          description: Filter applications by a specific job ID.
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [applied, under_review, interviewing, offer_extended, rejected, withdrawn]
+          description: Filter applications by status.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: A paginated list of applications.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  applications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApplicationDetailed'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+          
+  /hr/applications/{app_id}:
+    get:
+      tags:
+        - HR - Applications
+      summary: Get Application by ID
+      description: >-
+        (HR Role Required) Retrieves the full details
+        for a single application.
+      operationId: getApplicationById
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application.
+      responses:
+        '200':
+          description: The application details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetailed'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Application not found.
+          
+    put:
+      tags:
+        - HR - Applications
+      summary: Update Application Status
+      description: >-
+        (HR Role Required) Updates the status of an application
+        (e.g., move to "interviewing").
+      operationId: updateApplicationStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationStatusUpdate'
+      responses:
+        '200':
+          description: Application status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          description: Invalid status transition.
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Application not found.
+
+  # --- HR - Screening & Feedback (US-3, US-4) ---
+  
+  /hr/screening-forms:
+    post:
+      tags:
+        - HR - Applications
+      summary: Create Screening Form
+      description: >-
+        (HR Role Required) Creates a new structured screening
+        form for a specific job.
+        
+        **Part of User Story US-3: Candidate Screening.**
+      operationId: createScreeningForm
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScreeningFormInput'
+      responses:
+        '201':
+          description: Screening form created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageWithID'
+        '400':
+          description: Validation error.
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+
+  /hr/applications/{app_id}/screening-result:
+    get:
+      tags:
+        - HR - Applications
+      summary: Get Application Screening Result
+      description: >-
+        (HR Role Required) Retrieves the auto-scored results
+        from a candidate's screening form submission.
+        
+        **Part of User Story US-3: Candidate Screening.**
+      operationId: getScreeningResult
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application.
+      responses:
+        '200':
+          description: The scored screening results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScreeningResult'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Application not found or form not submitted.
+          
+  /hr/applications/{app_id}/feedback:
+    post:
+      tags:
+        - HR - Applications
+      summary: Submit Interview Feedback
+      description: >-
+        (HR Role Required) Allows a panel member to submit
+        structured feedback for an application.
+        
+        **Part of User Story US-4: Feedback Summary.**
+      operationId: submitFeedback
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackInput'
+      responses:
+        '201':
+          description: Feedback submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: Validation error.
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Application not found.
+          
+  /hr/applications/{app_id}/feedback-summary:
+    get:
+      tags:
+        - HR - Applications
+      summary: Get AI Feedback Summary
+      description: >-
+        (HR Role Required) Retrieves an AI-generated
+        summary of all submitted panel feedback for an application.
+        
+        **Fulfills User Story US-4: Feedback Summary.**
+      operationId: getFeedbackSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: app_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the application.
+      responses:
+        '200':
+          description: The AI-generated feedback summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackSummary'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Application not found or no feedback submitted.
+
+  # --- HR - Interviews Endpoints (New) ---
+
+  /hr/interviews:
+    post:
+      tags:
+        - HR - Applications
+      summary: Schedule an Interview
+      description: >-
+        (HR Role Required) Schedules a new interview for an application.
+        This will typically send a notification to the candidate.
+      operationId: scheduleInterview
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewInput'
+      responses:
+        '201':
+          description: Interview scheduled successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interview'
+        '400':
+          description: Validation error (e.g., invalid time, user not found).
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+          
+  # --- HR - Employee Endpoints ---
+
+  /hr/employees:
+    get:
+      tags:
+        - HR - Employees
+      summary: Get All Employees
+      description: >-
+        (HR Role Required) Retrieves a list of all employees
+        at the HR user's company.
+      operationId: getEmployees
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: A paginated list of employees.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  employees:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Employee'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+          
+    post:
+      tags:
+        - HR - Employees
+      summary: Create Employee Record
+      description: >-
+        (HR Role Required) Creates a new employee record.
+        This is typically done after a candidate is hired.
+      operationId: createEmployee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeInput'
+      responses:
+        '201':
+          description: Employee record created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400':
+          description: Validation error.
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+          
+  /hr/employees/{emp_id}:
+    get:
+      tags:
+        - HR - Employees
+      summary: Get Employee by ID
+      description: >-
+        (HR Role Required) Retrieves the details for a
+        single employee.
+      operationId: getEmployeeById
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: emp_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the employee.
+      responses:
+        '200':
+          description: The employee's details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Employee not found.
+          
+    put:
+      tags:
+        - HR - Employees
+      summary: Update Employee Record
+      description: >-
+        (HR Role Required) Updates an employee's record
+        (e.g., promotion, department change).
+      operationId: updateEmployee
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: emp_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the employee to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeInput'
+      responses:
+        '200':
+          description: Employee record updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Employee not found.
+
+  # --- HR - Employee Performance Endpoints ---
+
+  /hr/employees/{emp_id}/performance-reviews:
+    post:
+      tags:
+        - HR - Employees
+      summary: Add Performance Review
+      description: >-
+        (HR Role Required) Adds a performance review for an employee.
+      operationId: addPerformanceReview
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: emp_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the employee.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceReviewInput'
+      responses:
+        '201':
+          description: Review added successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceReview'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Employee not found.
+          
+  /hr/performance-reviews/{review_id}:
+    put:
+      tags:
+        - HR - Employees
+      summary: Update Performance Review
+      description: >-
+        (HR Role Required) Updates an existing performance review.
+      operationId: updatePerformanceReview
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: review_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the review.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceReviewInput'
+      responses:
+        '200':
+          description: Review updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceReview'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Review not found.
+
+  # --- HR - Profiles Endpoints ---
+
+  /hr/profiles/{user_id}:
+    get:
+      tags:
+        - HR - Profiles
+      summary: Get User Profile by ID
+      description: >-
+        (HR Role Required) Retrieves the full profile for any user
+        (e.g., a candidate or an employee) by their user ID.
+      operationId: getUserProfileById
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the user.
+      responses:
+        '200':
+          description: The user's complete profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: User or profile not found.
+
+  # --- Generative AI Endpoints ---
+
+  /gen-ai/chat:
+    post:
+      tags:
+        - Generative AI
+      summary: Chat with AI Assistant
+      description: >-
+        Sends a message to the AI chatbot. Can be used by both
+        Job Seekers (for advice) and HR (for insights).
+        
+        **Fulfills User Story CH-4: Recruiter Copilot** by passing
+        an `application_id` in the context object.
+        
+        **Fulfills User Story CH-5: Candidate Status Q&A** as the
+        authenticated user's status can be looked up by the backend.
+      operationId: chatWithAI
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: The AI's response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Bad request (e.g., empty prompt).
+        '401':
+          description: Unauthorized.
+          
+  /gen-ai/parse-resume:
+    post:
+      tags:
+        - Generative AI
+      summary: Parse a Resume
+      description: >-
+        Uploads a resume file and returns structured JSON data.
+        Can be used by Job Seekers to auto-fill their profile
+        or by HR to parse an applicant's resume.
+      operationId: parseResume
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResumeParseRequest'
+      responses:
+        '200':
+          description: Resume parsed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeParseResponse'
+        '400':
+          description: Bad request (e.g., invalid file type, unparseable).
+        '401':
+          description: Unauthorized.
+          
+  /gen-ai/generate-jd:
+    post:
+      tags:
+        - Generative AI
+      summary: Generate Job Description
+      description: >-
+        (HR Role Required) Generates a professional job description
+        based on a few key inputs (title, skills, etc.).
+        
+        **Fulfills User Story CH-3: JD Drafting via Chat.**
+      operationId: generateJobDescription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JDGenerateRequest'
+      responses:
+        '200':
+          description: Job description generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JDGenerateResponse'
+        '400':
+          description: Bad request (e.g., missing title).
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+          
+  /gen-ai/generate-cover-letter:
+    post:
+      tags:
+        - Generative AI
+      summary: Generate Cover Letter Draft
+      description: >-
+        (Job Seeker Role Required) Generates a draft cover letter
+        for a specific job, using the user's profile and the job
+        details as context.
+      operationId: generateCoverLetter
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoverLetterGenerateRequest'
+      responses:
+        '200':
+          description: Cover letter draft generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoverLetterGenerateResponse'
+        '400':
+          description: Bad request (e.g., job ID not found).
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+          
+  # --- Generative AI User Story Endpoints (CH-1, CH-2) ---
+
+  /gen-ai/generate-interview-guide:
+    post:
+      tags:
+        - Generative AI
+      summary: Generate Interview Guide
+      description: >-
+        (HR Role Required) Asks the chatbot for an interview guide
+        for a given JD (and optionally a candidate).
+        
+        **Fulfills User Story CH-1: Interview Guide Generator.**
+      operationId: generateInterviewGuide
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterviewGuideRequest'
+      responses:
+        '200':
+          description: The generated interview guide.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewGuideResponse'
+        '400':
+          description: Bad request (e.g., missing JD).
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+
+  /gen-ai/summarize-feedback:
+    post:
+      tags:
+        - Generative AI
+      summary: Summarize Panel Feedback
+      description: >-
+        (HR Role Required) Pastes panel notes into the chatbot
+        and gets a concise summary.
+        
+        **Fulfills User Story CH-2: Feedback Summarizer.**
+      operationId: summarizeFeedback
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackSummarizeRequest'
+      responses:
+        '200':
+          description: The AI-generated summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackSummarizeResponse'
+        '400':
+          description: Bad request (e.g., empty notes).
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
