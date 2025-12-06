@@ -123,11 +123,11 @@ export default function DashboardApplicant() {
                       <div>
                         <div className="flex items-center space-x-2">
                           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold uppercase text-gray-600">
-                            {job.company[0]}
+                            {(job.company_name || job.company || "C")[0]}
                           </div>
                           <div>
                             <p className="font-medium text-gray-800">{job.title}</p>
-                            <p className="text-sm text-gray-500">{job.company}</p>
+                            <p className="text-sm text-gray-500">{job.company_name || job.company}</p>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">

@@ -6,7 +6,7 @@ interview_bp = Blueprint('interview_bp', __name__)
 def get_my_interviews():
     # TODO: Auth Check
     period = request.args.get('period', 'upcoming')
-    
+
     return jsonify([
         {
             'id': 1,

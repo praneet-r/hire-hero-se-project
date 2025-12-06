@@ -18,7 +18,7 @@ def profile_me():
     profile = user.profile
     if not profile:
         return jsonify({'error': 'Profile not found'}), 404
-        
+
     if request.method == 'GET':
         return jsonify({
             'id': profile.id,
@@ -38,7 +38,7 @@ def profile_me():
             'linkedin_profile': getattr(profile, 'linkedin_profile', ''), # Model might need update
             'github_profile': getattr(profile, 'github_profile', ''),
             'portfolio_url': getattr(profile, 'portfolio_url', ''),
-            'skills': getattr(profile, 'skills', []), 
+            'skills': getattr(profile, 'skills', []),
             'completeness': profile.completeness,
             'experiences': [
                 {
@@ -54,26 +54,26 @@ def profile_me():
             ],
             'educations': getattr(profile, 'educations', []) # Placeholder if not in model yet
         })
-    
+
     # PUT: update profile fields
     data = request.json or {}
     # Fields allowed to be updated by user
     allowed_fields = ['phone', 'location', 'summary', 'profile_pic', 'completeness', 'linkedin_profile', 'github_profile', 'portfolio_url']
-    
+
     # Also handle first_name, last_name in User model
     if 'first_name' in data:
         user.first_name = data['first_name']
     if 'last_name' in data:
         user.last_name = data['last_name']
-        
+
     for field in allowed_fields:
         if field in data:
              if hasattr(profile, field):
                 setattr(profile, field, data[field])
-    
+
     # If skills are passed (assuming model support or ignored for now)
     # if 'skills' in data: profile.skills = data['skills']
-    
+
     db.session.commit()
     return jsonify({'message': 'Profile updated successfully'})
 
@@ -137,7 +137,7 @@ def add_my_experience():
     profile = user.profile
     if not profile:
         return jsonify({'error': 'Profile not found'}), 404
-        
+
     data = request.json
     e = Experience(
         profile_id=profile.id,
@@ -160,11 +160,11 @@ def update_my_experience(exp_id):
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
     profile = user.profile
-    
+
     e = Experience.query.get_or_404(exp_id)
     if e.profile_id != profile.id:
         return jsonify({'error': 'Forbidden'}), 403
-        
+
     data = request.json
     e.title = data.get('title', e.title)
     e.company = data.get('company', e.company)
@@ -173,7 +173,7 @@ def update_my_experience(exp_id):
     e.description = data.get('description', e.description)
     # e.location = data.get('location', e.location)
     # e.is_current = data.get('is_current', e.is_current)
-    
+
     db.session.commit()
     return jsonify({'message': 'Experience updated'})
 
@@ -184,11 +184,11 @@ def delete_my_experience(exp_id):
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
     profile = user.profile
-    
+
     e = Experience.query.get_or_404(exp_id)
     if e.profile_id != profile.id:
         return jsonify({'error': 'Forbidden'}), 403
-        
+
     db.session.delete(e)
     db.session.commit()
     return jsonify({'message': 'Experience deleted'})
