@@ -201,7 +201,7 @@ const JDGeneratorTool = () => {
                             <>
                                 <h5 className="font-bold mt-4">Responsibilities:</h5>
                                 <ul className="list-disc pl-5">
-                                    {result.generated_responsibilities.map((r, i) => <li key={i}>{r}</li>)}
+                                    {result.generated_responsibilities?.map((r, i) => <li key={i}>{r}</li>)}
                                 </ul>
                             </>
                         )}
@@ -209,7 +209,7 @@ const JDGeneratorTool = () => {
                             <>
                                 <h5 className="font-bold mt-4">Qualifications:</h5>
                                 <ul className="list-disc pl-5">
-                                    {result.generated_qualifications.map((q, i) => <li key={i}>{q}</li>)}
+                                    {result.generated_qualifications?.map((q, i) => <li key={i}>{q}</li>)}
                                 </ul>
                             </>
                         )}
@@ -262,13 +262,13 @@ const InterviewGuideTool = () => {
                         <div>
                             <h5 className="font-bold text-[#005193]">Behavioral Questions</h5>
                             <ul className="list-disc pl-5 mt-1 space-y-1">
-                                {result.behavioral_questions.map((q, i) => <li key={i}>{q}</li>)}
+                                {result.behavioral_questions?.map((q, i) => <li key={i}>{q}</li>)}
                             </ul>
                         </div>
                         <div>
                             <h5 className="font-bold text-[#005193]">Technical Questions</h5>
                             <ul className="list-disc pl-5 mt-1 space-y-1">
-                                {result.technical_questions.map((q, i) => <li key={i}>{q}</li>)}
+                                {result.technical_questions?.map((q, i) => <li key={i}>{q}</li>)}
                             </ul>
                         </div>
                         <div>
@@ -331,13 +331,13 @@ const FeedbackSummarizerTool = () => {
                             <div className="bg-green-50 p-3 rounded-lg border border-green-100">
                                 <h5 className="font-bold text-green-800 mb-2 flex items-center gap-1"><CheckCircle className="w-4 h-4"/> Strengths</h5>
                                 <ul className="list-disc pl-4 space-y-1">
-                                    {result.strengths.map((s, i) => <li key={i}>{s}</li>)}
-                                ul>
+                                    {result.strengths?.map((s, i) => <li key={i}>{s}</li>)}
+                                </ul>
                             </div>
                             <div className="bg-red-50 p-3 rounded-lg border border-red-100">
                                 <h5 className="font-bold text-red-800 mb-2 flex items-center gap-1"><span className="text-lg leading-3">-</span> Weaknesses</h5>
                                 <ul className="list-disc pl-4 space-y-1">
-                                    {result.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                                    {result.weaknesses?.map((w, i) => <li key={i}>{w}</li>)}
                                 </ul>
                             </div>
                         </div>
