@@ -6,3 +6,4 @@ package-lock.json
 venvn
 __pycache__
 *.pyc
+uploads

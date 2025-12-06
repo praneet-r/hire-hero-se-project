@@ -1,4 +1,4 @@
-const BACKEND_BASE = "http://localhost:5000";
+const BACKEND_BASE = "http://localhost:5000/api";
 import React, { useState, useRef, useEffect } from "react";
 import { getProfileMe, updateProfileMe, uploadResume, uploadProfilePic, addExperience } from '../services/api';
 import { Camera, Eye, Download, Link2, Plus, X } from "lucide-react";
