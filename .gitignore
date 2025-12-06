@@ -1,0 +1,8 @@
+.env
+node_modules
+dist
+coverage
+package-lock.json
+venvn
+__pycache__
+*.pyc

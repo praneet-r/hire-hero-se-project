@@ -1,0 +1,234 @@
+import React, { useState } from 'react';
+import { register } from '../services/api';
+import { useNavigate, Link } from 'react-router-dom';
+import {Users} from "lucide-react";
+
+export default function Register() {
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    // Compose registration payload
+    const payload = {
+      firstName: form.firstName,
+      lastName: form.lastName,
+      phone: form.phone,
+      email: form.email,
+      password: form.password,
+      role: form.role,
+    };
+    try {
+      const res = await register(payload);
+      if (res.user_id) localStorage.setItem('user_id', res.user_id);
+      setSuccess(res.message || 'Registration successful!');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Registration failed');
+    }
+  };
+
+  return (
+    <>
+    <header className="sticky max-w-7xl mx-auto top-5 z-50">
+      <div className="flex items-center justify-between h-20 rounded-3xl bg-white shadow px-6">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2">
+            <div className="bg-gradient-to-r from-[#013362] to-[#005193] text-white rounded-xl p-3 shadow-md flex items-center justify-center">
+              <Users className="h-6 w-6" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-[#013362] tracking-tight ml-2">HireHero</h2>
+        </Link>
+
+        {/* Actions */}
+        <div className="flex items-center gap-4">
+          {/* Sign In or My Account */}
+            <Link
+              to="/"
+              className="px-6 py-3 rounded-2xl text-blue-950 font-medium border border-gray-300 hover:bg-gray-50"
+            >
+              Login
+            </Link>
+          <Link
+            to="/register"
+            className="px-6 py-3 font-normal rounded-2xl bg-gradient-to-r from-[#013362] to-[#005193] text-white hover:bg-[#143d78]"
+          >
+            Register
+          </Link>
+        </div>
+      </div>
+    </header>
+
+    <section className="min-h-[calc(100vh-5rem)] bg-[#F7F8FF] flex items-center justify-center">
+      <div className="max-w-7xl w-full mx-auto grid md:grid-cols-2 rounded-3xl shadow-sm border border-gray-200 bg-white overflow-hidden">
+        {/* ===== Left: Register Form ===== */}
+        <section className="p-10 flex flex-col justify-center">
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-10">
+            <div className="bg-gradient-to-r from-[#013362] to-[#005193] text-white rounded-xl p-3 shadow-md flex items-center justify-center">
+              <Users className="h-6 w-6" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-[#013362] tracking-tight ml-2">Join HireHero</h2>
+          </div>
+
+        {/* Signup Form */}
+        <form className="space-y-5" onSubmit={handleRegister}>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-gray-700">First Name</label>
+              <input
+                type="text"
+                name="firstName"
+                placeholder="Enter first name"
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#005193]"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-700">Last Name</label>
+              <input
+                type="text"
+                name="lastName"
+                placeholder="Enter last name"
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#005193]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm text-gray-700">Company Name</label>
+              <input
+                type="text"
+                name="companyName"
+                placeholder="Enter company name"
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#005193]"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-700">Work Email</label>
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter work email"
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#005193]"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-700">Phone Number</label>
+              <input
+                type="tel"
+                name="phone"
+                placeholder="Enter phone number"
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#005193]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-700">Select Your Role</label>
+            <select
+              name="role"
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#005193]"
+            >
+              <option value="">Select role</option>
+              <option value="hr">HR Professional</option>
+              <option value="candidate">Job Seekers</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-700">Password</label>
+            <input
+              type="password"
+              name="password"
+              placeholder="Create password"
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#005193]"
+            />
+          </div>
+
+          {/* Terms Checkbox */}
+          <div className="flex items-start text-sm text-gray-600">
+            <input
+              type="checkbox"
+              className="accent-[#013362] mt-1 mr-2"
+              required
+            />
+            <p>
+              I agree to the{" "}
+              <a href="#" className="text-[#005193] font-semibold hover:underline">
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a href="#" className="text-[#005193] font-semibold hover:underline">
+                Privacy Policy
+              </a>
+              .
+            </p>
+          </div>
+
+          {/* Error/Success Messages */}
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+          {success && <div className="text-green-600 text-sm">{success}</div>}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-[#013362] to-[#005193] text-white py-2.5 rounded-lg font-semibold hover:opacity-90 transition"
+          >
+            Create Account 🡢 
+          </button>
+        </form>
+
+
+          <p className="text-center text-sm text-gray-500 mt-6">
+            Already have an account?{' '}
+            <a href="/" className="text-[#005193] font-semibold hover:underline">
+              Login
+            </a>
+          </p>
+        </section>
+
+        {/* ===== Right: Info Section ===== */}
+        <section
+          className="relative bg-[#013362] text-white p-10 flex flex-col justify-center overflow-hidden"
+        >
+          <div className="absolute inset-0 w-full h-full z-0">
+            <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: "url('/background.jpg')" }}>
+              <div className="w-full h-full bg-[#013362] bg-opacity-60"></div>
+            </div>
+          </div>
+          <div className="relative z-10">
+            <div className="max-w-md">
+              <h2 className="text-3xl font-bold mb-6 leading-snug">
+                AI Powered HR Management
+              </h2>
+              <ul className="space-y-4 text-md">
+                <li className="flex items-center gap-2">
+                  <img src="/check.svg" alt="check" className="w-10 h-8" /> Automated resume screening
+                </li>
+                <li className="flex items-center gap-2">
+                  <img src="/check.svg" alt="check" className="w-10 h-8" /> Intelligent performance insights
+                </li>
+                <li className="flex items-center gap-2">
+                  <img src="/check.svg" alt="check" className="w-10 h-8" /> Smart employee matching
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+    </>
+  );
+}
