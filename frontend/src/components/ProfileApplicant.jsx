@@ -1,8 +1,7 @@
 const BACKEND_BASE = "http://localhost:5000";
 import React, { useState, useRef, useEffect } from "react";
-import { getProfileMe, updateProfileMe, uploadResume, uploadProfilePic } from '../services/api';
-import { Camera } from "lucide-react";
-import { Eye, Download, Link2 } from "lucide-react";
+import { getProfileMe, updateProfileMe, uploadResume, uploadProfilePic, addExperience } from '../services/api';
+import { Camera, Eye, Download, Link2, Plus, X } from "lucide-react";
 import TopNavbarApplicant from "../components/TopNavbarApplicant";
 
 const ProfileApplicant = () => {
@@ -21,9 +20,27 @@ const ProfileApplicant = () => {
     experiences: [],
   });
 
+  const [showExpModal, setShowExpModal] = useState(false);
+  const [newExp, setNewExp] = useState({
+    title: "",
+    company: "",
+    start_date: "",
+    end_date: "",
+    description: ""
+  });
+  const [loading, setLoading] = useState(false);
+
   // Use display_user_id for profile API, numeric user_id for backend
   const userId = localStorage.getItem('display_user_id') || '1';
   const [status, setStatus] = useState({ msg: '', type: '' });
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "Present";
+    const date = new Date(dateString);
+    // Check if valid date
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+  };
 
   useEffect(() => {
     async function fetchProfile() {
@@ -52,14 +69,24 @@ const ProfileApplicant = () => {
   }, [userId]);
 
   // Handler for updating profile
-  const handleProfileUpdate = async (field, value) => {
+  const handleInputChange = (field, value) => {
+    setProfile(prev => ({ ...prev, [field]: value }));
+  };
+
+  // 2. Manual Save Changes
+  const handleSaveChanges = async () => {
+    setLoading(true);
     try {
-      await updateProfileMe(userId, { [field]: value });
-      setProfile(p => ({ ...p, [field]: value }));
-      setStatus({ msg: 'Profile updated successfully!', type: 'success' });
+      await updateProfileMe(userId, {
+        location: profile.location,
+        phone: profile.phone,
+        summary: profile.summary
+      });
+      setStatus({ msg: 'Changes saved successfully!', type: 'success' });
     } catch {
-      setStatus({ msg: 'Failed to update profile.', type: 'error' });
+      setStatus({ msg: 'Failed to save changes.', type: 'error' });
     }
+    setLoading(false);
     setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
   };
 
@@ -84,12 +111,28 @@ const ProfileApplicant = () => {
       setResumeFile(file);
       try {
         await uploadResume(userId, file);
-        setStatus({ msg: 'Resume uploaded and sent for AI training!', type: 'success' });
+        setStatus({ msg: 'Resume uploaded successfully!', type: 'success' });
       } catch {
         setStatus({ msg: 'Failed to upload resume.', type: 'error' });
       }
       setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
     }
+  };
+
+  const handleAddExperience = async (e) => {
+    e.preventDefault();
+    try {
+      await addExperience(newExp);
+      setStatus({ msg: 'Experience added!', type: 'success' });
+      setShowExpModal(false);
+      setNewExp({ title: "", company: "", start_date: "", end_date: "", description: "" });
+      // Refresh profile to see new experience
+      const p = await getProfileMe(userId);
+      setProfile(prev => ({ ...prev, experiences: p.experiences || [] }));
+    } catch {
+      setStatus({ msg: 'Failed to add experience.', type: 'error' });
+    }
+    setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
   };
 
   return (
@@ -182,41 +225,46 @@ const ProfileApplicant = () => {
           <div className="lg:col-span-2 space-y-8">
             {/* Personal Info */}
             <div className="bg-white/90 p-8 rounded-2xl shadow border border-blue-100">
-              <h3 className="text-xl font-bold mb-6 text-[#013362]">Personal Information</h3>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-[#013362]">Personal Information</h3>
+                {/* [NEW SAVE BUTTON] */}
+                <button 
+                  onClick={handleSaveChanges} 
+                  disabled={loading}
+                  className="bg-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#013362] transition disabled:opacity-50"
+                >
+                  {loading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* ... Full Name and Email remain readOnly ... */}
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    value={profile.fullName}
-                    readOnly
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-gray-100 cursor-not-allowed"
-                  />
+                  <input type="text" value={profile.fullName} readOnly className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-gray-100 cursor-not-allowed" />
                 </div>
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={profile.email}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-[#013362] bg-gray-100 cursor-not-allowed"
-                    readOnly
-                  />
+                  <input type="email" value={profile.email} readOnly className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-gray-100 cursor-not-allowed" />
                 </div>
+
+                {/* [UPDATED PHONE INPUT - Removed readOnly, added onChange] */}
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Phone Number</label>
                   <input
                     type="text"
                     value={profile.phone}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-[#013362] bg-gray-100 cursor-not-allowed"
-                    readOnly
+                    onChange={e => handleInputChange('phone', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-[#013362]"
                   />
                 </div>
+                {/* [UPDATED LOCATION INPUT - Changed handler] */}
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Location</label>
                   <input
                     type="text"
                     value={profile.location}
-                    onChange={e => handleProfileUpdate('location', e.target.value)}
+                    onChange={e => handleInputChange('location', e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-[#013362]"
                   />
                 </div>
@@ -224,11 +272,12 @@ const ProfileApplicant = () => {
 
               <div className="mt-6">
                 <label className="block text-sm text-gray-500 mb-1">Professional Summary</label>
+                {/* [UPDATED TEXTAREA - Changed handler] */}
                 <textarea
                   rows="3"
                   value={profile.summary}
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-[#013362]"
-                  onChange={e => handleProfileUpdate('summary', e.target.value)}
+                  onChange={e => handleInputChange('summary', e.target.value)}
                 ></textarea>
               </div>
             </div>
@@ -237,11 +286,14 @@ const ProfileApplicant = () => {
             <div className="bg-white/90 p-8 rounded-2xl shadow border border-blue-100">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-[#013362]">Work Experience</h3>
-                <button className="text-sm bg-gradient-to-r from-[#005193] to-[#013362] hover:opacity-90 text-white px-4 py-2 rounded-md font-semibold shadow-md transition">
-                  + Add Experience
+                {/* [UPDATED BUTTON] */}
+                <button 
+                  onClick={() => setShowExpModal(true)}
+                  className="flex items-center gap-2 text-sm bg-gradient-to-r from-[#005193] to-[#013362] hover:opacity-90 text-white px-4 py-2 rounded-md font-semibold shadow-md transition"
+                >
+                  <Plus className="w-4 h-4" /> Add Experience
                 </button>
               </div>
-
               <div className="space-y-5">
                 {profile.experiences.map((exp, idx) => (
                   <div
@@ -254,17 +306,17 @@ const ProfileApplicant = () => {
                           {exp.logo}
                         </div>
                         <div>
-                          <h4 className="font-semibold text-[#013362]">{exp.role}</h4>
+                          <h4 className="font-semibold text-[#013362]">{exp.title}</h4>
                           <p className="text-sm text-gray-500">{exp.company}</p>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-500 mt-2 md:mt-0">{exp.duration}</p>
+                      <p className="text-sm text-gray-500 mt-2 md:mt-0">{formatDate(exp.start_date)} - {formatDate(exp.end_date)}</p>
                     </div>
 
                     <p className="text-sm text-gray-700 mt-2">{exp.description}</p>
 
                     <div className="flex flex-wrap gap-2 mt-3">
-                      {exp.tags.map((tag, i) => (
+                      {(exp.tags || []).map((tag, i) => (
                         <span
                           key={i}
                           className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-md font-medium"
@@ -280,6 +332,50 @@ const ProfileApplicant = () => {
             </div>
           </div>
       </div>
+      {showExpModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 className="text-lg font-bold text-[#013362]">Add Work Experience</h3>
+                    <button onClick={() => setShowExpModal(false)} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+                <form onSubmit={handleAddExperience} className="space-y-4">
+                    <div>
+                        <label className="text-sm text-gray-700">Job Title</label>
+                        <input required type="text" className="w-full border rounded-lg p-2 text-sm" 
+                            value={newExp.title} onChange={e => setNewExp({...newExp, title: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-700">Company</label>
+                        <input required type="text" className="w-full border rounded-lg p-2 text-sm" 
+                            value={newExp.company} onChange={e => setNewExp({...newExp, company: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm text-gray-700">Start Date</label>
+                            <input required type="date" className="w-full border rounded-lg p-2 text-sm" 
+                                value={newExp.start_date} onChange={e => setNewExp({...newExp, start_date: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="text-sm text-gray-700">End Date</label>
+                            <input type="date" className="w-full border rounded-lg p-2 text-sm" 
+                                value={newExp.end_date} onChange={e => setNewExp({...newExp, end_date: e.target.value})} />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-700">Description</label>
+                        <textarea className="w-full border rounded-lg p-2 text-sm" rows="3"
+                            value={newExp.description} onChange={e => setNewExp({...newExp, description: e.target.value})}></textarea>
+                    </div>
+                    <button type="submit" className="w-full bg-[#005193] text-white py-2 rounded-lg font-semibold hover:opacity-90">
+                        Add Experience
+                    </button>
+                </form>
+            </div>
+        </div>
+      )}
       {/* Status Pill */}
       {status.msg && (
         <div
