@@ -261,14 +261,16 @@ const InterviewGuideTool = () => {
                         <h4 className="font-bold text-lg border-b pb-2">Interview Guide: {result.job_title}</h4>
                         <div>
                             <h5 className="font-bold text-[#005193]">Behavioral Questions</h5>
+                            {/* FIX: Default to empty array to prevent map error */}
                             <ul className="list-disc pl-5 mt-1 space-y-1">
-                                {result.behavioral_questions.map((q, i) => <li key={i}>{q}</li>)}
+                                {(result.behavioral_questions || []).map((q, i) => <li key={i}>{q}</li>)}
                             </ul>
                         </div>
                         <div>
                             <h5 className="font-bold text-[#005193]">Technical Questions</h5>
+                            {/* FIX: Default to empty array to prevent map error */}
                             <ul className="list-disc pl-5 mt-1 space-y-1">
-                                {result.technical_questions.map((q, i) => <li key={i}>{q}</li>)}
+                                {(result.technical_questions || []).map((q, i) => <li key={i}>{q}</li>)}
                             </ul>
                         </div>
                         <div>
@@ -332,7 +334,7 @@ const FeedbackSummarizerTool = () => {
                                 <h5 className="font-bold text-green-800 mb-2 flex items-center gap-1"><CheckCircle className="w-4 h-4"/> Strengths</h5>
                                 <ul className="list-disc pl-4 space-y-1">
                                     {result.strengths.map((s, i) => <li key={i}>{s}</li>)}
-                                ul>
+                                </ul>
                             </div>
                             <div className="bg-red-50 p-3 rounded-lg border border-red-100">
                                 <h5 className="font-bold text-red-800 mb-2 flex items-center gap-1"><span className="text-lg leading-3">-</span> Weaknesses</h5>
