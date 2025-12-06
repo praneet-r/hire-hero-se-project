@@ -12,10 +12,10 @@ def create_application():
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
-        
+
     data = request.json
     job_id = data.get('job_id')
-    
+
     if not job_id:
         return jsonify({'error': 'job_id is required'}), 400
 
@@ -42,12 +42,12 @@ def get_my_applications():
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
-        
+
     status_filter = request.args.get('status')
     query = Application.query.filter_by(user_id=user.id)
     if status_filter:
         query = query.filter_by(status=status_filter)
-        
+
     applications = query.all()
     enriched = []
     for app in applications:
@@ -74,11 +74,11 @@ def get_my_applications():
 def get_my_application(app_id):
     user = get_current_user()
     if not user: return jsonify({'error': 'Unauthorized'}), 401
-    
+
     app = Application.query.get_or_404(app_id)
     if app.user_id != user.id:
         return jsonify({'error': 'Not found or forbidden'}), 404
-        
+
     job = app.job
     return jsonify({
         'application_details': {
@@ -98,11 +98,11 @@ def get_my_application(app_id):
 def withdraw_application(app_id):
     user = get_current_user()
     if not user: return jsonify({'error': 'Unauthorized'}), 401
-    
+
     app = Application.query.get_or_404(app_id)
     if app.user_id != user.id:
         return jsonify({'error': 'Not found or forbidden'}), 404
-        
+
     app.status = 'withdrawn'
     db.session.commit()
     return jsonify({'message': 'Application withdrawn successfully'})
@@ -134,13 +134,13 @@ def get_company_applications():
 
     job_id = request.args.get('job_id')
     status = request.args.get('status')
-    
+
     query = Application.query
     if job_id:
         query = query.filter_by(job_id=job_id)
     if status:
         query = query.filter_by(status=status)
-        
+
     applications = query.all()
     enriched = []
     for app in applications:
