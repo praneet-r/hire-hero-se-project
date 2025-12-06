@@ -48,7 +48,7 @@ export default function Register() {
         <div className="flex items-center gap-4">
           {/* Sign In or My Account */}
             <Link
-              to="/"
+              to="/login"
               className="px-6 py-3 rounded-2xl text-blue-950 font-medium border border-gray-300 hover:bg-gray-50"
             >
               Login
@@ -193,7 +193,7 @@ export default function Register() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Already have an account?{' '}
-            <a href="/" className="text-[#005193] font-semibold hover:underline">
+            <a href="/login" className="text-[#005193] font-semibold hover:underline">
               Login
             </a>
           </p>

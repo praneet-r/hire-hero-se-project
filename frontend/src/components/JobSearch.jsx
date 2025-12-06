@@ -10,6 +10,7 @@ const JobSearch = () => {
   const [applyingId, setApplyingId] = useState(null);
   const [applyStatus, setApplyStatus] = useState({}); // { [jobId]: 'success' | 'error' }
   const [status, setStatus] = useState({ msg: '', type: '' });
+  const [selectedJob, setSelectedJob] = useState(null);
 
   const handleApply = async (jobId) => {
     setApplyingId(jobId);
@@ -169,7 +170,10 @@ const JobSearch = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 mt-2 items-end sm:items-center">
-                <button className="px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2 text-[#005193] hover:underline bg-transparent border-none shadow-none transition">
+                <button
+                  className="px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2 text-[#005193] hover:underline bg-transparent border-none shadow-none transition"
+                  onClick={() => setSelectedJob(job)}
+                >
                   View Details
                 </button>
                 <button
@@ -212,6 +216,56 @@ const JobSearch = () => {
           ))}
         </main>
       </div>
+
+      {/* Job Details Modal */}
+      {selectedJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-2xl font-extrabold text-[#013362]">{selectedJob.title}</h3>
+                  <p className="text-sm text-gray-500 font-semibold">{selectedJob.company_name || selectedJob.company || "HireHero"}</p>
+                </div>
+                <button onClick={() => setSelectedJob(null)} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-6">
+                <span className="bg-blue-50 text-[#005193] px-3 py-1 rounded-full text-xs font-semibold">{selectedJob.type || selectedJob.employmentType || "Full-time"}</span>
+                <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">{selectedJob.salary || "Competitive"}</span>
+                <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">{selectedJob.location || "Remote"}</span>
+              </div>
+
+              <div className="prose text-sm text-gray-700 mb-6">
+                <h4 className="font-bold text-[#013362] mb-2">Description</h4>
+                <p className="whitespace-pre-wrap">{selectedJob.description}</p>
+              </div>
+
+              {selectedJob.tags && selectedJob.tags.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-bold text-[#013362] mb-2">Required Skills</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(Array.isArray(selectedJob.tags) ? selectedJob.tags : typeof selectedJob.tags === 'string' ? selectedJob.tags.split(',') : []).map(tag => (
+                      <span key={tag} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button onClick={() => setSelectedJob(null)} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 rounded-lg">Close</button>
+                <button
+                  className="px-6 py-2 bg-gradient-to-r from-[#005193] to-[#013362] text-white rounded-lg text-sm font-bold shadow-md hover:opacity-90 disabled:opacity-50"
+                  onClick={() => { handleApply(selectedJob.id); setSelectedJob(null); }}
+                  disabled={applyingId === selectedJob.id}
+                >
+                  Apply Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -45,7 +45,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="text-lg text-gray-600 max-w-xl leading-relaxed">
-              Streamline your hiring process with Generative AI. From resume screening to automated interviews and feedback, HireHero empowers HR teams to find the best talent faster.
+              Streamline your hiring process or job search with Generative AI. HireHero empowers HR teams to find talent faster and helps Job Seekers land their dream jobs with AI-assisted tools.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
@@ -105,9 +105,9 @@ export default function LandingPage() {
         </div>
         <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8">
             {[
-                { icon: FileText, title: "Automated JD Creation", desc: "Generate professional job descriptions in seconds with AI." },
-                { icon: Users, title: "Candidate Ranking", desc: "Instantly identify top candidates based on skill match." },
-                { icon: Sparkles, title: "AI Interview Guide", desc: "Get tailored interview questions for every role." },
+                { icon: FileText, title: "For Recruiters", desc: "Generate JDs, screen resumes, and get interview guides instantly with AI." },
+                { icon: Users, title: "For Job Seekers", desc: "AI-powered resume optimization, cover letter generation, and smart job matching." },
+                { icon: Sparkles, title: "Unbiased Matching", desc: "Our AI connects the right talent to the right role, ensuring a fair process." },
             ].map((feature, i) => (
                 <div key={i} className="p-8 rounded-3xl bg-gray-50 hover:bg-blue-50 transition border border-gray-100">
                     <feature.icon className="h-10 w-10 text-[#005193] mb-4" />

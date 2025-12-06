@@ -65,6 +65,7 @@ def get_my_applications():
                 'title': job.title if job else '',
                 'company_name': job.company if job else '',
                 'tags': job.tags.split(',') if job and job.tags else [],
+                'description': job.description if job else '',
                 # ... limited fields for summary
             }
         })

@@ -56,6 +56,11 @@ export const applyToJob = async (jobId) => {
   return res.data;
 }
 
+export const withdrawApplication = async (appId) => {
+  const res = await axiosAuth.delete(`/applications/my/${appId}`);
+  return res.data;
+}
+
 export const getApplications = async () => {
   // Backend returns: [{ application_details: {...}, job_details: {...} }]
   // Frontend expects: [{ id, status, title, company, ... }]
@@ -69,7 +74,8 @@ export const getApplications = async () => {
       applied_at: item.application_details.applied_at,
       title: item.job_details.title,
       company: item.job_details.company_name,
-      tags: item.job_details.tags || []
+      tags: item.job_details.tags || [],
+      description: item.job_details.description
     }));
   }
   return [];
@@ -138,6 +144,16 @@ export const getCompanyApplications = async () => {
 
 export const createEmployee = async (employeeData) => {
   const res = await axiosAuth.post('/hr/employees', employeeData);
+  return res.data;
+}
+
+export const updateEmployee = async (id, data) => {
+  const res = await axiosAuth.put(`/hr/employees/${id}`, data);
+  return res.data;
+}
+
+export const deleteEmployee = async (id) => {
+  const res = await axiosAuth.delete(`/hr/employees/${id}`);
   return res.data;
 }
 

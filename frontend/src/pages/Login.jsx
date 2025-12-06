@@ -54,7 +54,7 @@ export default function Login() {
         <div className="flex items-center gap-4">
           {/* Sign In or My Account */}
             <Link
-              to="/"
+              to="/login"
               className="px-6 py-3 rounded-2xl text-blue-950 font-medium border border-gray-300 hover:bg-gray-50"
             >
               Login
