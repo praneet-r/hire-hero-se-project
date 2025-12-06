@@ -6,7 +6,7 @@ matching_bp = Blueprint('matching_bp', __name__)
 def rank_resumes():
     # TODO: Auth Check (HR)
     # Check for files and JD
-
+    
     return jsonify({
         'ranking': [
             {

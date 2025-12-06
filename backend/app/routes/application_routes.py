@@ -12,10 +12,10 @@ def create_application():
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
-
+        
     data = request.json
     job_id = data.get('job_id')
-
+    
     if not job_id:
         return jsonify({'error': 'job_id is required'}), 400
 
@@ -42,12 +42,12 @@ def get_my_applications():
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
-
+        
     status_filter = request.args.get('status')
     query = Application.query.filter_by(user_id=user.id)
     if status_filter:
         query = query.filter_by(status=status_filter)
-
+        
     applications = query.all()
     enriched = []
     for app in applications:
@@ -64,6 +64,7 @@ def get_my_applications():
                 'id': job.id if job else None,
                 'title': job.title if job else '',
                 'company_name': job.company if job else '',
+                'tags': job.tags.split(',') if job and job.tags else [],
                 # ... limited fields for summary
             }
         })
@@ -73,11 +74,11 @@ def get_my_applications():
 def get_my_application(app_id):
     user = get_current_user()
     if not user: return jsonify({'error': 'Unauthorized'}), 401
-
+    
     app = Application.query.get_or_404(app_id)
     if app.user_id != user.id:
         return jsonify({'error': 'Not found or forbidden'}), 404
-
+        
     job = app.job
     return jsonify({
         'application_details': {
@@ -97,11 +98,11 @@ def get_my_application(app_id):
 def withdraw_application(app_id):
     user = get_current_user()
     if not user: return jsonify({'error': 'Unauthorized'}), 401
-
+    
     app = Application.query.get_or_404(app_id)
     if app.user_id != user.id:
         return jsonify({'error': 'Not found or forbidden'}), 404
-
+        
     app.status = 'withdrawn'
     db.session.commit()
     return jsonify({'message': 'Application withdrawn successfully'})
@@ -127,17 +128,19 @@ def submit_screening_form(app_id):
 
 @application_bp.route('/hr/applications', methods=['GET'])
 def get_company_applications():
-    # TODO: Auth Check (HR Role)
-
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+    
     job_id = request.args.get('job_id')
     status = request.args.get('status')
-
+    
     query = Application.query
     if job_id:
         query = query.filter_by(job_id=job_id)
     if status:
         query = query.filter_by(status=status)
-
+        
     applications = query.all()
     enriched = []
     for app in applications:
@@ -156,7 +159,10 @@ def get_company_applications():
 
 @application_bp.route('/hr/applications/<int:app_id>', methods=['GET'])
 def get_application_hr(app_id):
-    # TODO: Auth Check
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     app = Application.query.get_or_404(app_id)
     user = User.query.get(app.user_id)
     job = app.job
@@ -174,7 +180,10 @@ def get_application_hr(app_id):
 
 @application_bp.route('/hr/applications/<int:app_id>', methods=['PUT'])
 def update_application_status(app_id):
-    # TODO: Auth Check
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     app = Application.query.get_or_404(app_id)
     data = request.json
     status = data.get('status')

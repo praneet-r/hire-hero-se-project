@@ -9,13 +9,13 @@ def chat_with_ai():
     prompt = data.get('prompt')
     session_id = data.get('session_id')
     context = data.get('context')
-
+    
     if not prompt:
         return jsonify({'error': 'Prompt is required'}), 400
 
     # Mock response for now or use existing engine
     reply = f"AI Response to: {prompt}"
-
+    
     return jsonify({
         'reply': reply,
         'session_id': session_id or 'new_session_123',
@@ -26,7 +26,7 @@ def chat_with_ai():
 def parse_resume():
     if 'resume_file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
-
+        
     # Mock parsing
     return jsonify({
         'parsed_profile': {
@@ -40,7 +40,7 @@ def parse_resume():
 def generate_jd():
     data = request.json
     title = data.get('title')
-
+    
     return jsonify({
         'generated_description': f"Job Description for {title}...",
         'generated_responsibilities': ['Do X', 'Do Y'],
@@ -50,7 +50,7 @@ def generate_jd():
 @genai_bp.route('/gen-ai/generate-cover-letter', methods=['POST'])
 def generate_cover_letter():
     data = request.json
-
+    
     return jsonify({
         'generated_draft': "Dear Hiring Manager, ..."
     })

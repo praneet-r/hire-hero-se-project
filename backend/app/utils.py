@@ -24,7 +24,7 @@ def get_current_user():
     user_id = request.headers.get('X-User-Id')
     if not user_id:
         return None
-
+    
     # user_id is now firstname+last 3 digits of phone
     # Find user by matching first_name and last 3 digits of phone in profile
     match = re.match(r"([A-Za-z]+)(\d{1,3})$", user_id)

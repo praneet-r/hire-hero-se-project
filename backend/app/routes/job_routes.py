@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from ..database import db
 from ..models import Job
+from ..utils import get_current_user
 
 job_bp = Blueprint('job_bp', __name__)
 
@@ -11,15 +12,15 @@ def get_jobs():
     # Helper for pagination
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 20, type=int)
-
+    
     # In a real app, use .paginate()
     jobs = Job.query.all() # Fetch all for now, slice later or update query
-
+    
     # Simple pagination simulation
     start = (page - 1) * limit
     end = start + limit
     paginated_jobs = jobs[start:end]
-
+    
     job_list = [{
         'id': job.id,
         'title': job.title,
@@ -33,7 +34,7 @@ def get_jobs():
         'salary_currency': getattr(job, 'salary_currency', 'USD'),
         'tags': job.tags.split(',') if job.tags else [],
         'created_at': job.created_at,
-        'company_logo_url': getattr(job, 'company_logo_url', '')
+        'company_logo_url': getattr(job, 'company_logo_url', '') 
     } for job in paginated_jobs]
 
     return jsonify({
@@ -51,7 +52,7 @@ def search_jobs():
     q = request.args.get('q', '').lower()
     location = request.args.get('location', '').lower()
     # ... other filters
-
+    
     # Simple search implementation
     all_jobs = Job.query.all()
     filtered = []
@@ -64,10 +65,10 @@ def search_jobs():
         if location:
             if location not in (job.location or '').lower():
                 match = False
-
+        
         if match:
             filtered.append(job)
-
+            
     return jsonify({
         'pagination': {'total_items': len(filtered)},
         'jobs': [{
@@ -103,12 +104,19 @@ def get_job(job_id):
 
 @job_bp.route('/hr/jobs', methods=['POST'])
 def create_job():
-    # TODO: Auth Check (HR Role)
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     data = request.json
+    company = data.get('company_name') or data.get('company')
+    if not company:
+        company = user.company_name or "Unknown Company"
+
     job = Job(
         title=data.get('title'),
         description=data.get('description'),
-        company=data.get('company_name') or data.get('company'),
+        company=company,
         department=data.get('department'),
         location=data.get('location'),
         type=data.get('employment_type') or data.get('type'),
@@ -129,14 +137,14 @@ def update_job(job_id):
     # TODO: Auth Check (HR Role)
     job = Job.query.get_or_404(job_id)
     data = request.json
-
+    
     if 'title' in data: job.title = data['title']
     if 'description' in data: job.description = data['description']
     if 'company_name' in data: job.company = data['company_name']
     elif 'company' in data: job.company = data['company']
-
+    
     # ... map other fields
-
+    
     db.session.commit()
     return jsonify({'message': 'Job updated successfully'})
 

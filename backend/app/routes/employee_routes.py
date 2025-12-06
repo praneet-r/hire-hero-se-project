@@ -2,6 +2,7 @@ import os
 from flask import Blueprint, request, jsonify, current_app
 from ..database import db
 from ..models import Employee, Performance, User
+from ..utils import get_current_user
 
 employee_bp = Blueprint('employee_bp', __name__)
 
@@ -9,10 +10,13 @@ employee_bp = Blueprint('employee_bp', __name__)
 
 @employee_bp.route('/hr/employees', methods=['GET'])
 def get_employees():
-    # TODO: Auth Check
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 20, type=int)
-
+    
     employees = Employee.query.all()
     # Simple pagination
     start = (page - 1) * limit
@@ -32,7 +36,7 @@ def get_employees():
         }
         for e in paginated
     ]
-
+    
     return jsonify({
         'pagination': {
             'page': page,
@@ -70,9 +74,13 @@ def get_employee(emp_id):
 
 @employee_bp.route('/hr/employees', methods=['POST'])
 def create_employee():
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     data = request.json
     user_id = data.get('user_id')
-
+    
     # Logic for creating user if not exists (from original code)
     if not user_id:
         # Check if email provided for new user
@@ -83,7 +91,7 @@ def create_employee():
             else:
                 # Create rudimentary user
                 u = User(
-                    first_name=data.get('first_name', 'New'),
+                    first_name=data.get('first_name', 'New'), 
                     last_name=data.get('last_name', 'Employee'),
                     email=data['email'],
                     role='employee'
@@ -92,7 +100,7 @@ def create_employee():
                 db.session.add(u)
                 db.session.flush()
                 user_id = u.id
-
+    
     e = Employee(
         user_id=user_id,
         job_title=data.get('job_title'),
@@ -116,7 +124,7 @@ def update_employee(emp_id):
     if 'department' in data: e.department = data['department']
     if 'photo_url' in data: e.photo = data['photo_url']
     if 'job_location' in data: e.job_location = data['job_location']
-
+    
     db.session.commit()
     return jsonify({'message': 'Employee updated'})
 
@@ -146,7 +154,7 @@ def update_performance_review(review_id):
     if 'value' in data: p.value = data['value']
     if 'review_date' in data: p.date = data['review_date']
     if 'date' in data: p.date = data['date']
-
+    
     db.session.commit()
     return jsonify({'message': 'Review updated successfully'})
 

@@ -38,11 +38,11 @@ const MyApplications = () => {
           <p className="text-gray-500 text-sm font-medium">Total Applications</p>
         </div>
         <div className="bg-white rounded-2xl border border-blue-100 shadow p-6 text-center">
-          <h2 className="text-3xl font-extrabold text-[#013362]">{applications.filter(app => app.status && app.status.toLowerCase().includes('interview')).length}</h2>
+          <h2 className="text-3xl font-extrabold text-[#013362]">{applications.filter(app => app.status && (app.status.toLowerCase().includes('interview') || app.status === 'interviewing')).length}</h2>
           <p className="text-gray-500 text-sm font-medium">Interviews</p>
         </div>
         <div className="bg-white rounded-2xl border border-blue-100 shadow p-6 text-center">
-          <h2 className="text-3xl font-extrabold text-[#013362]">{applications.filter(app => app.status && app.status.toLowerCase().includes('offer')).length}</h2>
+          <h2 className="text-3xl font-extrabold text-[#013362]">{applications.filter(app => app.status && (app.status.toLowerCase().includes('offer') || app.status === 'offer_extended')).length}</h2>
           <p className="text-gray-500 text-sm font-medium">Offers</p>
         </div>
         <div className="bg-white rounded-2xl border border-blue-100 shadow p-6 text-center">
@@ -69,9 +69,9 @@ const MyApplications = () => {
           >
             <option value="all">All Status</option>
             <option value="applied">Applied</option>
-            <option value="interview scheduled">Interview Scheduled</option>
-            <option value="offer received">Offer Received</option>
-            <option value="under review">Under Review</option>
+            <option value="interviewing">Interviewing</option>
+            <option value="offer_extended">Offer Extended</option>
+            <option value="under_review">Under Review</option>
             <option value="rejected">Rejected</option>
           </select>
         </div>
@@ -97,11 +97,11 @@ const MyApplications = () => {
                   </button>
                   <span
                     className={`px-4 py-2 text-sm rounded-full font-semibold shadow-sm transition-all ${
-                      app.status === "offer received"
+                      app.status === "offer_extended" || app.status === "offer received"
                         ? "bg-blue-100 text-blue-700"
-                        : app.status === "interview scheduled"
+                        : app.status === "interviewing" || app.status === "interview scheduled"
                         ? "bg-green-100 text-green-700"
-                        : app.status === "under review"
+                        : app.status === "under_review" || app.status === "under review"
                         ? "bg-yellow-100 text-yellow-700"
                         : "bg-red-100 text-red-700"
                     }`}

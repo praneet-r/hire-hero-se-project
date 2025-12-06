@@ -56,7 +56,7 @@ export default function DashboardApplicant() {
           time: app.applied_at || "recently"
         })));
         // Example: filter upcoming interviews
-        setUpcomingInterviews(applications.filter(app => app.status === "interview").map(app => ({
+        setUpcomingInterviews(applications.filter(app => app.status === "interviewing" || app.status === "interview").map(app => ({
           company: `Job #${app.job_id}`,
           role: "Interview"
         })));

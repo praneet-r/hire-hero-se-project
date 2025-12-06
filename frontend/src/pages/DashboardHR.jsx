@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getEmployees, getJobs, getApplications } from "../services/api";
+import { getEmployees, getJobs, getCompanyApplications, getCandidates } from "../services/api";
 import { Download, Sparkles, AlertCircle, BookOpen, Users, Plus, Briefcase, FileText, User, BarChart2, Mail, Phone } from "lucide-react";
 import RecruitmentTab from "../components/RecruitmentTab";
 import EmployeesTab from "../components/EmployeesTab";
@@ -22,12 +22,9 @@ export default function DashboardHR() {
     useEffect(() => {
       async function fetchResumeScreening() {
         try {
-          const res = await import('../services/api');
-          const profiles = await res.getProfiles();
-          // Only include candidates
-          const candidateProfiles = profiles.filter(p => (p.role || '').toLowerCase() === 'candidate');
-          // Mock AI match: random or based on completeness
-          const aiProfiles = candidateProfiles.map(p => {
+          const profiles = await getCandidates();
+          // Mock AI match: random or based on completeness (if available, otherwise random)
+          const aiProfiles = profiles.map(p => {
             let fullName = '';
             if (p.first_name && p.last_name) {
               fullName = `${p.first_name} ${p.last_name}`.trim();
@@ -42,8 +39,8 @@ export default function DashboardHR() {
               name: fullName,
               email: p.email || '',
               phone: p.phone || '',
-              role: p.summary || p.role || 'Applicant',
-              match: p.completeness ? `${Math.round((p.completeness || 0) * 100)}%` : `${Math.floor(Math.random()*21)+80}%`,
+              role: 'Candidate', // getCandidates returns basic info
+              match: `${Math.floor(Math.random()*21)+80}%`,
             };
           });
           // Sort by match descending, take top 3
@@ -88,7 +85,7 @@ export default function DashboardHR() {
           const [employees, jobs, applications] = await Promise.all([
             getEmployees(),
             getJobs(),
-            getApplications(),
+            getCompanyApplications(),
           ]);
           // Example logic for metrics
           const totalEmployees = employees.length;
