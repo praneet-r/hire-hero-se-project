@@ -143,7 +143,10 @@ export default function DashboardHR() {
                 <h1 className="text-2xl font-extrabold text-[#013362]">
                   Welcome, <span className="font-semibold">{username || "User"}</span>
                 </h1>
-                <button className="bg-gradient-to-r from-[#013362] to-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md flex items-center gap-2 hover:opacity-90">
+                <button
+                  className="bg-gradient-to-r from-[#013362] to-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md flex items-center gap-2 hover:opacity-90"
+                  onClick={() => alert("Export feature coming soon!")}
+                >
                   <Download className="h-4 w-4" /> Export
                 </button>
               </div>

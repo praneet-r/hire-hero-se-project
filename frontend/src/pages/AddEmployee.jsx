@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { createEmployee } from "../services/api";
+import { createEmployee, axiosAuth } from "../services/api";
 import { getProfileByUserId } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
@@ -73,7 +73,7 @@ const AddEmployee = () => {
         const ext = formData.photo.name.split('.').pop();
         const filename = `employee_${baseName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}.${ext}`;
         uploadData.append("photo", formData.photo, filename);
-        const uploadRes = await axios.post("/api/employees/upload_photo", uploadData, {
+        const uploadRes = await axiosAuth.post("/hr/employees/upload_photo", uploadData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         photoPath = uploadRes.data.photo;

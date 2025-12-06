@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { getEmployees } from "../services/api";
+import { Link } from "react-router-dom";
+import { getEmployees, deleteEmployee, updateEmployee } from "../services/api";
 import {
   Users,
   Briefcase,
@@ -25,25 +26,80 @@ const EmployeesTab = () => {
     const [departmentOptions, setDepartmentOptions] = useState([]);
     const [locationFilter, setLocationFilter] = useState("");
     const [locationOptions, setLocationOptions] = useState([]);
+    const [selectedEmp, setSelectedEmp] = useState(null); // For Edit Modal
+    const [editForm, setEditForm] = useState({});
 
     // Fetch employee data (AJAX)
-    useEffect(() => {
-      async function fetchEmployees() {
-        try {
-          const data = await getEmployees();
-          setEmployees(data);
-          setFilteredEmployees(data);
-          // Extract unique departments and job locations
-          const departments = Array.from(new Set(data.map(e => e.department).filter(Boolean)));
-          const locations = Array.from(new Set(data.map(e => e.job_location).filter(Boolean)));
-          setDepartmentOptions(departments);
-          setLocationOptions(locations);
-        } catch (err) {
-          console.error("Failed to fetch employees", err);
-        }
+    const fetchEmployees = async () => {
+      try {
+        const data = await getEmployees();
+        setEmployees(data);
+        setFilteredEmployees(data);
+        const departments = Array.from(new Set(data.map(e => e.department).filter(Boolean)));
+        const locations = Array.from(new Set(data.map(e => e.job_location).filter(Boolean)));
+        setDepartmentOptions(departments);
+        setLocationOptions(locations);
+      } catch (err) {
+        console.error("Failed to fetch employees", err);
       }
+    };
+
+    useEffect(() => {
       fetchEmployees();
     }, []);
+
+    const handleDelete = async (id) => {
+      if (!confirm("Are you sure you want to delete this employee?")) return;
+      try {
+        await deleteEmployee(id);
+        fetchEmployees();
+      } catch (err) {
+        alert("Failed to delete employee");
+      }
+    };
+
+    const handleStatusUpdate = async (id, status) => {
+      try {
+        // Assuming backend supports status update via generic update or we add it
+        // My backend update_employee supports generic fields.
+        // I need to ensure backend Employee model has 'status' field or I use another field.
+        // Checking backend model... Employee has job_title, department, job_location, photo. No status?
+        // Wait, User has role. Employee status might be implicit or missing.
+        // If missing, I can't update it. I'll check backend/app/models.
+        // Assuming it's missing, I'll skip backend update for status or use a placeholder if I can't change schema.
+        // Actually, let's just log it for now if model doesn't support it.
+        // But for completeness, I should assume I can update 'department' or 'job_location'.
+        // Let's implement Edit Modal instead of inline status toggle if status field doesn't exist.
+        // But I'll try to update job_location as a proxy for "active" if needed, or just skip status logic if backend lacks it.
+        // Re-reading `employee_routes.py`:
+        // if 'job_title' in data: e.job_title = data['job_title']
+        // if 'department' in data: e.department = data['department']
+        // if 'photo_url' in data: e.photo = data['photo_url']
+        // if 'job_location' in data: e.job_location = data['job_location']
+        // No status field. So I can't persist status.
+        // I will implement Delete and Edit (Title/Dept/Location).
+      } catch (err) {}
+    };
+
+    const handleEditClick = (emp) => {
+      setSelectedEmp(emp);
+      setEditForm({
+        job_title: emp.job_title,
+        department: emp.department,
+        job_location: emp.job_location
+      });
+    };
+
+    const handleSaveEdit = async () => {
+      if (!selectedEmp) return;
+      try {
+        await updateEmployee(selectedEmp.id, editForm);
+        setSelectedEmp(null);
+        fetchEmployees();
+      } catch (err) {
+        alert("Failed to update");
+      }
+    };
 
     // Live search + filter logic
     useEffect(() => {
@@ -86,9 +142,9 @@ const EmployeesTab = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z" />
                 </svg>
               </div>
-              <a href="/add-employee" className="flex items-center gap-2 bg-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">
+              <Link to="/add-employee" className="flex items-center gap-2 bg-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">
                 <Plus className="h-4 w-4" /> Add Employee
-              </a>
+              </Link>
             </div>
           </div>
           {/* Stats and Filters */}
@@ -181,20 +237,16 @@ const EmployeesTab = () => {
                     <div className="text-gray-600">{emp.hired_at ? new Date(emp.hired_at).toLocaleDateString() : "-"}</div>
                     <div className="text-gray-600">{emp.role}</div>
                     <div className="text-right flex gap-2 justify-end">
-                      <button className="border border-gray-300 text-[#005193] px-2 py-1 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">
-                        View
+                      <button
+                        className="border border-gray-300 text-[#005193] px-2 py-1 rounded-lg text-xs font-semibold hover:bg-gray-50 transition"
+                        onClick={() => handleEditClick(emp)}
+                      >
+                        Edit
                       </button>
-                      {emp.status && emp.status.toLowerCase() !== "active" && (
-                        <button className="border border-green-500 text-green-600 px-2 py-1 rounded-lg text-xs font-semibold hover:bg-green-50 transition">
-                          Activate
-                        </button>
-                      )}
-                      {(!emp.status || emp.status.toLowerCase() === "active") && (
-                        <button className="border border-yellow-500 text-yellow-600 px-2 py-1 rounded-lg text-xs font-semibold hover:bg-yellow-50 transition">
-                          Deactivate
-                        </button>
-                      )}
-                      <button className="border border-red-500 text-red-600 px-2 py-1 rounded-lg text-xs font-semibold hover:bg-red-50 transition">
+                      <button
+                        className="border border-red-500 text-red-600 px-2 py-1 rounded-lg text-xs font-semibold hover:bg-red-50 transition"
+                        onClick={() => handleDelete(emp.id)}
+                      >
                         Delete
                       </button>
                     </div>
@@ -208,6 +260,45 @@ const EmployeesTab = () => {
               Showing {filteredEmployees.length} of {employees.length} employees
             </p>
           </div>
+
+          {/* Edit Modal */}
+          {selectedEmp && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+              <div className="bg-white rounded-xl shadow-lg p-6 w-96">
+                <h3 className="text-lg font-bold text-[#013362] mb-4">Edit Employee</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500">Job Title</label>
+                    <input
+                      className="w-full border border-gray-300 rounded p-2 text-sm"
+                      value={editForm.job_title || ''}
+                      onChange={e => setEditForm({...editForm, job_title: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500">Department</label>
+                    <input
+                      className="w-full border border-gray-300 rounded p-2 text-sm"
+                      value={editForm.department || ''}
+                      onChange={e => setEditForm({...editForm, department: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500">Location</label>
+                    <input
+                      className="w-full border border-gray-300 rounded p-2 text-sm"
+                      value={editForm.job_location || ''}
+                      onChange={e => setEditForm({...editForm, job_location: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-6">
+                  <button onClick={() => setSelectedEmp(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                  <button onClick={handleSaveEdit} className="px-4 py-2 text-sm bg-[#005193] text-white rounded hover:opacity-90">Save</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>  
     
         );

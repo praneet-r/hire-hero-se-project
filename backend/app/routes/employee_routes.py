@@ -128,6 +128,38 @@ def update_employee(emp_id):
     db.session.commit()
     return jsonify({'message': 'Employee updated'})
 
+@employee_bp.route('/hr/employees/<int:emp_id>', methods=['DELETE'])
+def delete_employee(emp_id):
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
+    e = Employee.query.get_or_404(emp_id)
+    db.session.delete(e)
+    db.session.commit()
+    return jsonify({'message': 'Employee deleted successfully'})
+
+# Upload employee profile photo
+@employee_bp.route('/hr/employees/upload_photo', methods=['POST'])
+def upload_employee_photo():
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
+    if 'photo' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    filename = file.filename
+    upload_folder = os.path.join(current_app.root_path, 'uploads')
+    os.makedirs(upload_folder, exist_ok=True)
+    file_path = os.path.join(upload_folder, filename)
+    file.save(file_path)
+    photo_url = f"/uploads/{filename}"
+    return jsonify({'photo': photo_url})
+
 # --- HR - Performance Reviews ---
 
 @employee_bp.route('/hr/employees/<int:emp_id>/performance-reviews', methods=['POST'])

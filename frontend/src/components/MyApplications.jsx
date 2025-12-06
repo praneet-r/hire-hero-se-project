@@ -1,21 +1,34 @@
 import React, { useState, useEffect } from "react";
-import { getApplications } from '../services/api';
+import { getApplications, withdrawApplication } from '../services/api';
 import { Calendar, Trash2 } from "lucide-react";
 
 const MyApplications = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedApp, setSelectedApp] = useState(null); // Modal state
 
   const [applications, setApplications] = useState([]);
+  const fetchApplications = async () => {
+    try {
+      const data = await getApplications();
+      setApplications(data);
+    } catch {}
+  };
+
   useEffect(() => {
-    async function fetchApplications() {
-      try {
-        const data = await getApplications();
-        setApplications(data);
-      } catch {}
-    }
     fetchApplications();
   }, []);
+
+  const handleWithdraw = async (appId) => {
+    if (!confirm("Are you sure you want to withdraw this application?")) return;
+    try {
+      await withdrawApplication(appId);
+      // Refresh list or remove locally
+      setApplications(prev => prev.filter(a => a.id !== appId));
+    } catch (err) {
+      alert("Failed to withdraw application.");
+    }
+  };
 
   const filteredApps = applications.filter((app) => {
     const title = typeof app.title === 'string' ? app.title : '';
@@ -92,7 +105,10 @@ const MyApplications = () => {
                   {/* <span className="inline-block mt-1 bg-white border border-blue-200 text-[#005193] text-sm font-extrabold rounded-full px-4 py-2 tracking-wide shadow-sm transition-all align-middle w-fit">{app.company}</span> */}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <button className="px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2 text-[#005193] hover:underline bg-transparent border-none shadow-none transition">
+                  <button
+                    className="px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2 text-[#005193] hover:underline bg-transparent border-none shadow-none transition"
+                    onClick={() => setSelectedApp(app)}
+                  >
                     View Details
                   </button>
                   <span
@@ -111,7 +127,11 @@ const MyApplications = () => {
                   <button title="Calendar" className="hover:text-[#005193] transition">
                     <Calendar className="h-5 w-5" />
                   </button>
-                  <button title="Delete" className="hover:text-red-500 transition">
+                  <button
+                    title="Withdraw Application"
+                    className="hover:text-red-500 transition"
+                    onClick={() => handleWithdraw(app.id)}
+                  >
                     <Trash2 className="h-5 w-5" />
                   </button>
                 </div>
@@ -141,6 +161,32 @@ const MyApplications = () => {
           </div>
         )}
       </div>
+
+      {/* View Details Modal */}
+      {selectedApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-2xl font-extrabold text-[#013362]">{selectedApp.title}</h3>
+                  <p className="text-sm text-gray-500 font-semibold">{selectedApp.company}</p>
+                </div>
+                <button onClick={() => setSelectedApp(null)} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+              </div>
+
+              <div className="prose text-sm text-gray-700 mb-6">
+                <h4 className="font-bold text-[#013362] mb-2">Job Description</h4>
+                <p className="whitespace-pre-wrap">{selectedApp.description || "No description available."}</p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button onClick={() => setSelectedApp(null)} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 rounded-lg">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

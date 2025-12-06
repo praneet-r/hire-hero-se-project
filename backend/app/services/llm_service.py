@@ -1,11 +1,16 @@
 import os
 import json
+import google.generativeai as genai
 
 class LLMService:
     def __init__(self):
         self.mode = "mock" # Default to mock
-        # Check for keys
-        # if os.getenv("OPENAI_API_KEY"): self.mode = "openai"
+
+        api_key = os.getenv("GEMINI_API_KEY")
+        if api_key and api_key != "mock":
+            genai.configure(api_key=api_key)
+            self.model = genai.GenerativeModel('gemini-pro')
+            self.mode = "gemini"
 
     def generate_text(self, system_prompt, user_prompt):
         """
@@ -13,7 +18,17 @@ class LLMService:
         """
         if self.mode == "mock":
             return self._mock_response(system_prompt, user_prompt)
-        # elif self.mode == "openai": ...
+        elif self.mode == "gemini":
+            try:
+                # Gemini doesn't support system prompt in v1 natively in the same way as OpenAI,
+                # but we can prepend it.
+                combined_prompt = f"{system_prompt}\n\nUser Request: {user_prompt}"
+                response = self.model.generate_content(combined_prompt)
+                return response.text
+            except Exception as e:
+                print(f"Gemini API Error: {e}")
+                return self._mock_response(system_prompt, user_prompt) # Fallback to mock on error
+
         return "Error: No LLM provider configured."
 
     def _mock_response(self, system_prompt, user_prompt):
