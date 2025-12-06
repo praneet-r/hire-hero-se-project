@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from ..database import db
 from ..models import Job
+from ..utils import get_current_user
 
 job_bp = Blueprint('job_bp', __name__)
 
@@ -103,12 +104,19 @@ def get_job(job_id):
 
 @job_bp.route('/hr/jobs', methods=['POST'])
 def create_job():
-    # TODO: Auth Check (HR Role)
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     data = request.json
+    company = data.get('company_name') or data.get('company')
+    if not company:
+        company = user.company_name or "Unknown Company"
+
     job = Job(
         title=data.get('title'),
         description=data.get('description'),
-        company=data.get('company_name') or data.get('company'),
+        company=company,
         department=data.get('department'),
         location=data.get('location'),
         type=data.get('employment_type') or data.get('type'),

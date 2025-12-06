@@ -64,6 +64,7 @@ def get_my_applications():
                 'id': job.id if job else None,
                 'title': job.title if job else '',
                 'company_name': job.company if job else '',
+                'tags': job.tags.split(',') if job and job.tags else [],
                 # ... limited fields for summary
             }
         })
@@ -127,7 +128,9 @@ def submit_screening_form(app_id):
 
 @application_bp.route('/hr/applications', methods=['GET'])
 def get_company_applications():
-    # TODO: Auth Check (HR Role)
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
 
     job_id = request.args.get('job_id')
     status = request.args.get('status')
@@ -156,7 +159,10 @@ def get_company_applications():
 
 @application_bp.route('/hr/applications/<int:app_id>', methods=['GET'])
 def get_application_hr(app_id):
-    # TODO: Auth Check
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     app = Application.query.get_or_404(app_id)
     user = User.query.get(app.user_id)
     job = app.job
@@ -174,7 +180,10 @@ def get_application_hr(app_id):
 
 @application_bp.route('/hr/applications/<int:app_id>', methods=['PUT'])
 def update_application_status(app_id):
-    # TODO: Auth Check
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     app = Application.query.get_or_404(app_id)
     data = request.json
     status = data.get('status')

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getJobs, getEmployees, getProfiles } from "../services/api";
-import axios from "axios";
+import { getJobs, getEmployees, getCandidates, axiosAuth } from "../services/api";
 import {
   Users,
   Briefcase,
@@ -55,7 +54,7 @@ const RecruitmentTab = () => {
         applicationDeadline: editFields.applicationDeadline,
         status: editFields.status
       };
-      const res = await axios.put(`/api/jobs/${selectedJob.id}`, payload);
+      const res = await axiosAuth.put(`/hr/jobs/${selectedJob.id}`, payload);
       setJobs(jobs => jobs.map(j => j.id === selectedJob.id ? { ...j, ...editFields, tags: payload.tags.split(',') } : j));
       setShowModal(false);
       setSelectedJob(null);
@@ -74,7 +73,7 @@ const RecruitmentTab = () => {
     if (!selectedJob) return;
     setDeleting(true);
     try {
-      await axios.delete(`/api/jobs/${selectedJob.id}`);
+      await axiosAuth.delete(`/hr/jobs/${selectedJob.id}`);
       setJobs(jobs => jobs.filter(j => j.id !== selectedJob.id));
       setShowModal(false);
       setSelectedJob(null);
@@ -86,7 +85,7 @@ const RecruitmentTab = () => {
     if (!selectedJob) return;
     setHolding(true);
     try {
-      await axios.put(`/api/jobs/${selectedJob.id}`, { status: 'on hold' });
+      await axiosAuth.put(`/hr/jobs/${selectedJob.id}`, { status: 'on hold' });
       setJobs(jobs => jobs.map(j => j.id === selectedJob.id ? { ...j, status: 'on hold' } : j));
       setShowModal(false);
       setSelectedJob(null);
@@ -123,14 +122,13 @@ const RecruitmentTab = () => {
       setJobs(jobsWithIcons);
 
       // Fetch candidates (profiles with role 'candidate')
-      const profiles = await getProfiles();
+      const profiles = await getCandidates();
       const candidates = (profiles || [])
-        .filter((p) => (p.role || '').toLowerCase() === 'candidate')
         .map((p, idx) => ({
           id: p.id || idx,
           name: p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.first_name || p.last_name || p.email,
-          role: p.summary || p.role || 'Applicant',
-          match: p.completeness ? `${Math.round((p.completeness || 0) * 100)}%` : `${Math.floor(Math.random()*21)+80}%`,
+          role: 'Candidate', // getCandidates returns basic info
+          match: `${Math.floor(Math.random()*21)+80}%`,
         }));
       setCandidates(candidates);
     }

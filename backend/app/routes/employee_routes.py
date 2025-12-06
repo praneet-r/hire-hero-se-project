@@ -2,6 +2,7 @@ import os
 from flask import Blueprint, request, jsonify, current_app
 from ..database import db
 from ..models import Employee, Performance, User
+from ..utils import get_current_user
 
 employee_bp = Blueprint('employee_bp', __name__)
 
@@ -9,7 +10,10 @@ employee_bp = Blueprint('employee_bp', __name__)
 
 @employee_bp.route('/hr/employees', methods=['GET'])
 def get_employees():
-    # TODO: Auth Check
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 20, type=int)
 
@@ -70,6 +74,10 @@ def get_employee(emp_id):
 
 @employee_bp.route('/hr/employees', methods=['POST'])
 def create_employee():
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
     data = request.json
     user_id = data.get('user_id')
 
