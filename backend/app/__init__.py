@@ -21,7 +21,7 @@ from .models import User, Job, Profile, Experience, Application, Employee, Perfo
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
-
+    
     # Init DB
     db.init_app(app)
 
@@ -29,12 +29,12 @@ def create_app():
         db.create_all()
 
     # Register Blueprints
-    # Note: url_prefix='/api' is common. Some routes might define their own paths if needed,
+    # Note: url_prefix='/api' is common. Some routes might define their own paths if needed, 
     # but based on my files, most assume /api prefix is stripped or added here.
     # Looking at my route definitions:
     # @job_bp.route('/jobs') -> /api/jobs
     # @genai_bp.route('/gen-ai/chat') -> /api/gen-ai/chat
-
+    
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(genai_bp, url_prefix='/api')
     app.register_blueprint(job_bp, url_prefix='/api')
