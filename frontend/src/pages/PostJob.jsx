@@ -12,6 +12,7 @@ import AnalyticsTab from "../components/AnalyticsTab";
 const PostJob = () => {
   const [formData, setFormData] = useState({
     title: "",
+    companyName: "",
     department: "",
     employmentType: "",
     location: "",
@@ -154,6 +155,7 @@ const PostJob = () => {
                     <h2 className="text-lg font-semibold mb-4">Job Information</h2>
                     <div className="grid md:grid-cols-2 gap-4">
                       <Input label="Job Title" name="title" value={formData.title} onChange={handleChange} />
+                      <Input label="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} />
                       <Select label="Select Department" name="department" value={formData.department} onChange={handleChange} options={["Engineering", "HR", "Marketing", "Finance"]} />
                       <Select label="Employment Type" name="employmentType" value={formData.employmentType} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
                       <Select label="Remote Option" name="remoteOption" value={formData.remoteOption} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />

@@ -208,6 +208,7 @@ const RecruitmentTab = () => {
                   className="text-sm border border-gray-300 text-[#005193] px-4 py-1.5 rounded-lg font-semibold hover:bg-gray-50"
                   onClick={() => {
                     setSelectedJob(job);
+                    const salaryParts = job.salary ? job.salary.split('-') : ["", ""];
                     setEditFields({
                       description: job.description || "",
                       company: job.company || "",
@@ -218,8 +219,8 @@ const RecruitmentTab = () => {
                       tags: Array.isArray(job.tags) ? job.tags.join(', ') : (job.tags || ""),
                       experienceLevel: job.experienceLevel || job.experience_level || "",
                       education: job.education || job.education_level || "",
-                      salaryMin: job.salaryMin || (job.salary && job.salary.split('-')[0]) || "",
-                      salaryMax: job.salaryMax || (job.salary && job.salary.split('-')[1]) || "",
+                      salaryMin: salaryParts[0] ? salaryParts[0].trim() : "",
+                      salaryMax: salaryParts[1] ? salaryParts[1].trim() : "",
                       benefits: Array.isArray(job.benefits) ? job.benefits : (job.benefits ? job.benefits.split(',').map(b => b.trim()) : []),
                       applicationDeadline: job.applicationDeadline || job.application_deadline || "",
                       status: job.status || ""

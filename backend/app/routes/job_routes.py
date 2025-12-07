@@ -29,9 +29,11 @@ def get_jobs():
         'location': job.location, # Model might be string, YAML allows object or string
         'employment_type': job.type, # YAML: employment_type, model: type
         'job_type': getattr(job, 'job_type', job.remote_option), # YAML: job_type, model: remote_option?
-        'salary_min': getattr(job, 'salary_min', None), # Model might need update
-        'salary_max': getattr(job, 'salary_max', None),
-        'salary_currency': getattr(job, 'salary_currency', 'USD'),
+        'salary': job.salary, 
+        'experience_level': job.experience_level,
+        'education': job.education,
+        'benefits': job.benefits,
+        'application_deadline': job.application_deadline,
         'tags': job.tags.split(',') if job.tags else [],
         'created_at': job.created_at,
         'company_logo_url': getattr(job, 'company_logo_url', '')
@@ -121,8 +123,8 @@ def create_job():
         location=data.get('location'),
         type=data.get('employment_type') or data.get('type'),
         remote_option=data.get('job_type') or data.get('remoteOption'),
-        # experience_level=data.get('experienceLevel'),
-        # education=data.get('education'),
+        experience_level=data.get('experienceLevel'),
+        education=data.get('education'),
         salary=data.get('salary_min'), # Simplified mapping
         tags=','.join(data.get('tags', [])) if isinstance(data.get('tags'), list) else data.get('tags'),
         benefits=data.get('benefits'),
@@ -142,8 +144,16 @@ def update_job(job_id):
     if 'description' in data: job.description = data['description']
     if 'company_name' in data: job.company = data['company_name']
     elif 'company' in data: job.company = data['company']
-
-    # ... map other fields
+    if 'department' in data: job.department = data['department']
+    if 'location' in data: job.location = data['location']
+    if 'type' in data: job.type = data['type']
+    if 'remoteOption' in data: job.remote_option = data['remoteOption']
+    if 'experienceLevel' in data: job.experience_level = data['experienceLevel']
+    if 'education' in data: job.education = data['education']
+    if 'salary' in data: job.salary = data['salary']
+    if 'tags' in data: job.tags = data['tags']
+    if 'benefits' in data: job.benefits = data['benefits']
+    if 'applicationDeadline' in data: job.application_deadline = data['applicationDeadline']
 
     db.session.commit()
     return jsonify({'message': 'Job updated successfully'})
