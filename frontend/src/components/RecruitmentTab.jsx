@@ -48,7 +48,7 @@ const RecruitmentTab = () => {
         remoteOption: editFields.remoteOption,
         experienceLevel: editFields.experienceLevel,
         education: editFields.education,
-        salary: `${editFields.salaryMin || ''}-${editFields.salaryMax || ''}`,
+        salary: editFields.salary,
         tags: editFields.tags.split(',').map(t => t.trim()).filter(Boolean).join(','),
         benefits: Array.isArray(editFields.benefits) ? editFields.benefits.join(',') : (editFields.benefits || ''),
         applicationDeadline: editFields.applicationDeadline,
@@ -211,16 +211,15 @@ const RecruitmentTab = () => {
                     const salaryParts = job.salary ? job.salary.split('-') : ["", ""];
                     setEditFields({
                       description: job.description || "",
-                      company: job.company || "",
-                      department: job.department || job.department_name || "",
+                      company: job.company || job.company_name || "",
+                      department: job.department || "",
                       employmentType: job.employmentType || job.type || "",
                       remoteOption: job.remoteOption || job.remote_option || "",
                       location: job.location || "",
                       tags: Array.isArray(job.tags) ? job.tags.join(', ') : (job.tags || ""),
                       experienceLevel: job.experienceLevel || job.experience_level || "",
                       education: job.education || job.education_level || "",
-                      salaryMin: salaryParts[0] ? salaryParts[0].trim() : "",
-                      salaryMax: salaryParts[1] ? salaryParts[1].trim() : "",
+                      salary: job.salary || "",
                       benefits: Array.isArray(job.benefits) ? job.benefits : (job.benefits ? job.benefits.split(',').map(b => b.trim()) : []),
                       applicationDeadline: job.applicationDeadline || job.application_deadline || "",
                       status: job.status || ""
@@ -324,12 +323,13 @@ const RecruitmentTab = () => {
                                 <option>Master’s</option>
                                 <option>PhD</option>
                               </select>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Salary Range (min - max)</label>
-                              <div className="flex items-center gap-3">
-                                <input type="number" className="w-1/2 border border-gray-300 rounded-lg px-4 py-2 text-sm" value={editFields.salaryMin || ''} onChange={e => setEditFields(f => ({ ...f, salaryMin: e.target.value }))} placeholder="Min" />
-                                <span>-</span>
-                                <input type="number" className="w-1/2 border border-gray-300 rounded-lg px-4 py-2 text-sm" value={editFields.salaryMax || ''} onChange={e => setEditFields(f => ({ ...f, salaryMax: e.target.value }))} placeholder="Max" />
-                              </div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Salary</label>
+                              <input 
+                                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm" 
+                                value={editFields.salary || ''} 
+                                onChange={e => setEditFields(f => ({ ...f, salary: e.target.value }))} 
+                                placeholder="e.g. 50000" 
+                              />
                               <label className="block text-sm font-medium text-gray-700 mb-1">Benefits</label>
                               <div className="flex gap-4 flex-wrap">
                                 {['Health Insurance', 'Remote Work', 'Paid Leave'].map((b) => (

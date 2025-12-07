@@ -24,7 +24,9 @@ def get_jobs():
     job_list = [{
         'id': job.id,
         'title': job.title,
+        'company': job.company,
         'company_name': job.company, # YAML says company_name, model has company
+        'department': job.department,
         'description': job.description,
         'location': job.location, # Model might be string, YAML allows object or string
         'employment_type': job.type, # YAML: employment_type, model: type
@@ -111,21 +113,18 @@ def create_job():
         return jsonify({'error': 'Unauthorized: HR role required'}), 403
 
     data = request.json
-    company = data.get('company_name') or data.get('company')
-    if not company:
-        company = user.company_name or "Unknown Company"
 
     job = Job(
         title=data.get('title'),
         description=data.get('description'),
-        company=company,
+        company=data.get('companyName'),
         department=data.get('department'),
         location=data.get('location'),
-        type=data.get('employment_type') or data.get('type'),
-        remote_option=data.get('job_type') or data.get('remoteOption'),
+        type=data.get('employmentType') or data.get('type'),
+        remote_option=data.get('remoteOption'),
         experience_level=data.get('experienceLevel'),
         education=data.get('education'),
-        salary=data.get('salary_min'), # Simplified mapping
+        salary=data.get('salary'),
         tags=','.join(data.get('tags', [])) if isinstance(data.get('tags'), list) else data.get('tags'),
         benefits=data.get('benefits'),
         application_deadline=data.get('applicationDeadline')

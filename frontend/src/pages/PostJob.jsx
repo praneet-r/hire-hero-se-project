@@ -22,8 +22,7 @@ const PostJob = () => {
     skillInput: "",
     experienceLevel: "",
     education: "",
-    salaryMin: 40000,
-    salaryMax: 50000,
+    salary: "",
     benefits: [],
     applicationDeadline: "",
     postToCompany: false,
@@ -200,11 +199,8 @@ const PostJob = () => {
                   <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-inner">
                     <h2 className="text-lg font-semibold mb-4">Compensation & Benefits</h2>
                     <div className="mb-4">
-                      <label className="text-sm font-medium mb-1 block">Salary Range (min - max)</label>
                       <div className="flex items-center gap-3">
-                        <input type="number" name="salaryMin" value={formData.salaryMin} onChange={handleChange} className="w-1/3 p-2 border rounded-xl" />
-                        <span>-</span>
-                        <input type="number" name="salaryMax" value={formData.salaryMax} onChange={handleChange} className="w-1/3 p-2 border rounded-xl" />
+                        <Input label="Estimated Salary" name="salary" value={formData.salary} onChange={handleChange} type="text" />
                       </div>
                     </div>
                     <div>

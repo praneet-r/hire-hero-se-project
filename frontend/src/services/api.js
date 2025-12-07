@@ -181,7 +181,7 @@ export const createJob = async (jobData) => {
         job_type: jobData.remoteOption || "", // Map to correct field
         experienceLevel: jobData.experienceLevel || "",
         education: jobData.education || "",
-        salary: `${jobData.salaryMin}-${jobData.salaryMax}`,
+        salary: jobData.salary,
         tags: jobData.requiredSkills || [], // Send as list
         benefits: Array.isArray(jobData.benefits)
             ? jobData.benefits.join(",")
