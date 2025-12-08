@@ -104,6 +104,10 @@ flask run
 
 Backend runs at 👉 **http://localhost:5000**
 
+Auto-Seeding: On startup, the app will automatically wipe the database and repopulate it with 3 HRs, 15 Employees, 15 Job Seekers, and ~25 Job Postings.
+
+To disable this: Open backend/app/seed.py and set CREATE_DUMMY_DATA = False.
+
 ---
 
 ### 💅 3. Frontend Setup (React + Vite)
@@ -121,9 +125,20 @@ The Vite proxy is already configured to forward all API calls from
 
 ---
 
-## 🤖 Google Gemini Chatbot Integration
+🔐 Demo Credentials
+Use these accounts to demonstrate the application flow:
 
-ADD TEXT HERE
+👤 HR Recruiter (For posting jobs & screening)
+Email: hr1@gmail.com
+
+Password: 123
+
+🧑‍💻 Job Seeker (For applying & tracking status)
+Email: js1@gmail.com
+
+Password: 123
+
+Note: This account is set up as a fresh user with a pre-filled profile but no active applications.
 
 ---
 
