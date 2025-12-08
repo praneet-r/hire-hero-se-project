@@ -125,20 +125,16 @@ The Vite proxy is already configured to forward all API calls from
 
 ---
 
-🔐 Demo Credentials
-Use these accounts to demonstrate the application flow:
+🔐 Demo Credentials:
 
 👤 HR Recruiter (For posting jobs & screening)
 Email: hr1@gmail.com
-
 Password: 123
 
 🧑‍💻 Job Seeker (For applying & tracking status)
 Email: js1@gmail.com
-
 Password: 123
-
-Note: This account is set up as a fresh user with a pre-filled profile but no active applications.
+(Note: This account is set up as a fresh user with a pre-filled profile but no active applications.)
 
 ---
 
