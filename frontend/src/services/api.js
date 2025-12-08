@@ -220,6 +220,13 @@ export const getProfiles = async () => {
     return [];
 };
 
+// --- Public Profile API ---
+export const getPublicProfile = async (userId) => {
+    // Standard axios request without auth headers
+    const res = await axios.get(`${API_BASE}/public/profile/${userId}`);
+    return res.data;
+};
+
 // --- GenAI API ---
 
 export const askChatbot = async (prompt) => {

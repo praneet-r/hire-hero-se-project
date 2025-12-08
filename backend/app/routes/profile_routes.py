@@ -289,15 +289,51 @@ def get_user_profile_hr(user_id):
         ]
     })
 
+# --- Public Profile Endpoint ---
+@profile_bp.route('/public/profile/<int:user_id>', methods=['GET'])
+def get_public_profile(user_id):
+    # No auth check here - this is for public viewing
+    target_user = User.query.get_or_404(user_id)
+    profile = target_user.profile
+    
+    if not profile:
+        return jsonify({'error': 'Profile not found'}), 404
 
-# --- Removed/Deprecated Endpoints ---
-# The following endpoints were present but not in the YAML spec.
-# They are commented out or removed to strictly follow the source of truth.
-# If they are needed for admin panel, they should be documented or re-added with 'admin' tag.
+    # Return safe public data (omit sensitive fields if necessary)
+    return jsonify({
+        'first_name': target_user.first_name,
+        'last_name': target_user.last_name,
+        'full_name': f"{target_user.first_name} {target_user.last_name}",
+        'email': target_user.email, # Optional: decide if you want to share email publicly
+        'role': target_user.role,
+        'location': profile.location,
+        'summary': profile.summary,
+        'profile_pic_url': profile.profile_pic,
+        'resume_url': profile.resume,
+        'linkedin_profile': getattr(profile, 'linkedin_profile', ''),
+        'github_profile': getattr(profile, 'github_profile', ''),
+        'portfolio_url': getattr(profile, 'portfolio_url', ''),
+        'completeness': profile.completeness,
+        'experiences': [
+            {
+                'id': e.id,
+                'title': e.title,
+                'company': e.company,
+                'start_date': e.start_date,
+                'end_date': e.end_date,
+                'description': e.description,
+                'is_current': getattr(e, 'is_current', False)
+            } for e in profile.experiences
+        ],
+        'educations': [
+            {
+                'id': e.id,
+                'degree': e.degree,
+                'institution': e.institution,
+                'start_date': e.start_date,
+                'end_date': e.end_date,
+                'description': e.description
+            } for e in profile.educations
+        ]
+    })
 
-# @profile_bp.route('/profiles', methods=['GET']) ...
-# @profile_bp.route('/profiles/<int:profile_id>', methods=['GET']) ...
-# @profile_bp.route('/profiles', methods=['POST']) ...
-# @profile_bp.route('/profiles/<int:profile_id>', methods=['PUT']) ...
-# @profile_bp.route('/profiles/<int:profile_id>', methods=['DELETE']) ...
-# Old Experience endpoints that took profile_id directly are also replaced by /me/ versions.

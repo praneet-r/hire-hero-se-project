@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import { AuthProvider } from './context/AuthContext'
 import DashboardHR from './pages/DashboardHR';
 import DashboardApplicant from './pages/DashboardApplicant';
+import PublicProfile from './pages/PublicProfile'
 import HRGenAI from './pages/HRGenAI'
 import AddEmployee from './pages/AddEmployee'
 import PostJob from './pages/PostJob'
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard-hr" element={<DashboardHR />} />
             <Route path="/dashboard-applicant" element={<DashboardApplicant />} />
+            <Route path="/profile/:id" element={<PublicProfile />} />
             <Route path="/register" element={<Register />} />
             <Route path="/hr-genai" element={<HRGenAI />} />
             <Route path="/add-employee" element={<AddEmployee />} />

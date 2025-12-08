@@ -61,6 +61,7 @@ const ProfileApplicant = () => {
         let fullName = p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim();
         let username = p.first_name + p.phone.slice(-3);
         setProfile({
+          user_id: p.user_id,
           fullName,
           username: username || '',
           role: p.role || '',
@@ -80,6 +81,35 @@ const ProfileApplicant = () => {
     }
     fetchProfile();
   }, [userId]);
+
+  const handlePreviewProfile = () => {
+    if (!profile.user_id) {
+        setStatus({ msg: 'User ID missing. Save profile first.', type: 'error' });
+        return;
+    }
+    const url = `${window.location.origin}/profile/${profile.user_id}`;
+    
+    // Open in a new tab ('_blank')
+    window.open(url, '_blank');
+  };
+
+  const handleShareProfile = () => {
+    // profile.user_id comes from the getProfileMe API call
+    if (!profile.user_id) {
+        setStatus({ msg: 'User ID missing. Save profile first.', type: 'error' });
+        return;
+    }
+    
+    // Construct URL: current origin + /profile/ + user_id
+    const url = `${window.location.origin}/profile/${profile.user_id}`;
+    
+    navigator.clipboard.writeText(url).then(() => {
+      setStatus({ msg: 'Public profile link copied to clipboard!', type: 'success' });
+      setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+    }).catch(() => {
+      setStatus({ msg: 'Failed to copy link.', type: 'error' });
+    });
+  };
 
   // Handler for updating profile
   const handleInputChange = (field, value) => {
@@ -274,7 +304,7 @@ const handleDeleteEducation = async (id) => {
             <div className="bg-white/90 p-6 rounded-2xl shadow border border-blue-100">
               <h3 className="font-semibold text-xl mb-4 text-[#013362]">Quick Actions</h3>
               <ul className="space-y-3 text-base text-[#013362]">
-                <li className="flex items-center gap-2 hover:text-blue-600 cursor-pointer font-semibold">
+                <li className="flex items-center gap-2 hover:text-blue-600 cursor-pointer font-semibold" onClick={handlePreviewProfile}>
                   <Eye className="w-5 h-5" /> Preview Public Profile
                 </li>
                 {profile.resume && (
@@ -283,7 +313,7 @@ const handleDeleteEducation = async (id) => {
                     <a href={BACKEND_BASE + profile.resume} target="_blank" rel="noopener noreferrer">Download Resume</a>
                   </li>
                 )}
-                <li className="flex items-center gap-2 hover:text-blue-600 cursor-pointer font-semibold">
+                <li className="flex items-center gap-2 hover:text-blue-600 cursor-pointer font-semibold" onClick={handleShareProfile}>
                   <Link2 className="w-5 h-5" /> Share Profile
                 </li>
               </ul>
@@ -307,7 +337,6 @@ const handleDeleteEducation = async (id) => {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* ... Full Name and Email remain readOnly ... */}
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Full Name</label>
                   <input type="text" value={profile.fullName} readOnly className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-gray-100 cursor-not-allowed" />
@@ -317,17 +346,15 @@ const handleDeleteEducation = async (id) => {
                   <input type="email" value={profile.email} readOnly className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm bg-gray-100 cursor-not-allowed" />
                 </div>
 
-                {/* [UPDATED PHONE INPUT - Removed readOnly, added onChange] */}
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Phone Number</label>
                   <input
                     type="text"
                     value={profile.phone}
-                    onChange={e => handleInputChange('phone', e.target.value)}
+                    onChange={e => handleInputChange('phone', e.target.value.replace(/\D/g, ''))}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-[#013362]"
                   />
                 </div>
-                {/* [UPDATED LOCATION INPUT - Changed handler] */}
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">Location</label>
                   <input
@@ -341,7 +368,6 @@ const handleDeleteEducation = async (id) => {
 
               <div className="mt-6">
                 <label className="block text-sm text-gray-500 mb-1">Professional Summary</label>
-                {/* [UPDATED TEXTAREA - Changed handler] */}
                 <textarea
                   rows="3"
                   value={profile.summary}
