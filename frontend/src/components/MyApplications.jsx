@@ -101,8 +101,7 @@ const MyApplications = () => {
               <div className="flex flex-wrap items-center w-full justify-between gap-2">
                 <div className="flex flex-col min-w-0">
                   <h4 className="font-extrabold text-2xl text-[#013362] leading-tight truncate">{app.title}</h4>
-                                    <span className="inline-block mt-1 bg-white border border-blue-200 text-[#005193] text-sm font-extrabold rounded-full px-4 py-2 tracking-wide shadow-sm transition-all align-middle w-fit">HireHero</span>
-                  {/* <span className="inline-block mt-1 bg-white border border-blue-200 text-[#005193] text-sm font-extrabold rounded-full px-4 py-2 tracking-wide shadow-sm transition-all align-middle w-fit">{app.company}</span> */}
+                  <span className="inline-block mt-1 bg-white border border-blue-200 text-[#005193] text-sm font-extrabold rounded-full px-4 py-2 tracking-wide shadow-sm transition-all align-middle w-fit">{ app.company || 'HireHero' }</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
@@ -112,17 +111,16 @@ const MyApplications = () => {
                     View Details
                   </button>
                   <span
-                    className={`px-4 py-2 text-sm rounded-full font-semibold shadow-sm transition-all ${
-                      app.status === "offer_extended" || app.status === "offer received"
-                        ? "bg-blue-100 text-blue-700"
-                        : app.status === "interviewing" || app.status === "interview scheduled"
-                        ? "bg-green-100 text-green-700"
-                        : app.status === "under_review" || app.status === "under review"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-red-100 text-red-700"
+                    className={`px-4 py-2 text-sm rounded-full font-semibold shadow-sm capitalize transition-all ${
+                      app.status === "applied" ? "bg-blue-100 text-blue-700" :
+                      app.status === "interviewing" ? "bg-purple-100 text-purple-700" :
+                      app.status === "under_review" ? "bg-yellow-100 text-yellow-700" :
+                      app.status === "offer_extended" ? "bg-green-100 text-green-700" :
+                      app.status === "rejected" ? "bg-red-100 text-red-700" :
+                      "bg-gray-100 text-gray-600"
                     }`}
                   >
-                    {app.status}
+                    {app.status ? app.status.replace('_', ' ') : 'Applied'}
                   </span>
                   <button title="Calendar" className="hover:text-[#005193] transition">
                     <Calendar className="h-5 w-5" />
@@ -171,6 +169,9 @@ const MyApplications = () => {
                 <div>
                   <h3 className="text-2xl font-extrabold text-[#013362]">{selectedApp.title}</h3>
                   <p className="text-sm text-gray-500 font-semibold">{selectedApp.company}</p>
+                  <p className="text-sm text-gray-700 mt-1 flex items-center gap-1 font-medium">
+                    <span className="text-green-600">Estimated Salary:</span> ₹ {selectedApp.salary}
+                  </p>
                 </div>
                 <button onClick={() => setSelectedApp(null)} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
               </div>

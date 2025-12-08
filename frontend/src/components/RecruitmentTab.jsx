@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getJobs, getEmployees, getCandidates, axiosAuth } from "../services/api";
+import { getJobs, getEmployees, getCandidates, axiosAuth, getCompanyApplications, updateApplicationStatus } from "../services/api";
 import {
   Users,
   Briefcase,
@@ -14,14 +14,19 @@ import {
   Brush,
   Sparkles,
   Megaphone,
+  Eye,
+  ExternalLink,
+  CheckCircle,
+  XCircle,
+  Calendar,
 } from "lucide-react";
 
 const RecruitmentTab = () => {
     const [pillMessage, setPillMessage] = useState("");
     const [pillType, setPillType] = useState(""); // 'success' or 'error'
-  const [showModal, setShowModal] = useState(false);
-  const [selectedJob, setSelectedJob] = useState(null);
-  const [editFields, setEditFields] = useState({
+    const [showModal, setShowModal] = useState(false);
+    const [selectedJob, setSelectedJob] = useState(null);
+    const [editFields, setEditFields] = useState({
     description: "",
     company: "",
     location: "",
@@ -30,6 +35,10 @@ const RecruitmentTab = () => {
     tags: "",
     status: ""
   });
+  const [showApplicantsModal, setShowApplicantsModal] = useState(false);
+  const [currentJobApplicants, setCurrentJobApplicants] = useState([]);
+  const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const [viewingJobTitle, setViewingJobTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [holding, setHolding] = useState(false);
@@ -91,6 +100,42 @@ const RecruitmentTab = () => {
       setSelectedJob(null);
     } catch (err) {}
     setHolding(false);
+  };
+
+  const handleViewApplicants = async (job) => {
+    setViewingJobTitle(job.title);
+    setShowApplicantsModal(true);
+    setLoadingApplicants(true);
+    try {
+      const apps = await getCompanyApplications(job.id);
+      setCurrentJobApplicants(apps);
+    } catch (err) {
+      console.error("Failed to load applicants", err);
+      setCurrentJobApplicants([]);
+    }
+    setLoadingApplicants(false);
+  };
+
+  const handleApplicationAction = async (appId, newStatus) => {
+    // Optimistic update or show loading state could be added here
+    try {
+      await updateApplicationStatus(appId, newStatus);
+      
+      // Update the local list to reflect the change immediately
+      setCurrentJobApplicants(prev => prev.map(app => 
+        app.id === appId ? { ...app, status: newStatus } : app
+      ));
+      
+      // Optional: Show success feedback
+      setPillMessage(`Candidate ${newStatus === 'rejected' ? 'rejected' : 'moved to interview'}`);
+      setPillType("success");
+      setTimeout(() => setPillMessage(""), 3000);
+    } catch (err) {
+      console.error("Failed to update status", err);
+      setPillMessage("Failed to update status");
+      setPillType("error");
+      setTimeout(() => setPillMessage("") , 3000);
+    }
   };
 
   const [jobs, setJobs] = useState([]);
@@ -204,6 +249,13 @@ const RecruitmentTab = () => {
                     </div>
                   </div>
                 </div>
+                <div className="flex gap-2">
+                <button
+                      className="text-sm bg-blue-50 text-[#005193] px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-100 flex items-center gap-1 transition"
+                      onClick={() => handleViewApplicants(job)}
+                  >
+                  <Users className="w-4 h-4" /> Applicants
+                </button>
                 <button
                   className="text-sm border border-gray-300 text-[#005193] px-4 py-1.5 rounded-lg font-semibold hover:bg-gray-50"
                   onClick={() => {
@@ -227,11 +279,12 @@ const RecruitmentTab = () => {
                     setShowModal(true);
                   }}
                 >
-                  View
+                  Edit
                 </button>
+                </div>
                     {/* Edit Job Description Modal */}
                     {showModal && selectedJob && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20">
                         <div className="bg-white rounded-2xl shadow-lg p-10 w-full max-w-4xl relative">
                           <button
                             className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-2xl font-bold"
@@ -390,7 +443,154 @@ const RecruitmentTab = () => {
                         </div>
                       </div>
                     )}
+              
+            {/* View Applicants Modal */}
+            {showApplicantsModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+                  {/* Modal Header */}
+                  <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                    <div>
+                      <h3 className="text-xl font-bold text-[#013362]">Applicants</h3>
+                      <p className="text-sm text-gray-500">For role: <span className="font-semibold">{viewingJobTitle}</span></p>
+                    </div>
+                    <button 
+                      onClick={() => setShowApplicantsModal(false)}
+                      className="text-gray-400 hover:text-gray-600 p-1"
+                    >
+                      <span className="text-2xl">×</span>
+                    </button>
+                  </div>
+
+                  {/* Modal Content */}
+                  <div className="p-6 overflow-y-auto flex-1">
+                    {loadingApplicants ? (
+                      <div className="flex justify-center py-10 text-gray-500">Loading applicants...</div>
+                    ) : currentJobApplicants.length === 0 ? (
+                      <div className="text-center py-10 text-gray-500">
+                        <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                        <p>No applicants found for this job yet.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {currentJobApplicants.map((app) => (
+                          <div key={app.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-[#F7F8FF] transition">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-[#005193] font-bold text-lg">
+                                {app.candidate_name ? app.candidate_name[0].toUpperCase() : "U"}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-[#013362]">{app.candidate_name || "Unknown Candidate"}</h4>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                                    app.status === 'applied' ? 'bg-blue-100 text-blue-700' :
+                                    app.status === 'interviewing' ? 'bg-purple-100 text-purple-700' :
+                                    app.status === 'under_review' ? 'bg-yellow-100 text-yellow-700' : 
+                                    app.status === 'offer_extended' ? 'bg-green-100 text-green-700' :
+                                    app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {app.status.replace('_', ' ')}
+                                  </span>
+                                  <span className="text-xs text-gray-400">• Applied {new Date(app.applied_at).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Actions Group */}
+                            <div className="flex items-center gap-2">
+                              
+                              {/* 1. STATUS: APPLIED -> Interview or Reject */}
+                              {app.status === 'applied' && (
+                                <>
+                                  <button
+                                    onClick={() => handleApplicationAction(app.id, 'interviewing')}
+                                    title="Schedule Interview"
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
+                                  >
+                                    <Calendar className="w-4 h-4" />
+                                    Interview
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => handleApplicationAction(app.id, 'rejected')}
+                                    title="Reject Application"
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Reject
+                                  </button>
+                                  <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                                </>
+                              )}
+
+                              {/* 2. STATUS: INTERVIEWING -> Complete (Under Review) */}
+                              {app.status === 'interviewing' && (
+                                <>
+                                  <button
+                                    onClick={() => handleApplicationAction(app.id, 'under_review')}
+                                    title="Mark Interview as Completed"
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                    Mark Interview as Completed
+                                  </button>
+                                  <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                                </>
+                              )}
+
+                              {/* 3. STATUS: UNDER REVIEW -> Offer or Reject */}
+                              {app.status === 'under_review' && (
+                                <>
+                                  <button
+                                    onClick={() => handleApplicationAction(app.id, 'offer_extended')}
+                                    title="Extend Offer"
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition"
+                                  >
+                                    <Briefcase className="w-4 h-4" />
+                                    Offer
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleApplicationAction(app.id, 'rejected')}
+                                    title="Reject Application"
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Reject
+                                  </button>
+                                  <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                                </>
+                              )}
+                              
+                              <a 
+                                href={`/profile/${app.user_id}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-sm font-semibold text-[#005193] hover:underline bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition shadow-sm"
+                              >
+                                View Profile <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Modal Footer */}
+                  <div className="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50 rounded-b-2xl">
+                    <button 
+                      onClick={() => setShowApplicantsModal(false)}
+                      className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
               </div>
+            )}
+            </div>
             ))}
           </div>
         </div>

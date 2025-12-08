@@ -81,6 +81,7 @@ export const getApplications = async () => {
             company: item.job_details.company,
             tags: item.job_details.tags || [],
             description: item.job_details.description,
+            salary: item.job_details.salary || "Not disclosed",
         }));
     }
     return [];
@@ -164,10 +165,17 @@ export const getCandidates = async () => {
     return res.data;
 };
 
-export const getCompanyApplications = async () => {
-    const res = await axiosAuth.get("/hr/applications");
+export const getCompanyApplications = async (jobId = null) => {
+    // Append job_id query param if provided
+    const url = jobId ? `/hr/applications?job_id=${jobId}` : "/hr/applications";
+    const res = await axiosAuth.get(url);
     if (res.data.applications) return res.data.applications;
     return [];
+};
+
+export const updateApplicationStatus = async (appId, status) => {
+    const res = await axiosAuth.put(`/hr/applications/${appId}`, { status });
+    return res.data;
 };
 
 export const createEmployee = async (employeeData) => {

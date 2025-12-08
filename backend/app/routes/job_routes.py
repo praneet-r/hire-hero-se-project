@@ -37,7 +37,8 @@ def get_jobs():
         'application_deadline': job.application_deadline,
         'tags': job.tags.split(',') if job.tags else [],
         'created_at': job.created_at,
-        'company_logo_url': getattr(job, 'company_logo_url', '')
+        'company_logo_url': getattr(job, 'company_logo_url', ''),
+        'applications_count': len(job.applications)
     } for job in paginated_jobs]
 
     return jsonify({

@@ -138,23 +138,14 @@ const JobSearch = () => {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h4 className="font-bold text-2xl text-[#013362] leading-tight mb-2">{job.title}</h4>
-                  <span className="inline-block mt-1 bg-white border border-blue-200 text-[#005193] text-sm font-extrabold rounded-full px-4 py-1.5 tracking-wide shadow-sm transition-all">HireHero</span>
-                  {/* <span className="inline-block mt-1 bg-white border border-blue-200 text-[#005193] text-sm font-extrabold rounded-full px-4 py-1.5 tracking-wide shadow-sm transition-all" style={{letterSpacing: '0.04em'}}>{job.company}</span> */}
+                  <span className="inline-block mt-1 bg-white border border-blue-200 text-[#005193] text-sm font-extrabold rounded-full px-4 py-1.5 tracking-wide shadow-sm transition-all">{job.company}</span>
                 </div>
               </div>
 
 
-              <p className="text-gray-600 text-sm mb-3">
-                {job.description ||
-                "We are looking for a passionate developer to join our innovative team. You will work on modern web applications using cutting-edge tools."}
-              </p>
-
-
               <div className="flex flex-wrap gap-2 mb-3 text-xs">
-                <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-md font-medium">{job.salary}</span>
+                <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-md font-medium">₹ {job.salary}</span>
                 <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-md font-medium">{job.type}</span>
-                <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-md font-medium">Startup</span>
-                {/* <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-md font-medium">{job.size}</span> */}
               </div>
 
 

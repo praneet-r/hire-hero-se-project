@@ -63,7 +63,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-6 text-sm text-gray-500 font-medium">
               <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> No credit card required</span>
-              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> 14-day free trial</span>
+              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-500" /> Free forever</span>
             </div>
           </div>
           <div className="relative">

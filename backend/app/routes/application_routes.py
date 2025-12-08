@@ -63,10 +63,10 @@ def get_my_applications():
             'job_details': {
                 'id': job.id if job else None,
                 'title': job.title if job else '',
-                'company_name': job.company if job else '',
+                'company': job.company if job else '',
                 'tags': job.tags.split(',') if job and job.tags else [],
                 'description': job.description if job else '',
-                # ... limited fields for summary
+                'salary': job.salary if job else 'Not disclosed'
             }
         })
     return jsonify(enriched)
@@ -90,7 +90,7 @@ def get_my_application(app_id):
         'job_details': {
             'id': job.id if job else None,
             'title': job.title if job else '',
-            'company_name': job.company if job else '',
+            'company': job.company if job else '',
             'description': job.description if job else ''
         }
     })
