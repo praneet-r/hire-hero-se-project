@@ -12,3 +12,4 @@ class Profile(db.Model):
     completeness = db.Column(db.Integer, default=0)
     user = db.relationship('User', back_populates='profile')
     experiences = db.relationship('Experience', back_populates='profile', cascade='all, delete-orphan')
+    educations = db.relationship('Education', back_populates='profile', cascade='all, delete-orphan')

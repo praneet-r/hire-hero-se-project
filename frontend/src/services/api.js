@@ -109,6 +109,21 @@ export const addExperience = async (experienceData) => {
     return res.data;
 };
 
+export const deleteExperience = async (expId) => {
+    const res = await axiosAuth.delete(`/profiles/me/experiences/${expId}`);
+    return res.data;
+};
+
+export const addEducation = async (educationData) => {
+    const res = await axiosAuth.post("/profiles/me/education", educationData);
+    return res.data;
+};
+
+export const deleteEducation = async (id) => {
+    const res = await axiosAuth.delete(`/profiles/me/education/${id}`);
+    return res.data;
+};
+
 export const uploadResume = async (userId, file) => {
     const formData = new FormData();
     formData.append("resume", file);

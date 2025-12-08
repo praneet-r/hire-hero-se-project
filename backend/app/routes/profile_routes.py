@@ -1,7 +1,7 @@
 import os
 from flask import current_app, Blueprint, request, jsonify, g
 from ..database import db
-from ..models import Profile, Experience, User
+from ..models import Profile, Experience, Education, User
 from ..utils import get_current_user
 
 profile_bp = Blueprint('profile_bp', __name__)
@@ -52,7 +52,16 @@ def profile_me():
                     'location': getattr(e, 'location', '')
                 } for e in profile.experiences
             ],
-            'educations': getattr(profile, 'educations', []) # Placeholder if not in model yet
+            'educations': [
+                {
+                    'id': e.id,
+                    'degree': e.degree,
+                    'institution': e.institution,
+                    'start_date': e.start_date,
+                    'end_date': e.end_date,
+                    'description': e.description
+                } for e in profile.educations
+            ]
         })
 
     # PUT: update profile fields
@@ -192,6 +201,40 @@ def delete_my_experience(exp_id):
     db.session.delete(e)
     db.session.commit()
     return jsonify({'message': 'Experience deleted'})
+
+@profile_bp.route('/profiles/me/education', methods=['POST'])
+def add_education():
+    user = get_current_user()
+    if not user: return jsonify({'error': 'Unauthorized'}), 401
+    profile = user.profile
+    if not profile: return jsonify({'error': 'Profile not found'}), 404
+
+    data = request.json
+    edu = Education(
+        profile_id=profile.id,
+        degree=data.get('degree'),
+        institution=data.get('institution'),
+        start_date=data.get('start_date'),
+        end_date=data.get('end_date'),
+        description=data.get('description')
+    )
+    db.session.add(edu)
+    db.session.commit()
+    return jsonify({'message': 'Education added', 'id': edu.id}), 201
+
+@profile_bp.route('/profiles/me/education/<int:edu_id>', methods=['DELETE'])
+def delete_education(edu_id):
+    user = get_current_user()
+    if not user: return jsonify({'error': 'Unauthorized'}), 401
+    profile = user.profile
+
+    edu = Education.query.get_or_404(edu_id)
+    if edu.profile_id != profile.id:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    db.session.delete(edu)
+    db.session.commit()
+    return jsonify({'message': 'Education deleted'})
 
 
 # --- HR - Profiles Endpoints ---

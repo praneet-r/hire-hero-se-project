@@ -1,6 +1,8 @@
 const BACKEND_BASE = "http://localhost:5000/api";
 import React, { useState, useRef, useEffect } from "react";
 import { getProfileMe, updateProfileMe, uploadResume, uploadProfilePic, addExperience } from '../services/api';
+import { addEducation, deleteEducation, deleteExperience } from '../services/api';
+import { BookOpen, Trash2 } from "lucide-react";
 import { Camera, Eye, Download, Link2, Plus, X } from "lucide-react";
 import TopNavbarApplicant from "../components/TopNavbarApplicant";
 
@@ -18,6 +20,16 @@ const ProfileApplicant = () => {
     summary: "",
     completeness: 0,
     experiences: [],
+    educations: [],
+  });
+
+  const [showEduModal, setShowEduModal] = useState(false);
+  const [newEdu, setNewEdu] = useState({
+      degree: "",
+      institution: "",
+      start_date: "",
+      end_date: "",
+      description: ""
   });
 
   const [showExpModal, setShowExpModal] = useState(false);
@@ -58,6 +70,7 @@ const ProfileApplicant = () => {
           summary: p.summary || '',
           completeness: p.completeness || 0,
           experiences: p.experiences || [],
+          educations: p.educations || [],
           profile_pic: p.profile_pic || '',
           resume: p.resume || '',
         });
@@ -119,6 +132,35 @@ const ProfileApplicant = () => {
     }
   };
 
+  const handleAddEducation = async (e) => {
+    e.preventDefault();
+    try {
+        await addEducation(newEdu);
+        setStatus({ msg: 'Education added!', type: 'success' });
+        setShowEduModal(false);
+        setNewEdu({ degree: "", institution: "", start_date: "", end_date: "", description: "" });
+        // Refresh profile
+        const p = await getProfileMe(userId);
+        setProfile(prev => ({ ...prev, educations: p.educations || [] }));
+    } catch {
+        setStatus({ msg: 'Failed to add education.', type: 'error' });
+    }
+    setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+};
+
+const handleDeleteEducation = async (id) => {
+    if(!confirm("Delete this education entry?")) return;
+    try {
+        await deleteEducation(id);
+        const p = await getProfileMe(userId);
+        setProfile(prev => ({ ...prev, educations: p.educations || [] }));
+        setStatus({ msg: 'Education deleted.', type: 'success' });
+    } catch {
+        setStatus({ msg: 'Failed to delete education.', type: 'error' });
+    }
+    setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+};
+
   const handleAddExperience = async (e) => {
     e.preventDefault();
     try {
@@ -131,6 +173,20 @@ const ProfileApplicant = () => {
       setProfile(prev => ({ ...prev, experiences: p.experiences || [] }));
     } catch {
       setStatus({ msg: 'Failed to add experience.', type: 'error' });
+    }
+    setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+  };
+
+  const handleDeleteExperience = async (id) => {
+    if (!confirm("Are you sure you want to delete this experience?")) return;
+    try {
+      await deleteExperience(id);
+      setStatus({ msg: 'Experience deleted!', type: 'success' });
+      // Refresh profile to update list
+      const p = await getProfileMe(userId);
+      setProfile(prev => ({ ...prev, experiences: p.experiences || [] }));
+    } catch {
+      setStatus({ msg: 'Failed to delete experience.', type: 'error' });
     }
     setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
   };
@@ -281,12 +337,52 @@ const ProfileApplicant = () => {
                 ></textarea>
               </div>
             </div>
+            
+            {/* Education */}
+            <div className="bg-white/90 p-8 rounded-2xl shadow border border-blue-100">
+              <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-[#013362]">Education Background</h3>
+              <button 
+                  onClick={() => setShowEduModal(true)}
+                  className="flex items-center gap-2 text-sm bg-gradient-to-r from-[#005193] to-[#013362] hover:opacity-90 text-white px-4 py-2 rounded-md font-semibold shadow-md transition"
+              >
+                  <Plus className="w-4 h-4" /> Add Education
+              </button>
+              </div>
+              <div className="space-y-5">
+              {profile.educations.map((edu, idx) => (
+                  <div
+                  key={idx}
+                  className="bg-white border border-blue-100 rounded-lg px-4 py-3 hover:bg-[#F7F8FF] transition relative group"
+                  >
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleDeleteEducation(edu.id)} className="text-red-400 hover:text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                      </button>
+                  </div>
+                  <div className="flex flex-wrap justify-between items-center">
+                      <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold rounded-md">
+                          <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div>
+                          <h4 className="font-semibold text-[#013362]">{edu.degree}</h4>
+                          <p className="text-sm text-gray-500">{edu.institution}</p>
+                      </div>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2 md:mt-0">{formatDate(edu.start_date)} - {formatDate(edu.end_date)}</p>
+                  </div>
+                  <p className="text-sm text-gray-700 mt-2">{edu.description}</p>
+                  </div>
+              ))}
+              {profile.educations.length === 0 && <p className="text-sm text-gray-500 italic">No education details added.</p>}
+              </div>
+            </div>
 
             {/* Work Experience */}
             <div className="bg-white/90 p-8 rounded-2xl shadow border border-blue-100">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-[#013362]">Work Experience</h3>
-                {/* [UPDATED BUTTON] */}
                 <button 
                   onClick={() => setShowExpModal(true)}
                   className="flex items-center gap-2 text-sm bg-gradient-to-r from-[#005193] to-[#013362] hover:opacity-90 text-white px-4 py-2 rounded-md font-semibold shadow-md transition"
@@ -298,8 +394,15 @@ const ProfileApplicant = () => {
                 {profile.experiences.map((exp, idx) => (
                   <div
                     key={idx}
-                    className="bg-white border border-blue-100 rounded-lg px-4 py-3 hover:bg-[#F7F8FF] transition"
+                    className="bg-white border border-blue-100 rounded-lg px-4 py-3 hover:bg-[#F7F8FF] transition relative group"
                   >
+                    <button 
+                        onClick={() => handleDeleteExperience(exp.id)}
+                        className="absolute top-3 right-3 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete Experience"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
                     <div className="flex flex-wrap justify-between items-center">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 text-blue-600 flex items-center justify-center font-semibold rounded-md">
@@ -332,6 +435,51 @@ const ProfileApplicant = () => {
             </div>
           </div>
       </div>
+      {showEduModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 className="text-lg font-bold text-[#013362]">Add Education</h3>
+                    <button onClick={() => setShowEduModal(false)} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+                <form onSubmit={handleAddEducation} className="space-y-4">
+                    <div>
+                        <label className="text-sm text-gray-700">Degree / Title</label>
+                        <input required type="text" placeholder="e.g. Bachelor of Science" className="w-full border rounded-lg p-2 text-sm" 
+                            value={newEdu.degree} onChange={e => setNewEdu({...newEdu, degree: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-700">Institution</label>
+                        <input required type="text" placeholder="e.g. IIT Madras" className="w-full border rounded-lg p-2 text-sm" 
+                            value={newEdu.institution} onChange={e => setNewEdu({...newEdu, institution: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm text-gray-700">Start Date</label>
+                            <input required type="date" className="w-full border rounded-lg p-2 text-sm" 
+                                value={newEdu.start_date} onChange={e => setNewEdu({...newEdu, start_date: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="text-sm text-gray-700">End Date</label>
+                            <input type="date" className="w-full border rounded-lg p-2 text-sm" 
+                                value={newEdu.end_date} onChange={e => setNewEdu({...newEdu, end_date: e.target.value})} />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-700">Description</label>
+                        <textarea className="w-full border rounded-lg p-2 text-sm" rows="3"
+                            placeholder="Major, Honors, etc."
+                            value={newEdu.description} onChange={e => setNewEdu({...newEdu, description: e.target.value})}></textarea>
+                    </div>
+                    <button type="submit" className="w-full bg-[#005193] text-white py-2 rounded-lg font-semibold hover:opacity-90">
+                        Save Education
+                    </button>
+                </form>
+            </div>
+        </div>
+      )}
       {showExpModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl">
