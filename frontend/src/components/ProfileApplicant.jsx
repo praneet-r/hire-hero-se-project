@@ -90,13 +90,20 @@ const ProfileApplicant = () => {
   const handleSaveChanges = async () => {
     setLoading(true);
     try {
-      await updateProfileMe(userId, {
+      const response = await updateProfileMe(userId, {
         location: profile.location,
         phone: profile.phone,
         summary: profile.summary
       });
+      if (response && typeof response.completeness === 'number') {
+        setProfile(prev => ({
+          ...prev,
+          completeness: response.completeness
+        }));
+      }
       setStatus({ msg: 'Changes saved successfully!', type: 'success' });
-    } catch {
+    } catch (error){
+      console.error("Save failed:", error);
       setStatus({ msg: 'Failed to save changes.', type: 'error' });
     }
     setLoading(false);
@@ -109,7 +116,10 @@ const ProfileApplicant = () => {
     if (file) {
       setProfilePic(file);
       try {
-        await uploadProfilePic(userId, file);
+        const res = await uploadProfilePic(userId, file);
+        if (res && typeof res.completeness === 'number') {
+            setProfile(prev => ({ ...prev, completeness: res.completeness, profile_pic: res.profile_pic_url }));
+        }
         setStatus({ msg: 'Profile picture uploaded!', type: 'success' });
       } catch {
         setStatus({ msg: 'Failed to upload profile picture.', type: 'error' });
@@ -123,7 +133,10 @@ const ProfileApplicant = () => {
     if (file) {
       setResumeFile(file);
       try {
-        await uploadResume(userId, file);
+        const res = await uploadResume(userId, file);
+        if (res && typeof res.completeness === 'number') {
+            setProfile(prev => ({ ...prev, completeness: res.completeness, resume: res.resume_url }));
+        }
         setStatus({ msg: 'Resume uploaded successfully!', type: 'success' });
       } catch {
         setStatus({ msg: 'Failed to upload resume.', type: 'error' });
@@ -141,7 +154,7 @@ const ProfileApplicant = () => {
         setNewEdu({ degree: "", institution: "", start_date: "", end_date: "", description: "" });
         // Refresh profile
         const p = await getProfileMe(userId);
-        setProfile(prev => ({ ...prev, educations: p.educations || [] }));
+        setProfile(prev => ({ ...prev, educations: p.educations || [], completeness: p.completeness }));
     } catch {
         setStatus({ msg: 'Failed to add education.', type: 'error' });
     }
@@ -153,7 +166,7 @@ const handleDeleteEducation = async (id) => {
     try {
         await deleteEducation(id);
         const p = await getProfileMe(userId);
-        setProfile(prev => ({ ...prev, educations: p.educations || [] }));
+        setProfile(prev => ({ ...prev, educations: p.educations || [], completeness: p.completeness }));
         setStatus({ msg: 'Education deleted.', type: 'success' });
     } catch {
         setStatus({ msg: 'Failed to delete education.', type: 'error' });
@@ -170,7 +183,7 @@ const handleDeleteEducation = async (id) => {
       setNewExp({ title: "", company: "", start_date: "", end_date: "", description: "" });
       // Refresh profile to see new experience
       const p = await getProfileMe(userId);
-      setProfile(prev => ({ ...prev, experiences: p.experiences || [] }));
+      setProfile(prev => ({ ...prev, experiences: p.experiences || [], completeness: p.completeness }));
     } catch {
       setStatus({ msg: 'Failed to add experience.', type: 'error' });
     }
@@ -184,7 +197,7 @@ const handleDeleteEducation = async (id) => {
       setStatus({ msg: 'Experience deleted!', type: 'success' });
       // Refresh profile to update list
       const p = await getProfileMe(userId);
-      setProfile(prev => ({ ...prev, experiences: p.experiences || [] }));
+      setProfile(prev => ({ ...prev, experiences: p.experiences || [], completeness: p.completeness }));
     } catch {
       setStatus({ msg: 'Failed to delete experience.', type: 'error' });
     }

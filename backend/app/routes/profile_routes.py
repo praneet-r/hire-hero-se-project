@@ -77,14 +77,13 @@ def profile_me():
 
     for field in allowed_fields:
         if field in data:
-             if hasattr(profile, field):
+            if hasattr(profile, field):
                 setattr(profile, field, data[field])
 
-    # If skills are passed (assuming model support or ignored for now)
-    # if 'skills' in data: profile.skills = data['skills']
+    profile.calculate_completeness()
 
     db.session.commit()
-    return jsonify({'message': 'Profile updated successfully'})
+    return jsonify({'message': 'Profile updated successfully', 'completeness': profile.completeness})
 
 
 # POST /profiles/me/resume (Renamed from /profiles/me/upload_resume)
@@ -107,9 +106,11 @@ def upload_resume():
     file_path = os.path.join(upload_folder, filename)
     file.save(file_path)
     profile.resume = f"/uploads/{filename}"
+    profile.calculate_completeness()
     db.session.commit()
     # TODO: Trigger AI training logic here with file_path
-    return jsonify({'message': 'Resume uploaded successfully', 'resume_url': profile.resume})
+    return jsonify({'message': 'Resume uploaded successfully', 'resume_url': profile.resume, 
+                    'completeness': profile.completeness})
 
 # POST /profiles/me/avatar (Renamed from /profiles/me/upload_profile_pic)
 @profile_bp.route('/profiles/me/avatar', methods=['POST'])
@@ -131,8 +132,10 @@ def upload_avatar():
     file_path = os.path.join(upload_folder, filename)
     file.save(file_path)
     profile.profile_pic = f"/uploads/{filename}"
+    profile.calculate_completeness()
     db.session.commit()
-    return jsonify({'message': 'Profile picture uploaded successfully', 'profile_pic_url': profile.profile_pic})
+    return jsonify({'message': 'Profile picture uploaded successfully', 'profile_pic_url': profile.profile_pic,
+                    'completeness': profile.completeness})
 
 
 # --- Job Seeker - Experience Endpoints ---
@@ -159,6 +162,8 @@ def add_my_experience():
         # is_current=data.get('is_current', False) # Add if model supports
     )
     db.session.add(e)
+    db.session.flush()
+    profile.calculate_completeness()
     db.session.commit()
     return jsonify({'message': 'Experience added', 'id': e.id}), 201
 
@@ -183,6 +188,7 @@ def update_my_experience(exp_id):
     # e.location = data.get('location', e.location)
     # e.is_current = data.get('is_current', e.is_current)
 
+    profile.calculate_completeness()
     db.session.commit()
     return jsonify({'message': 'Experience updated'})
 
@@ -199,6 +205,8 @@ def delete_my_experience(exp_id):
         return jsonify({'error': 'Forbidden'}), 403
 
     db.session.delete(e)
+    db.session.flush()
+    profile.calculate_completeness()
     db.session.commit()
     return jsonify({'message': 'Experience deleted'})
 
@@ -219,6 +227,8 @@ def add_education():
         description=data.get('description')
     )
     db.session.add(edu)
+    db.session.flush()
+    profile.calculate_completeness()
     db.session.commit()
     return jsonify({'message': 'Education added', 'id': edu.id}), 201
 
@@ -233,6 +243,8 @@ def delete_education(edu_id):
         return jsonify({'error': 'Forbidden'}), 403
 
     db.session.delete(edu)
+    db.session.flush()
+    profile.calculate_completeness()
     db.session.commit()
     return jsonify({'message': 'Education deleted'})
 
