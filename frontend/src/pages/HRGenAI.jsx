@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { askChatbot, axiosAuth } from "../services/api";
+import { askChatbot, axiosAuth, getChatHistory, clearChatHistory } from "../services/api";
 import { Send, RotateCcw, Plus, Bot, User, Users, Briefcase, BarChart2, FileText, Sparkles, MessageSquare, ClipboardList, PenTool, CheckCircle } from "lucide-react";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
@@ -83,11 +83,34 @@ const ToolButton = ({ active, onClick, icon: Icon, label }) => (
 // --- Sub-Tools ---
 
 const ChatbotTool = ({ onNewChat }) => {
-    const [messages, setMessages] = useState([
-        { sender: "bot", text: "Hello! I am your HR GenAI Assistant. How may I help you?" },
-    ]);
+    const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [botThinking, setBotThinking] = useState(false);
+    const messagesEndRef = useRef(null);
+
+    // Fetch history on mount
+    useEffect(() => {
+        loadHistory();
+    }, []);
+
+    // Auto-scroll to bottom
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, botThinking]);
+
+    const loadHistory = async () => {
+        try {
+            const history = await getChatHistory();
+            if (history && history.length > 0) {
+                setMessages(history);
+            } else {
+                setMessages([{ sender: "bot", text: "Hello! I am your HR GenAI Assistant. How may I help you?" }]);
+            }
+        } catch (err) {
+            console.error("Failed to load chat history");
+            setMessages([{ sender: "bot", text: "Hello! I am your HR GenAI Assistant. How may I help you?" }]);
+        }
+    };
 
     const handleSend = async () => {
         if (!input.trim()) return;
@@ -113,9 +136,15 @@ const ChatbotTool = ({ onNewChat }) => {
         if (e.key === "Enter") handleSend();
     };
 
-    const startNewChat = () => {
-        setMessages([{ sender: "bot", text: "New chat started! How may I assist you today?" }]);
-        if (onNewChat) onNewChat();
+    const startNewChat = async () => {
+        if (!confirm("Are you sure you want to clear your chat history?")) return;
+        try {
+            await clearChatHistory();
+            setMessages([{ sender: "bot", text: "New chat started! How may I assist you today?" }]);
+            if (onNewChat) onNewChat();
+        } catch (err) {
+            alert("Failed to clear history");
+        }
     };
 
     return (
@@ -139,6 +168,7 @@ const ChatbotTool = ({ onNewChat }) => {
                         <div className="bg-gray-200 text-gray-600 text-xs px-3 py-2 rounded-full animate-pulse">AI is thinking...</div>
                     </div>
                 )}
+                <div ref={messagesEndRef} />
             </div>
             <div className="mt-4 flex gap-2">
                 <input
@@ -149,7 +179,7 @@ const ChatbotTool = ({ onNewChat }) => {
                     placeholder="Type your message..."
                     className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#005193] outline-none"
                 />
-                <button onClick={handleSend} className="bg-[#005193] text-white p-2 rounded-lg hover:opacity-90">
+                <button onClick={handleSend} disabled={botThinking} className="bg-[#005193] text-white p-2 rounded-lg hover:opacity-90 disabled:opacity-50">
                     <Send className="h-5 w-5" />
                 </button>
             </div>

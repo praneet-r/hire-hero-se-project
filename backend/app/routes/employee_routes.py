@@ -23,19 +23,23 @@ def get_employees():
     end = start + limit
     paginated = employees[start:end]
 
-    employee_list = [
-        {
+    employee_list = []
+    for e in paginated:
+        # Fetch associated user to get the name
+        user_obj = e.user 
+        full_name = f"{user_obj.first_name} {user_obj.last_name}" if user_obj else "Unknown"
+        
+        employee_list.append({
             'id': e.id,
             'user_id': e.user_id,
-            'job_title': e.job_title,
+            'name': full_name, 
+            'role': e.job_title,
             'department': e.department,
             'job_location': e.job_location,
             'hired_at': e.hired_at,
-            'photo_url': e.photo, # YAML: photo_url
+            'photo_url': e.photo,
             'manager_id': getattr(e, 'manager_id', None)
-        }
-        for e in paginated
-    ]
+        })
 
     return jsonify({
         'pagination': {
@@ -59,7 +63,6 @@ def get_employee(emp_id):
         'hired_at': e.hired_at,
         'photo_url': e.photo,
         'manager_id': getattr(e, 'manager_id', None),
-        # Extra: nesting performances as it was in original, though not in strict schema
         'performances': [
             {
                 'id': p.id,

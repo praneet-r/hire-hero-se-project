@@ -9,7 +9,7 @@ class LLMService:
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key and api_key != "mock":
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-pro')
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
             self.mode = "gemini"
 
     def generate_text(self, system_prompt, user_prompt):

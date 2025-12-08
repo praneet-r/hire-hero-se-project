@@ -8,3 +8,4 @@ from .performance import Performance
 from .analytics import Analytics
 from .chat_message import ChatMessage
 from .education import Education
+from .interview import Interview

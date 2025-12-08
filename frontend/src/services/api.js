@@ -14,7 +14,7 @@ export const getToken = () => {
 // Axios instance for authenticated requests
 export const axiosAuth = axios.create({
     baseURL: API_BASE,
-    timeout: 10000,
+    timeout: 100000,
 });
 axiosAuth.interceptors.request.use((config) => {
     const token = getToken();
@@ -150,6 +150,24 @@ export const uploadProfilePic = async (userId, file) => {
     return res.data;
 };
 
+export const acceptJobOffer = async (appId) => {
+    const res = await axiosAuth.put(`/applications/my/${appId}/accept`);
+    return res.data;
+};
+
+// --- Interview API ---
+
+export const getMyInterviews = async () => {
+    const res = await axiosAuth.get("/interviews/my");
+    return res.data;
+};
+
+export const scheduleInterview = async (interviewData) => {
+    // interviewData: { application_id, scheduled_at, location_type, location_detail, stage }
+    const res = await axiosAuth.post("/hr/interviews", interviewData);
+    return res.data;
+};
+
 // --- HR API ---
 
 export const getEmployees = async () => {
@@ -242,7 +260,25 @@ export const askChatbot = async (prompt) => {
     return res.data;
 };
 
+// Get Chat History
+export const getChatHistory = async () => {
+    const res = await axiosAuth.get("/gen-ai/history");
+    return res.data;
+};
+
+// Clear Chat History
+export const clearChatHistory = async () => {
+    const res = await axiosAuth.delete("/gen-ai/history");
+    return res.data;
+};
+
 export const getPerformanceInsights = async () => {
     const res = await axiosAuth.get("/analytics/insights");
+    return res.data;
+};
+
+export const generateCoverLetter = async (data) => {
+    // data = { job_id, user_notes }
+    const res = await axiosAuth.post("/gen-ai/generate-cover-letter", data);
     return res.data;
 };

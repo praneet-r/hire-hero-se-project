@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { getJobs, getEmployees, getCandidates, axiosAuth, getCompanyApplications, updateApplicationStatus } from "../services/api";
+import { useNavigate } from "react-router-dom";
+import { getJobs, getEmployees, getCandidates, axiosAuth, getCompanyApplications, updateApplicationStatus,
+  scheduleInterview } from "../services/api";
 import {
   Users,
   Briefcase,
@@ -19,9 +21,11 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
+  UserPlus
 } from "lucide-react";
 
 const RecruitmentTab = () => {
+    const navigate = useNavigate();
     const [pillMessage, setPillMessage] = useState("");
     const [pillType, setPillType] = useState(""); // 'success' or 'error'
     const [showModal, setShowModal] = useState(false);
@@ -42,6 +46,15 @@ const RecruitmentTab = () => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [holding, setHolding] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedAppForInterview, setSelectedAppForInterview] = useState(null);
+  const [scheduleForm, setScheduleForm] = useState({
+    date: "",
+    time: "",
+    link: "",
+    type: "video" // video, phone, in_person
+  });
+
   // Update job description API
   const handleSaveJob = async () => {
     if (!selectedJob) return;
@@ -136,6 +149,42 @@ const RecruitmentTab = () => {
       setPillType("error");
       setTimeout(() => setPillMessage("") , 3000);
     }
+  };
+
+  const openScheduleModal = (app) => {
+    setSelectedAppForInterview(app);
+    setScheduleForm({ date: "", time: "", link: "", type: "video" });
+    setShowScheduleModal(true);
+  };
+
+  const handleScheduleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedAppForInterview) return;
+
+    try {
+      // Combine date and time into ISO string
+      const scheduledAt = new Date(`${scheduleForm.date}T${scheduleForm.time}`).toISOString();
+
+      await scheduleInterview({
+        application_id: selectedAppForInterview.id,
+        stage: 'interviewing',
+        scheduled_at: scheduledAt,
+        location_type: scheduleForm.type,
+        location_detail: scheduleForm.link
+      });
+
+      // Also update application status locally or via API if the backend doesn't do it automatically
+      await handleApplicationAction(selectedAppForInterview.id, 'interviewing');
+
+      setShowScheduleModal(false);
+      setPillMessage("Interview scheduled successfully!");
+      setPillType("success");
+    } catch (err) {
+      console.error(err);
+      setPillMessage("Failed to schedule interview.");
+      setPillType("error");
+    }
+    setTimeout(() => setPillMessage(""), 3000);
   };
 
   const [jobs, setJobs] = useState([]);
@@ -504,7 +553,7 @@ const RecruitmentTab = () => {
                               {app.status === 'applied' && (
                                 <>
                                   <button
-                                    onClick={() => handleApplicationAction(app.id, 'interviewing')}
+                                    onClick={() => openScheduleModal(app)} // <--- Updated to open modal
                                     title="Schedule Interview"
                                     className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
                                   >
@@ -558,6 +607,21 @@ const RecruitmentTab = () => {
                                   >
                                     <XCircle className="w-4 h-4" />
                                     Reject
+                                  </button>
+                                  <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                                </>
+                              )}
+
+                              {/* 4. STATUS: ACCEPTED -> Add Employee */}
+                              {app.status === 'accepted' && (
+                                <>
+                                  <button
+                                    onClick={() => navigate('/add-employee', { state: { candidate_id: app.user_id } })}
+                                    title="Add as Employee"
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                                  >
+                                    <UserPlus className="w-4 h-4" />
+                                    Add as Employee
                                   </button>
                                   <div className="w-px h-6 bg-gray-200 mx-1"></div>
                                 </>
@@ -670,6 +734,83 @@ const RecruitmentTab = () => {
           </div>
         </div>
       </div>
+      {/* Schedule Interview Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold text-[#013362] mb-4">Schedule Interview</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Candidate: <span className="font-semibold">{selectedAppForInterview?.candidate_name}</span>
+            </p>
+            
+            <form onSubmit={handleScheduleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input 
+                    type="date" 
+                    required
+                    className="w-full border rounded-lg p-2 text-sm"
+                    value={scheduleForm.date}
+                    onChange={e => setScheduleForm({...scheduleForm, date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                  <input 
+                    type="time" 
+                    required
+                    className="w-full border rounded-lg p-2 text-sm"
+                    value={scheduleForm.time}
+                    onChange={e => setScheduleForm({...scheduleForm, time: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Interview Type</label>
+                <select
+                  className="w-full border rounded-lg p-2 text-sm"
+                  value={scheduleForm.type}
+                  onChange={e => setScheduleForm({...scheduleForm, type: e.target.value})}
+                >
+                  <option value="video">Video Call</option>
+                  <option value="phone">Phone Call</option>
+                  <option value="in_person">In-Person Meeting</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link / Location</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. https://meet.google.com/..."
+                  className="w-full border rounded-lg p-2 text-sm"
+                  value={scheduleForm.link}
+                  onChange={e => setScheduleForm({...scheduleForm, link: e.target.value})}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6">
+                <button 
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)} 
+                  className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 text-sm font-bold text-white bg-[#005193] rounded-lg hover:opacity-90"
+                >
+                  Send Invite
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

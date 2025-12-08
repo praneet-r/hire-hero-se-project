@@ -1,5 +1,5 @@
 import React from 'react';
-import { getJobs, getApplications } from '../services/api';
+import { getJobs, getApplications, getMyInterviews } from '../services/api';
 import TopNavbarApplicant from "../components/TopNavbarApplicant";
 import JobSearch from '../components/JobSearch';
 import MyApplications from '../components/MyApplications';
@@ -41,6 +41,30 @@ export default function DashboardApplicant() {
           setUsername("User");
         }
       }
+      // Fetch upcoming interviews
+      try {
+        const interviews = await getMyInterviews();
+        
+        setUpcomingInterviews(interviews.map(interview => ({
+          id: interview.id,
+          company: interview.company_name || "HireHero",
+          role: interview.job_title || "Interview",
+          date: new Date(interview.scheduled_at).toLocaleDateString(),
+          time: new Date(interview.scheduled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          link: interview.location_detail,
+          type: interview.location_type || 'video' // <--- Added: capture the type (video, phone, in_person)
+        })));
+        
+        // Update Stats based on real interviews
+        setStats(prev => prev.map(stat =>
+          stat.label === "Interview Requests"
+            ? { ...stat, value: interviews.length, sub: "Scheduled" }
+            : stat
+        ));
+      } catch (err) {
+        console.error("Error fetching interviews:", err);
+        setUpcomingInterviews([]);
+      }
       // Fetch applications
       try {
         const applications = await getApplications();
@@ -52,13 +76,8 @@ export default function DashboardApplicant() {
         setRecentActivity(applications.map(app => ({
           icon: Send,
           color: "#005193",
-          text: `Applied to job #${app.job_id}`,
-          time: app.applied_at || "recently"
-        })));
-        // Example: filter upcoming interviews
-        setUpcomingInterviews(applications.filter(app => app.status === "interviewing" || app.status === "interview").map(app => ({
-          company: `Job #${app.job_id}`,
-          role: "Interview"
+          text: `Applied for ${app.title || 'Job'} at ${app.company || 'Company'}`, 
+          time: app.applied_at ? new Date(app.applied_at).toLocaleDateString() : "recently"
         })));
       } catch {}
       // Fetch jobs
@@ -178,25 +197,45 @@ export default function DashboardApplicant() {
                 <Briefcase className="h-5 w-5 text-[#005193]" /> Upcoming Interviews
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
-                {upcomingInterviews.map((interview, i) => (
+                {upcomingInterviews.length > 0 ? upcomingInterviews.map((interview, i) => (
                   <div
                     key={i}
                     className="border rounded-md p-4 flex flex-col md:flex-row justify-between items-start md:items-center hover:bg-[#F7F8FF]"
                   >
                     <div>
                       <p className="font-medium text-gray-800">{interview.company}</p>
-                      <p className="text-sm text-gray-500">{interview.role}</p>
+                      <p className="text-sm text-gray-500 capitalize">{interview.role}</p>
+                      <p className="text-xs text-[#005193] font-semibold mt-1">
+                        {interview.date} at {interview.time}
+                      </p>
                     </div>
-                    <div className="flex space-x-2 mt-3 md:mt-0">
-                      <button className="px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2 text-[#005193] hover:underline bg-transparent border-none shadow-none">
-                        View Details
-                      </button>
-                      <button className="px-5 py-2 rounded-md text-sm font-semibold flex items-center gap-2 bg-gradient-to-r from-[#005193] to-[#013362] text-white shadow-lg hover:opacity-90 transition">
-                        Join Interview
-                      </button>
+                    
+                    {/* UPDATED ACTION SECTION */}
+                    <div className="flex space-x-2 mt-3 md:mt-0 items-center">
+                      {interview.type === 'video' ? (
+                        <button 
+                          onClick={() => window.open(interview.link, '_blank')}
+                          disabled={!interview.link}
+                          className="px-5 py-2 rounded-md text-sm font-semibold flex items-center gap-2 bg-gradient-to-r from-[#005193] to-[#013362] text-white shadow-lg hover:opacity-90 transition disabled:opacity-50"
+                        >
+                          Join Interview
+                        </button>
+                      ) : (
+                        <div className="text-right">
+                          <span className="text-xs font-bold text-gray-500 uppercase block mb-1">
+                            {interview.type === 'phone' ? 'Phone Call' : 'In Person'}
+                          </span>
+                          <span className="text-sm font-medium text-gray-800 bg-gray-100 px-3 py-1.5 rounded-md block max-w-[200px] truncate" title={interview.link}>
+                            {interview.link || 'Location pending'}
+                          </span>
+                        </div>
+                      )}
                     </div>
+                    
                   </div>
-                ))}
+                )) : (
+                  <p className="text-gray-500 text-sm italic">No upcoming interviews scheduled.</p>
+                )}
               </div>
             </div>
           </>

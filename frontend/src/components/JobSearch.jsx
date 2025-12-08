@@ -1,16 +1,46 @@
 import React, { useState, useEffect } from "react";
-import { getJobs, applyToJob } from '../services/api';
+import { getJobs, applyToJob, getApplications } from '../services/api';
 
 const JobSearch = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [location, setLocation] = useState("all");
-  const [jobType, setJobType] = useState("all");
 
   const [jobs, setJobs] = useState([]);
+  const [appliedJobIds, setAppliedJobIds] = useState(new Set());
   const [applyingId, setApplyingId] = useState(null);
   const [applyStatus, setApplyStatus] = useState({}); // { [jobId]: 'success' | 'error' }
   const [status, setStatus] = useState({ msg: '', type: '' });
   const [selectedJob, setSelectedJob] = useState(null);
+
+  const [filters, setFilters] = useState({
+    jobType: [],
+    remoteOption: [],
+    experienceLevel: [],
+    education: [],
+    salaryRange: []
+  });
+
+  const handleFilterChange = (category, value) => {
+    setFilters(prev => {
+      const current = prev[category];
+      const updated = current.includes(value)
+        ? current.filter(item => item !== value)
+        : [...current, value];
+      return { ...prev, [category]: updated };
+    });
+  };
+
+  const checkSalaryMatch = (jobSalary, selectedRanges) => {
+    if (!jobSalary) return false;
+    const salary = parseInt(jobSalary.replace(/[^0-9]/g, ''), 10);
+    if (isNaN(salary)) return false;
+
+    return selectedRanges.some(range => {
+      if (range === "0-50000") return salary < 50000;
+      if (range === "50000-100000") return salary >= 50000 && salary <= 100000;
+      if (range === "100000+") return salary > 100000;
+      return false;
+    });
+  };
 
   const handleApply = async (jobId) => {
     setApplyingId(jobId);
@@ -19,6 +49,7 @@ const JobSearch = () => {
       await applyToJob(jobId);
       setApplyStatus((prev) => ({ ...prev, [jobId]: 'success' }));
       setStatus({ msg: 'Applied!', type: 'success' });
+      setAppliedJobIds(prev => new Set(prev).add(jobId));
     } catch (err) {
       setApplyStatus((prev) => ({ ...prev, [jobId]: 'error' }));
       setStatus({ msg: 'Error. Try again.', type: 'error' });
@@ -27,18 +58,48 @@ const JobSearch = () => {
     setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
   };
   useEffect(() => {
-    async function fetchJobs() {
+    async function fetchData() {
       try {
-        const data = await getJobs();
-        setJobs(data);
+        const [jobsData, appsData] = await Promise.all([getJobs(), getApplications()]);
+        setJobs(jobsData);
+        const appliedIds = new Set(appsData.map(app => app.job_id));
+        setAppliedJobIds(appliedIds);
       } catch {}
     }
-    fetchJobs();
+    fetchData();
   }, []);
 
-  const filteredJobs = jobs.filter((job) =>
-    job.title && job.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredJobs = jobs.filter((job) => {
+    const matchesSearch = (job.title && job.title.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                          (job.company && job.company.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesJobType = filters.jobType.length === 0 || filters.jobType.includes(job.type);
+    const matchesRemote = filters.remoteOption.length === 0 || filters.remoteOption.includes(job.remote_option);
+    const matchesExp = filters.experienceLevel.length === 0 || filters.experienceLevel.includes(job.experience_level);
+    const matchesEdu = filters.education.length === 0 || filters.education.includes(job.education);
+    const matchesSalary = filters.salaryRange.length === 0 || checkSalaryMatch(job.salary, filters.salaryRange);
+
+    return matchesSearch && matchesJobType && matchesRemote && matchesExp && matchesEdu && matchesSalary;
+  });
+
+  const getFilterCount = (category, value) => {
+    return jobs.filter(job => {
+      const matchesSearch = (job.title && job.title.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                            (job.company && job.company.toLowerCase().includes(searchQuery.toLowerCase()));
+      if (!matchesSearch) return false;
+
+      if (category === 'salaryRange') return checkSalaryMatch(job.salary, [value]);
+      
+      const key = {
+        'jobType': 'type',
+        'remoteOption': 'remote_option',
+        'experienceLevel': 'experience_level',
+        'education': 'education'
+      }[category];
+      
+      return job[key] === value;
+    }).length;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] text-[#013362]">
@@ -55,28 +116,6 @@ const JobSearch = () => {
           className="bg-blue-50 border-none rounded-full px-5 py-3 flex-1 min-w-[200px] focus:outline-none focus:ring-2 focus:ring-[#013362] text-[#013362] placeholder:text-[#013362] text-sm shadow-sm"
         />
 
-        <select
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="bg-blue-50 border-none rounded-full px-5 py-3 text-[#013362] focus:ring-2 focus:ring-[#013362] text-sm shadow-sm"
-        >
-          <option value="all">All Locations</option>
-          <option value="remote">Remote</option>
-          <option value="india">India</option>
-          <option value="usa">USA</option>
-        </select>
-
-        <select
-          value={jobType}
-          onChange={(e) => setJobType(e.target.value)}
-          className="bg-blue-50 border-none rounded-full px-5 py-3 text-[#013362] focus:ring-2 focus:ring-[#013362] text-sm shadow-sm"
-        >
-          <option value="all">All Types</option>
-          <option value="fulltime">Full-time</option>
-          <option value="parttime">Part-time</option>
-          <option value="contract">Contract</option>
-        </select>
-
         <div className="flex gap-2 ml-auto mt-2 md:mt-0">
           <button className="px-5 py-3 rounded-full text-sm font-semibold flex items-center gap-2 bg-gradient-to-r from-[#005193] to-[#013362] text-white shadow-lg hover:opacity-90 transition">
             Search Jobs
@@ -86,39 +125,118 @@ const JobSearch = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 mt-8">
         {/* ---------- Sidebar Filters ---------- */}
-  <aside className="bg-white p-5 rounded-2xl shadow-sm">
-          <h3 className="font-bold text-xl text-[#013362] leading-tight mb-3">Quick Filters</h3>
+      <aside className="bg-white p-5 rounded-2xl shadow-sm h-fit">
+          <h3 className="font-bold text-xl text-[#013362] leading-tight mb-4">Quick Filters</h3>
 
+          {/* Job Type Filter */}
           <div className="mb-5">
-            <h4 className="font-bold mb-1 text-base">Experience Level</h4>
-            <ul className="text-sm space-y-1">
-              <li><input type="checkbox" /> Entry Level (15)</li>
-              <li><input type="checkbox" /> Mid Level (42)</li>
-              <li><input type="checkbox" /> Senior Level (28)</li>
+            <h4 className="font-bold mb-2 text-base text-[#013362]">Job Type</h4>
+            <ul className="text-sm space-y-1 text-gray-700">
+              {['Full-Time', 'Part-Time', 'Contract', 'Internship'].map((type) => (
+                <li key={type} className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    className="accent-[#005193]"
+                    checked={filters.jobType.includes(type)}
+                    onChange={() => handleFilterChange('jobType', type)}
+                  /> 
+                  {type} <span className="text-gray-400 text-xs">({getFilterCount('jobType', type)})</span>
+                </li>
+              ))}
             </ul>
           </div>
 
+          {/* Remote Option Filter */}
           <div className="mb-5">
-            <h4 className="font-bold mb-1 text-base">Salary Range</h4>
-            <ul className="text-sm space-y-1">
-              <li><input type="checkbox" /> ₹30k - ₹50k (12)</li>
-              <li><input type="checkbox" /> ₹50k - ₹80k (35)</li>
-              <li><input type="checkbox" /> ₹80k+ (8)</li>
+            <h4 className="font-bold mb-2 text-base text-[#013362]">Remote Option</h4>
+            <ul className="text-sm space-y-1 text-gray-700">
+              {['Remote', 'Hybrid', 'On-site'].map((opt) => (
+                <li key={opt} className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    className="accent-[#005193]"
+                    checked={filters.remoteOption.includes(opt)}
+                    onChange={() => handleFilterChange('remoteOption', opt)}
+                  /> 
+                  {opt} <span className="text-gray-400 text-xs">({getFilterCount('remoteOption', opt)})</span>
+                </li>
+              ))}
             </ul>
           </div>
 
+          {/* Experience Level Filter */}
           <div className="mb-5">
-            <h4 className="font-bold mb-1 text-base">Company Size</h4>
-            <ul className="text-sm space-y-1">
-              <li><input type="checkbox" /> Startup (1–50)</li>
-              <li><input type="checkbox" /> Mid-size (51–500)</li>
-              <li><input type="checkbox" /> Enterprise (500+)</li>
+            <h4 className="font-bold mb-2 text-base text-[#013362]">Experience Level</h4>
+            <ul className="text-sm space-y-1 text-gray-700">
+              {['Junior', 'Mid', 'Senior', 'Lead'].map((level) => (
+                <li key={level} className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    className="accent-[#005193]"
+                    checked={filters.experienceLevel.includes(level)}
+                    onChange={() => handleFilterChange('experienceLevel', level)}
+                  /> 
+                  {level} <span className="text-gray-400 text-xs">({getFilterCount('experienceLevel', level)})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Education Filter */}
+          <div className="mb-5">
+            <h4 className="font-bold mb-2 text-base text-[#013362]">Education</h4>
+            <ul className="text-sm space-y-1 text-gray-700">
+              {['Bachelor’s', 'Master’s', 'PhD'].map((edu) => (
+                <li key={edu} className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    className="accent-[#005193]"
+                    checked={filters.education.includes(edu)}
+                    onChange={() => handleFilterChange('education', edu)}
+                  /> 
+                  {edu} <span className="text-gray-400 text-xs">({getFilterCount('education', edu)})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Salary Range Filter */}
+          <div className="mb-5">
+            <h4 className="font-bold mb-2 text-base text-[#013362]">Salary Range</h4>
+            <ul className="text-sm space-y-1 text-gray-700">
+              <li className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  className="accent-[#005193]"
+                  checked={filters.salaryRange.includes("0-50000")}
+                  onChange={() => handleFilterChange('salaryRange', "0-50000")}
+                /> 
+                &lt; ₹50k <span className="text-gray-400 text-xs">({getFilterCount('salaryRange', "0-50000")})</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  className="accent-[#005193]"
+                  checked={filters.salaryRange.includes("50000-100000")}
+                  onChange={() => handleFilterChange('salaryRange', "50000-100000")}
+                /> 
+                ₹50k - ₹100k <span className="text-gray-400 text-xs">({getFilterCount('salaryRange', "50000-100000")})</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  className="accent-[#005193]"
+                  checked={filters.salaryRange.includes("100000+")}
+                  onChange={() => handleFilterChange('salaryRange', "100000+")}
+                /> 
+                &gt; ₹100k <span className="text-gray-400 text-xs">({getFilterCount('salaryRange', "100000+")})</span>
+              </li>
             </ul>
           </div>
 
           <div className="border-t border-gray-200 mt-4 pt-4">
             <h3 className="font-bold text-xl text-[#013362] leading-tight mb-2">AI Job Alert</h3>
-            <p className="text-sm mb-3">
+            <p className="text-sm mb-3 text-gray-600">
               Get notified when jobs matching your profile are posted.
             </p>
             <button className="w-full bg-gradient-to-r from-[#005193] to-[#013362] text-white rounded-md px-5 py-2 font-semibold shadow-lg hover:opacity-90 transition">
@@ -168,11 +286,19 @@ const JobSearch = () => {
                   View Details
                 </button>
                 <button
-                  className="px-5 py-2 rounded-md text-sm font-semibold flex items-center gap-2 bg-gradient-to-r from-[#005193] to-[#013362] text-white shadow-lg hover:opacity-90 transition disabled:opacity-60"
-                  onClick={() => handleApply(job.id)}
-                  disabled={applyingId === job.id}
+                  className={`px-5 py-2 rounded-md text-sm font-semibold flex items-center gap-2 text-white shadow-lg transition ${
+                    appliedJobIds.has(job.id) 
+                      ? "bg-green-600 cursor-default opacity-80" 
+                      : "bg-gradient-to-r from-[#005193] to-[#013362] hover:opacity-90"
+                  }`}
+                  onClick={() => !appliedJobIds.has(job.id) && handleApply(job.id)}
+                  disabled={applyingId === job.id || appliedJobIds.has(job.id)}
                 >
-                  {applyingId === job.id ? 'Applying...' : 'Apply Now'}
+                  {applyingId === job.id 
+                    ? 'Applying...' 
+                    : appliedJobIds.has(job.id) 
+                      ? 'Application Sent' 
+                      : 'Apply Now'}
                 </button>
                 {/* Inline feedback removed, now handled by status pill */}
                     {/* Status Pill */}
@@ -246,11 +372,24 @@ const JobSearch = () => {
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 <button onClick={() => setSelectedJob(null)} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 rounded-lg">Close</button>
                 <button
-                  className="px-6 py-2 bg-gradient-to-r from-[#005193] to-[#013362] text-white rounded-lg text-sm font-bold shadow-md hover:opacity-90 disabled:opacity-50"
-                  onClick={() => { handleApply(selectedJob.id); setSelectedJob(null); }}
-                  disabled={applyingId === selectedJob.id}
+                  className={`px-6 py-2 text-white rounded-lg text-sm font-bold shadow-md transition ${
+                    appliedJobIds.has(selectedJob.id)
+                      ? "bg-green-600 cursor-default opacity-80"
+                      : "bg-gradient-to-r from-[#005193] to-[#013362] hover:opacity-90"
+                  }`}
+                  onClick={() => { 
+                    if (!appliedJobIds.has(selectedJob.id)) {
+                      handleApply(selectedJob.id); 
+                      setSelectedJob(null); 
+                    }
+                  }}
+                  disabled={applyingId === selectedJob.id || appliedJobIds.has(selectedJob.id)}
                 >
-                  Apply Now
+                  {applyingId === selectedJob.id 
+                    ? 'Applying...' 
+                    : appliedJobIds.has(selectedJob.id) 
+                      ? 'Application Sent' 
+                      : 'Apply Now'}
                 </button>
               </div>
             </div>

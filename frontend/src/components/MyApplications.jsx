@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { getApplications, withdrawApplication } from '../services/api';
-import { Calendar, Trash2 } from "lucide-react";
+import { getApplications, withdrawApplication, acceptJobOffer } from '../services/api';
+import { Calendar, Trash2, CheckCircle } from "lucide-react";
 
 const MyApplications = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,8 +23,7 @@ const MyApplications = () => {
     if (!confirm("Are you sure you want to withdraw this application?")) return;
     try {
       await withdrawApplication(appId);
-      // Refresh list or remove locally
-      setApplications(prev => prev.filter(a => a.id !== appId));
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'withdrawn' } : a));
     } catch (err) {
       alert("Failed to withdraw application.");
     }
@@ -38,6 +37,17 @@ const MyApplications = () => {
       statusFilter === "all" || status.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
+
+  const handleAccept = async (appId) => {
+    try {
+      await acceptJobOffer(appId);
+      // Update status locally to 'accepted'
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: 'accepted' } : a));
+      alert("Offer accepted! Congratulations on your new job!");
+    } catch (err) {
+      alert("Failed to accept offer. " + (err.response?.data?.error || ""));
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] text-[#013362]">
@@ -116,15 +126,25 @@ const MyApplications = () => {
                       app.status === "interviewing" ? "bg-purple-100 text-purple-700" :
                       app.status === "under_review" ? "bg-yellow-100 text-yellow-700" :
                       app.status === "offer_extended" ? "bg-green-100 text-green-700" :
+                      app.status === "accepted" ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : // New accepted style
                       app.status === "rejected" ? "bg-red-100 text-red-700" :
                       "bg-gray-100 text-gray-600"
                     }`}
                   >
                     {app.status ? app.status.replace('_', ' ') : 'Applied'}
                   </span>
-                  <button title="Calendar" className="hover:text-[#005193] transition">
-                    <Calendar className="h-5 w-5" />
-                  </button>
+
+                  {/* Accept Offer Button - Only shows when offer is extended */}
+                  {app.status === 'offer_extended' && (
+                    <button
+                      title="Accept Job Offer"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-bold uppercase text-white bg-green-600 hover:bg-green-700 shadow-sm transition"
+                      onClick={() => handleAccept(app.id)}
+                    >
+                      <CheckCircle className="h-4 w-4" /> Accept
+                    </button>
+                  )}
+
                   <button
                     title="Withdraw Application"
                     className="hover:text-red-500 transition"

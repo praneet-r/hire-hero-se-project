@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { createEmployee, axiosAuth } from "../services/api";
 import { getProfileByUserId } from "../services/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
 import EmployeesTab from "../components/EmployeesTab";
@@ -11,6 +11,9 @@ import PerformanceTab from "../components/PerformanceTab";
 import AnalyticsTab from "../components/AnalyticsTab";
 
 const AddEmployee = () => {
+  const navigate = useNavigate(); 
+  const location = useLocation();
+  
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -33,6 +36,15 @@ const AddEmployee = () => {
       axios.get("/api/auth/users/basic").then(res => setUsers(res.data));
     }
   }, [hiringType]);
+
+  useEffect(() => {
+    if (location.state && location.state.candidate_id) {
+      setHiringType("internal");
+      setSelectedUserId(String(location.state.candidate_id));
+      // Clean up state so refreshing doesn't re-trigger if needed, 
+      // but keeping it is fine for persistence on reload/back
+    }
+  }, [location.state]);
 
   // When user is selected for internal, auto-fill formData
   useEffect(() => {
@@ -129,8 +141,6 @@ const AddEmployee = () => {
       photo: null,
     });
   };
-
-  const navigate = useNavigate();
 
   const tabConfig = [
     { tab: "dashboard", icon: null },

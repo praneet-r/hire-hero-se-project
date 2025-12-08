@@ -7,6 +7,22 @@ application_bp = Blueprint('application_bp', __name__)
 
 # --- Job Seeker - Applications ---
 
+@application_bp.route('/applications/my/<int:app_id>/accept', methods=['PUT'])
+def accept_offer(app_id):
+    user = get_current_user()
+    if not user: return jsonify({'error': 'Unauthorized'}), 401
+
+    app = Application.query.get_or_404(app_id)
+    if app.user_id != user.id:
+        return jsonify({'error': 'Not found or forbidden'}), 404
+
+    if app.status != 'offer_extended':
+        return jsonify({'error': 'No pending offer to accept'}), 400
+
+    app.status = 'accepted'
+    db.session.commit()
+    return jsonify({'message': 'Offer accepted successfully', 'status': app.status})
+
 @application_bp.route('/applications', methods=['POST'])
 def create_application():
     user = get_current_user()
