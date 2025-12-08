@@ -44,14 +44,14 @@ const RecruitmentTab = () => {
         company: editFields.company,
         department: editFields.department,
         location: editFields.location,
-        type: editFields.employmentType || editFields.type,
-        remoteOption: editFields.remoteOption,
-        experienceLevel: editFields.experienceLevel,
+        type: editFields.type,
+        remote_option: editFields.remote_option,
+        experience_level: editFields.experience_level,
         education: editFields.education,
         salary: editFields.salary,
         tags: editFields.tags.split(',').map(t => t.trim()).filter(Boolean).join(','),
         benefits: Array.isArray(editFields.benefits) ? editFields.benefits.join(',') : (editFields.benefits || ''),
-        applicationDeadline: editFields.applicationDeadline,
+        application_deadline: editFields.application_deadline,
         status: editFields.status
       };
       const res = await axiosAuth.put(`/hr/jobs/${selectedJob.id}`, payload);
@@ -213,15 +213,15 @@ const RecruitmentTab = () => {
                       description: job.description || "",
                       company: job.company || job.company_name || "",
                       department: job.department || "",
-                      employmentType: job.employmentType || job.type || "",
-                      remoteOption: job.remoteOption || job.remote_option || "",
+                      type: job.type || job.type || "",
+                      remote_option: job.remote_option || "",
                       location: job.location || "",
                       tags: Array.isArray(job.tags) ? job.tags.join(', ') : (job.tags || ""),
-                      experienceLevel: job.experienceLevel || job.experience_level || "",
+                      experience_level: job.experience_level || "",
                       education: job.education || job.education_level || "",
                       salary: job.salary || "",
                       benefits: Array.isArray(job.benefits) ? job.benefits : (job.benefits ? job.benefits.split(',').map(b => b.trim()) : []),
-                      applicationDeadline: job.applicationDeadline || job.application_deadline || "",
+                      application_deadline: job.application_deadline || "",
                       status: job.status || ""
                     });
                     setShowModal(true);
@@ -260,8 +260,8 @@ const RecruitmentTab = () => {
                               <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
                               <select
                                 className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#005193]"
-                                value={editFields.employmentType || ''}
-                                onChange={e => setEditFields(f => ({ ...f, employmentType: e.target.value }))}
+                                value={editFields.type || ''}
+                                onChange={e => setEditFields(f => ({ ...f, type: e.target.value }))}
                               >
                                 <option value="">Select...</option>
                                 <option>Full-Time</option>
@@ -272,8 +272,8 @@ const RecruitmentTab = () => {
                               <label className="block text-sm font-medium text-gray-700 mb-1">Remote Option</label>
                               <select
                                 className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#005193]"
-                                value={editFields.remoteOption || ''}
-                                onChange={e => setEditFields(f => ({ ...f, remoteOption: e.target.value }))}
+                                value={editFields.remote_option || ''}
+                                onChange={e => setEditFields(f => ({ ...f, remote_option: e.target.value }))}
                               >
                                 <option value="">Select...</option>
                                 <option>Remote</option>
@@ -303,8 +303,8 @@ const RecruitmentTab = () => {
                               <label className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
                               <select
                                 className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#005193]"
-                                value={editFields.experienceLevel || ''}
-                                onChange={e => setEditFields(f => ({ ...f, experienceLevel: e.target.value }))}
+                                value={editFields.experience_level || ''}
+                                onChange={e => setEditFields(f => ({ ...f, experience_level: e.target.value }))}
                               >
                                 <option value="">Select...</option>
                                 <option>Junior</option>
@@ -352,8 +352,8 @@ const RecruitmentTab = () => {
                               <input
                                 type="date"
                                 className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm"
-                                value={editFields.applicationDeadline || ''}
-                                onChange={e => setEditFields(f => ({ ...f, applicationDeadline: e.target.value }))}
+                                value={editFields.application_deadline || ''}
+                                onChange={e => setEditFields(f => ({ ...f, application_deadline: e.target.value }))}
                               />
                             </div>
                           </form>

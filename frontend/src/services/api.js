@@ -78,7 +78,7 @@ export const getApplications = async () => {
             status: item.application_details.status,
             applied_at: item.application_details.applied_at,
             title: item.job_details.title,
-            company: item.job_details.company_name,
+            company: item.job_details.company,
             tags: item.job_details.tags || [],
             description: item.job_details.description,
         }));
@@ -174,19 +174,19 @@ export const createJob = async (jobData) => {
     const payload = {
         title: jobData.title,
         description: jobData.description,
-        company_name: jobData.company || "",
+        company: jobData.company || "",
         department: jobData.department || "",
         location: jobData.location,
-        employment_type: jobData.employmentType,
-        job_type: jobData.remoteOption || "", // Map to correct field
-        experienceLevel: jobData.experienceLevel || "",
+        type: jobData.type,
+        remote_option: jobData.remote_option || "", // Map to correct field
+        experience_level: jobData.experience_level || "",
         education: jobData.education || "",
         salary: jobData.salary,
         tags: jobData.requiredSkills || [], // Send as list
         benefits: Array.isArray(jobData.benefits)
             ? jobData.benefits.join(",")
             : jobData.benefits || "",
-        applicationDeadline: jobData.applicationDeadline || "",
+        application_deadline: jobData.application_deadline || "",
     };
     const res = await axiosAuth.post("/hr/jobs", payload);
     return res.data;

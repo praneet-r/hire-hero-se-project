@@ -12,19 +12,19 @@ import AnalyticsTab from "../components/AnalyticsTab";
 const PostJob = () => {
   const [formData, setFormData] = useState({
     title: "",
-    companyName: "",
+    company: "",
     department: "",
-    employmentType: "",
+    type: "",
     location: "",
-    remoteOption: "",
+    remote_option: "",
     description: "",
     requiredSkills: [],
     skillInput: "",
-    experienceLevel: "",
+    experience_level: "",
     education: "",
     salary: "",
     benefits: [],
-    applicationDeadline: "",
+    application_deadline: "",
     postToCompany: false,
     postToBoards: false,
     enableAIScreening: false,
@@ -154,10 +154,10 @@ const PostJob = () => {
                     <h2 className="text-lg font-semibold mb-4">Job Information</h2>
                     <div className="grid md:grid-cols-2 gap-4">
                       <Input label="Job Title" name="title" value={formData.title} onChange={handleChange} />
-                      <Input label="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} />
+                      <Input label="Company Name" name="company" value={formData.company} onChange={handleChange} />
                       <Select label="Select Department" name="department" value={formData.department} onChange={handleChange} options={["Engineering", "HR", "Marketing", "Finance"]} />
-                      <Select label="Employment Type" name="employmentType" value={formData.employmentType} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
-                      <Select label="Remote Option" name="remoteOption" value={formData.remoteOption} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />
+                      <Select label="Employment Type" name="type" value={formData.type} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
+                      <Select label="Remote Option" name="remote_option" value={formData.remote_option} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />
                       <Input label="Location" name="location" value={formData.location} onChange={handleChange} />
                     </div>
                     <div className="mt-4">
@@ -190,7 +190,7 @@ const PostJob = () => {
                           className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
-                      <Select label="Experience Level" name="experienceLevel" value={formData.experienceLevel} onChange={handleChange} options={["Junior", "Mid", "Senior", "Lead"]} />
+                      <Select label="Experience Level" name="experience_level" value={formData.experience_level} onChange={handleChange} options={["Junior", "Mid", "Senior", "Lead"]} />
                       <Select label="Education" name="education" value={formData.education} onChange={handleChange} options={["Bachelor’s", "Master’s", "PhD"]} />
                     </div>
                   </div>
@@ -226,7 +226,7 @@ const PostJob = () => {
                       <div className="flex flex-col gap-3">
                         <div>
                           <label className="text-sm font-medium block mb-1">Application Deadline</label>
-                          <input type="date" name="applicationDeadline" value={formData.applicationDeadline} onChange={handleChange} className="w-full p-2 border rounded-xl" />
+                          <input type="date" name="application_deadline" value={formData.application_deadline} onChange={handleChange} className="w-full p-2 border rounded-xl" />
                         </div>
                         <label className="flex items-center gap-2">
                           <input type="checkbox" name="postToCompany" checked={formData.postToCompany} onChange={handleChange} />

@@ -25,12 +25,11 @@ def get_jobs():
         'id': job.id,
         'title': job.title,
         'company': job.company,
-        'company_name': job.company, # YAML says company_name, model has company
         'department': job.department,
         'description': job.description,
-        'location': job.location, # Model might be string, YAML allows object or string
-        'employment_type': job.type, # YAML: employment_type, model: type
-        'job_type': getattr(job, 'job_type', job.remote_option), # YAML: job_type, model: remote_option?
+        'location': job.location,
+        'type': job.type,
+        'remote_option': job.remote_option,
         'salary': job.salary, 
         'experience_level': job.experience_level,
         'education': job.education,
@@ -76,12 +75,20 @@ def search_jobs():
     return jsonify({
         'pagination': {'total_items': len(filtered)},
         'jobs': [{
-            'id': job.id,
             'title': job.title,
-            'company_name': job.company,
+            'company': job.company,
+            'department': job.department,
+            'description': job.description,
             'location': job.location,
-            'description': job.description
-            # ... add other fields
+            'type': job.type,
+            'remote_option': job.remote_option,
+            'salary': job.salary, 
+            'experience_level': job.experience_level,
+            'education': job.education,
+            'benefits': job.benefits,
+            'application_deadline': job.application_deadline,
+            'tags': job.tags.split(',') if job.tags else [],
+            'created_at': job.created_at,
         } for job in filtered]
     })
 
@@ -91,17 +98,19 @@ def get_job(job_id):
     return jsonify({
         'id': job.id,
         'title': job.title,
-        'company_name': job.company,
-        'description': job.description,
+        'company': job.company,
         'department': job.department,
+        'description': job.description,
         'location': job.location,
-        'employment_type': job.type,
-        'job_type': job.remote_option,
-        'salary': job.salary,
-        'tags': job.tags.split(',') if job.tags else [],
+        'type': job.type,
+        'remote_option': job.remote_option,
+        'salary': job.salary, 
+        'experience_level': job.experience_level,
+        'education': job.education,
         'benefits': job.benefits,
         'application_deadline': job.application_deadline,
-        'created_at': job.created_at
+        'tags': job.tags.split(',') if job.tags else [],
+        'created_at': job.created_at,
     })
 
 # --- HR - Jobs Endpoints ---
@@ -117,17 +126,17 @@ def create_job():
     job = Job(
         title=data.get('title'),
         description=data.get('description'),
-        company=data.get('companyName'),
+        company=data.get('company'),
         department=data.get('department'),
         location=data.get('location'),
-        type=data.get('employmentType') or data.get('type'),
-        remote_option=data.get('remoteOption'),
-        experience_level=data.get('experienceLevel'),
+        type=data.get('type'),
+        remote_option=data.get('remote_option'),
+        experience_level=data.get('experience_level'),
         education=data.get('education'),
         salary=data.get('salary'),
         tags=','.join(data.get('tags', [])) if isinstance(data.get('tags'), list) else data.get('tags'),
         benefits=data.get('benefits'),
-        application_deadline=data.get('applicationDeadline')
+        application_deadline=data.get('application_deadline')
     )
     db.session.add(job)
     db.session.commit()
@@ -141,18 +150,17 @@ def update_job(job_id):
 
     if 'title' in data: job.title = data['title']
     if 'description' in data: job.description = data['description']
-    if 'company_name' in data: job.company = data['company_name']
-    elif 'company' in data: job.company = data['company']
+    if 'company' in data: job.company = data['company']
     if 'department' in data: job.department = data['department']
     if 'location' in data: job.location = data['location']
     if 'type' in data: job.type = data['type']
-    if 'remoteOption' in data: job.remote_option = data['remoteOption']
-    if 'experienceLevel' in data: job.experience_level = data['experienceLevel']
+    if 'remote_option' in data: job.remote_option = data['remote_option']
+    if 'experience_level' in data: job.experience_level = data['experience_level']
     if 'education' in data: job.education = data['education']
     if 'salary' in data: job.salary = data['salary']
     if 'tags' in data: job.tags = data['tags']
     if 'benefits' in data: job.benefits = data['benefits']
-    if 'applicationDeadline' in data: job.application_deadline = data['applicationDeadline']
+    if 'application_deadline' in data: job.application_deadline = data['application_deadline']
 
     db.session.commit()
     return jsonify({'message': 'Job updated successfully'})
