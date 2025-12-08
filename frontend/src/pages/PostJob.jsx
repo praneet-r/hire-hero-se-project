@@ -257,7 +257,7 @@ const PostJob = () => {
                         <Wallet className="w-5 h-5 text-[#005193]" />
                         <h3 className="font-medium mb-1">Salary Range</h3>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3">Market rate: ₹{formData.salaryMin} - ₹{formData.salaryMax}</p>
+                      <p className="text-sm text-gray-600 mb-3">Market rate: ₹50000 - ₹100000</p>
                       <div className="flex items-center gap-2">
                         <BarChart2 className="w-5 h-5 text-[#005193]" />
                         <h3 className="font-medium mb-1">Market Demand</h3>
