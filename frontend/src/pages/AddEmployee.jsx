@@ -13,6 +13,7 @@ import AnalyticsTab from "../components/AnalyticsTab";
 const AddEmployee = () => {
   const navigate = useNavigate(); 
   const location = useLocation();
+  const [activeTab, setActiveTab] = useState("addEmployee"); 
   
   const [formData, setFormData] = useState({
     firstName: "",
@@ -23,11 +24,11 @@ const AddEmployee = () => {
     department: "",
     manager: "",
     startDate: "",
-    photo: null, // File object for upload
-    photoUrl: "", // URL for preview (from backend for internal)
+    photo: null,
+    photoUrl: "",
   });
 
-  const [hiringType, setHiringType] = useState("external"); // 'internal' or 'external'
+  const [hiringType, setHiringType] = useState("external");
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState("");
 
@@ -39,14 +40,19 @@ const AddEmployee = () => {
 
   useEffect(() => {
     if (location.state && location.state.candidate_id) {
+      setActiveTab("addEmployee"); 
       setHiringType("internal");
       setSelectedUserId(String(location.state.candidate_id));
-      // Clean up state so refreshing doesn't re-trigger if needed, 
-      // but keeping it is fine for persistence on reload/back
+      
+      setFormData(prev => ({
+        ...prev,
+        jobTitle: location.state.job_title || "",
+        department: location.state.department || ""
+      }));
     }
-  }, [location.state]);
+  }, [location.state, location.key]);
 
-  // When user is selected for internal, auto-fill formData
+  // Auto-fill form data when a user is selected
   useEffect(() => {
     if (hiringType === "internal" && selectedUserId) {
       getProfileByUserId(selectedUserId).then(profile => {
@@ -56,12 +62,14 @@ const AddEmployee = () => {
           lastName: profile.last_name || "",
           email: profile.email || "",
           phone: profile.phone || "",
-          photo: null, // Clear file input
-          photoUrl: profile.profile_pic || ""
+          photo: null, 
+          photoUrl: profile.profile_pic_url || profile.profile_pic || ""
         }));
       });
     } else {
-      setFormData(prev => ({ ...prev, photoUrl: "" }));
+        if (hiringType === "external") {
+             setFormData(prev => ({ ...prev, photoUrl: "" }));
+        }
     }
   }, [selectedUserId, hiringType]);
 
@@ -77,9 +85,8 @@ const AddEmployee = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      let photoPath = "";
+      let photoPath = formData.photoUrl || "";
       if (formData.photo) {
-        // Upload photo to backend (single copy, proper naming)
         const uploadData = new FormData();
         const baseName = formData.email || (formData.firstName + formData.lastName) || "employee";
         const ext = formData.photo.name.split('.').pop();
@@ -99,18 +106,16 @@ const AddEmployee = () => {
         job_location: formData.jobLocation || ""
       };
       if (hiringType === "internal") {
-        // Send only user_id for internal
         payload.user_id = selectedUserId;
       } else {
-        // Send user info for external
         payload.first_name = formData.firstName;
         payload.last_name = formData.lastName;
         payload.email = formData.email;
         payload.phone = formData.phone;
-        // Optionally, you can add password or role if needed
       }
       await createEmployee(payload);
       alert("Employee added successfully!");
+      
       setFormData({
         firstName: "",
         lastName: "",
@@ -121,8 +126,11 @@ const AddEmployee = () => {
         manager: "",
         startDate: "",
         photo: null,
+        photoUrl: "",
       });
       setSelectedUserId("");
+      setHiringType("external");
+      
     } catch (err) {
       alert("Failed to add employee. Please try again.");
     }
@@ -139,7 +147,10 @@ const AddEmployee = () => {
       manager: "",
       startDate: "",
       photo: null,
+      photoUrl: "",
     });
+    setHiringType("external");
+    setSelectedUserId("");
   };
 
   const tabConfig = [
@@ -150,14 +161,28 @@ const AddEmployee = () => {
     { tab: "analytics", icon: null },
   ];
 
-  const [activeTab, setActiveTab] = useState("addEmployee");
-
   const handleTabClick = (tab) => {
     if (tab === "dashboard") {
       navigate("/dashboard-hr");
     } else {
       setActiveTab(tab);
     }
+  };
+
+  // Helper to construct image source
+  const getPhotoSrc = () => {
+    if (formData.photo) {
+      return URL.createObjectURL(formData.photo);
+    }
+    if (formData.photoUrl) {
+      if (formData.photoUrl.startsWith("http")) {
+        return formData.photoUrl;
+      }
+      // Assuming backend returns path like "/uploads/..." and runs on localhost:5000
+      // We prepend /api because that's where the static files are served relative to the blueprint prefix
+      return `http://localhost:5000/api${formData.photoUrl}`;
+    }
+    return null;
   };
 
   return (
@@ -177,7 +202,6 @@ const AddEmployee = () => {
           {activeTab === "analytics" && <AnalyticsTab />}
           {activeTab === "addEmployee" && (
             <>
-
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-extrabold text-[#013362]">Add New Employee</h2>
                 <div className="flex gap-3 items-center">
@@ -197,6 +221,7 @@ const AddEmployee = () => {
                         manager: "",
                         startDate: "",
                         photo: null,
+                        photoUrl: "",
                       });
                     }}
                     className="border border-gray-300 rounded-lg px-2 py-1 text-sm"
@@ -228,19 +253,21 @@ const AddEmployee = () => {
                     <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
                     {hiringType === "internal" ? (
                       <>
-                        <div className="mb-4">
-                          <label className="text-sm font-medium mb-1 block">Select User</label>
-                          <select
-                            value={selectedUserId}
-                            onChange={e => setSelectedUserId(e.target.value)}
-                            className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
-                          >
-                            <option value="">-- Select User --</option>
-                            {users.map(u => (
-                              <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.email})</option>
-                            ))}
-                          </select>
-                        </div>
+                        {!location.state?.candidate_id && (
+                            <div className="mb-4">
+                            <label className="text-sm font-medium mb-1 block">Select User</label>
+                            <select
+                                value={selectedUserId}
+                                onChange={e => setSelectedUserId(e.target.value)}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                            >
+                                <option value="">-- Select User --</option>
+                                {users.map(u => (
+                                <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.email})</option>
+                                ))}
+                            </select>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
                           <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
@@ -260,12 +287,11 @@ const AddEmployee = () => {
                   <div className="flex flex-col items-center">
                     <h2 className="text-lg font-semibold mb-2">Profile Photo</h2>
                     <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mb-3">
-                      {formData.photo
-                        ? <img src={URL.createObjectURL(formData.photo)} alt="Profile" className="w-full h-full object-cover" />
-                        : formData.photoUrl
-                          ? <img src={formData.photoUrl.startsWith("/uploads") ? formData.photoUrl : `/uploads/${formData.photoUrl}`} alt="Profile" className="w-full h-full object-cover" />
-                          : <span className="text-gray-500 text-sm">No Photo</span>
-                      }
+                      {getPhotoSrc() ? (
+                        <img src={getPhotoSrc()} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-gray-500 text-sm">No Photo</span>
+                      )}
                     </div>
                     <input type="file" name="photo" accept="image/*" onChange={handleChange} className="text-sm" />
                   </div>
@@ -276,8 +302,7 @@ const AddEmployee = () => {
                     <InputField label="Job Title" name="jobTitle" value={formData.jobTitle} onChange={handleChange} />
                     <SelectField label="Select Department" name="department" value={formData.department} onChange={handleChange} options={["Engineering", "HR", "Marketing", "Finance"]} />
                   </div>
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <SelectField label="Select Manager" name="manager" value={formData.manager} onChange={handleChange} options={["John Doe", "Jane Smith", "Rahul Mehta", "Ava Wilson"]} />
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <SelectField label="Job Location" name="jobLocation" value={formData.jobLocation || ""} onChange={handleChange} options={["Remote Worker", "On-site Worker"]} />
                     <InputField label="Start Date" name="startDate" type="date" value={formData.startDate} onChange={handleChange} />
                   </div>
@@ -291,7 +316,6 @@ const AddEmployee = () => {
   );
 };
 
-// --- Reusable InputField Component ---
 const InputField = ({ label, name, value, onChange, type = "text" }) => (
   <div className="flex flex-col">
     <label className="text-sm font-medium mb-1">{label}</label>
@@ -305,7 +329,6 @@ const InputField = ({ label, name, value, onChange, type = "text" }) => (
   </div>
 );
 
-// --- Reusable SelectField Component ---
 const SelectField = ({ label, name, value, onChange, options = [] }) => (
   <div className="flex flex-col">
     <label className="text-sm font-medium mb-1">{label}</label>

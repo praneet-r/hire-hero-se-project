@@ -9,14 +9,12 @@ import {
   Lightbulb,
   TrendingUp,
   Plus,
-  Filter,
   Mail,
   User,
   Code,
   Brush,
   Sparkles,
   Megaphone,
-  Eye,
   ExternalLink,
   CheckCircle,
   XCircle,
@@ -42,7 +40,10 @@ const RecruitmentTab = () => {
   const [showApplicantsModal, setShowApplicantsModal] = useState(false);
   const [currentJobApplicants, setCurrentJobApplicants] = useState([]);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
-  const [viewingJobTitle, setViewingJobTitle] = useState("");
+  
+  // Changed: Store full job object, not just title, to access department/title later
+  const [viewingJob, setViewingJob] = useState(null); 
+  
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [holding, setHolding] = useState(false);
@@ -60,7 +61,6 @@ const RecruitmentTab = () => {
     if (!selectedJob) return;
     setSaving(true);
     try {
-      // Prepare payload for backend
       const payload = {
         description: editFields.description,
         company: editFields.company,
@@ -76,7 +76,7 @@ const RecruitmentTab = () => {
         application_deadline: editFields.application_deadline,
         status: editFields.status
       };
-      const res = await axiosAuth.put(`/hr/jobs/${selectedJob.id}`, payload);
+      await axiosAuth.put(`/hr/jobs/${selectedJob.id}`, payload);
       setJobs(jobs => jobs.map(j => j.id === selectedJob.id ? { ...j, ...editFields, tags: payload.tags.split(',') } : j));
       setShowModal(false);
       setSelectedJob(null);
@@ -116,7 +116,7 @@ const RecruitmentTab = () => {
   };
 
   const handleViewApplicants = async (job) => {
-    setViewingJobTitle(job.title);
+    setViewingJob(job); // Store the full job object
     setShowApplicantsModal(true);
     setLoadingApplicants(true);
     try {
@@ -130,16 +130,13 @@ const RecruitmentTab = () => {
   };
 
   const handleApplicationAction = async (appId, newStatus) => {
-    // Optimistic update or show loading state could be added here
     try {
       await updateApplicationStatus(appId, newStatus);
       
-      // Update the local list to reflect the change immediately
       setCurrentJobApplicants(prev => prev.map(app => 
         app.id === appId ? { ...app, status: newStatus } : app
       ));
       
-      // Optional: Show success feedback
       setPillMessage(`Candidate ${newStatus === 'rejected' ? 'rejected' : 'moved to interview'}`);
       setPillType("success");
       setTimeout(() => setPillMessage(""), 3000);
@@ -162,7 +159,6 @@ const RecruitmentTab = () => {
     if (!selectedAppForInterview) return;
 
     try {
-      // Combine date and time into ISO string
       const scheduledAt = new Date(`${scheduleForm.date}T${scheduleForm.time}`).toISOString();
 
       await scheduleInterview({
@@ -173,7 +169,6 @@ const RecruitmentTab = () => {
         location_detail: scheduleForm.link
       });
 
-      // Also update application status locally or via API if the backend doesn't do it automatically
       await handleApplicationAction(selectedAppForInterview.id, 'interviewing');
 
       setShowScheduleModal(false);
@@ -201,9 +196,7 @@ const RecruitmentTab = () => {
 
   useEffect(() => {
     async function fetchData() {
-      // Fetch jobs
       const jobsData = await getJobs();
-      // Add icon based on job title/department (simple mapping)
       const jobsWithIcons = (jobsData || []).map((job) => ({
         ...job,
         icon:
@@ -215,13 +208,12 @@ const RecruitmentTab = () => {
       }));
       setJobs(jobsWithIcons);
 
-      // Fetch candidates (profiles with role 'candidate')
       const profiles = await getCandidates();
       const candidates = (profiles || [])
         .map((p, idx) => ({
           id: p.id || idx,
           name: p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.first_name || p.last_name || p.email,
-          role: 'Candidate', // getCandidates returns basic info
+          role: 'Candidate', 
           match: `${Math.floor(Math.random()*21)+80}%`,
         }));
       setCandidates(candidates);
@@ -309,7 +301,6 @@ const RecruitmentTab = () => {
                   className="text-sm border border-gray-300 text-[#005193] px-4 py-1.5 rounded-lg font-semibold hover:bg-gray-50"
                   onClick={() => {
                     setSelectedJob(job);
-                    const salaryParts = job.salary ? job.salary.split('-') : ["", ""];
                     setEditFields({
                       description: job.description || "",
                       company: job.company || job.company_name || "",
@@ -501,7 +492,7 @@ const RecruitmentTab = () => {
                   <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
                     <div>
                       <h3 className="text-xl font-bold text-[#013362]">Applicants</h3>
-                      <p className="text-sm text-gray-500">For role: <span className="font-semibold">{viewingJobTitle}</span></p>
+                      <p className="text-sm text-gray-500">For role: <span className="font-semibold">{viewingJob ? viewingJob.title : ""}</span></p>
                     </div>
                     <button 
                       onClick={() => setShowApplicantsModal(false)}
@@ -536,6 +527,7 @@ const RecruitmentTab = () => {
                                     app.status === 'interviewing' ? 'bg-purple-100 text-purple-700' :
                                     app.status === 'under_review' ? 'bg-yellow-100 text-yellow-700' : 
                                     app.status === 'offer_extended' ? 'bg-green-100 text-green-700' :
+                                    app.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' :
                                     app.status === 'rejected' ? 'bg-red-100 text-red-700' :
                                     'bg-gray-100 text-gray-600'
                                   }`}>
@@ -553,7 +545,7 @@ const RecruitmentTab = () => {
                               {app.status === 'applied' && (
                                 <>
                                   <button
-                                    onClick={() => openScheduleModal(app)} // <--- Updated to open modal
+                                    onClick={() => openScheduleModal(app)} 
                                     title="Schedule Interview"
                                     className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
                                   >
@@ -616,7 +608,19 @@ const RecruitmentTab = () => {
                               {app.status === 'accepted' && (
                                 <>
                                   <button
-                                    onClick={() => navigate('/add-employee', { state: { candidate_id: app.user_id } })}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      // Updated: Pass job info too
+                                      navigate('/add-employee', { 
+                                        state: { 
+                                          candidate_id: app.user_id,
+                                          job_title: viewingJob?.title,
+                                          department: viewingJob?.department
+                                        } 
+                                      });
+                                    }}
                                     title="Add as Employee"
                                     className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
                                   >

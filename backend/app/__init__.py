@@ -27,6 +27,8 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        from .seed_data import seed_database
+        seed_database()
 
     # Register Blueprints
     # Note: url_prefix='/api' is common. Some routes might define their own paths if needed,
