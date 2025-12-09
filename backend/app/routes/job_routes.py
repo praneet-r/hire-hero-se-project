@@ -11,15 +11,22 @@ job_bp = Blueprint('job_bp', __name__)
 def get_jobs():
     # Helper for pagination
     page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 20, type=int)
+    # Changed: No default limit (None). If provided, it will paginate, otherwise return all.
+    limit_param = request.args.get('limit', type=int)
 
-    # In a real app, use .paginate()
-    jobs = Job.query.all() # Fetch all for now, slice later or update query
+    jobs = Job.query.all() 
 
-    # Simple pagination simulation
-    start = (page - 1) * limit
-    end = start + limit
-    paginated_jobs = jobs[start:end]
+    if limit_param:
+        limit = limit_param
+        start = (page - 1) * limit
+        end = start + limit
+        paginated_jobs = jobs[start:end]
+        total_pages = (len(jobs) + limit - 1) // limit
+    else:
+        # Show all jobs if no limit provided
+        paginated_jobs = jobs
+        limit = len(jobs)
+        total_pages = 1
 
     job_list = [{
         'id': job.id,
@@ -44,9 +51,9 @@ def get_jobs():
     return jsonify({
         'pagination': {
             'page': page,
-            'per_page': limit,
+            'per_page': limit if limit else len(jobs),
             'total_items': len(jobs),
-            'total_pages': (len(jobs) + limit - 1) // limit
+            'total_pages': total_pages
         },
         'jobs': job_list
     })
