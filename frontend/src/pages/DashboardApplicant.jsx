@@ -1,11 +1,14 @@
 import React from 'react';
-import { getJobs, getApplications, getMyInterviews } from '../services/api';
+import { getJobs, getApplications, getMyInterviews, applyToJob } from '../services/api'; // Added applyToJob
 import TopNavbarApplicant from "../components/TopNavbarApplicant";
 import JobSearch from '../components/JobSearch';
 import MyApplications from '../components/MyApplications';
 import Chatbot from '../components/Chatbot';
 import ProfileApplicant from '../components/ProfileApplicant';
-import { Briefcase, Send, Eye, Users, Sparkles, FileText, User, BarChart2, Download, Mail, Calendar, UserCheck } from "lucide-react";
+import { 
+  Briefcase, Send, Eye, Users, Sparkles, FileText, 
+  BarChart2, Calendar, X, MapPin, Clock, DollarSign 
+} from "lucide-react"; // Added X, MapPin, Clock, DollarSign
 
 export default function DashboardApplicant() {
   const [activeTab, setActiveTab] = React.useState("dashboard");
@@ -19,6 +22,11 @@ export default function DashboardApplicant() {
   const [recommendedJobs, setRecommendedJobs] = React.useState([]);
   const [recentActivity, setRecentActivity] = React.useState([]);
   const [upcomingInterviews, setUpcomingInterviews] = React.useState([]);
+
+  // --- NEW STATE FOR FUNCTIONALITY ---
+  const [selectedJob, setSelectedJob] = React.useState(null); // For Modal
+  const [appliedJobIds, setAppliedJobIds] = React.useState(new Set()); // Track applied jobs
+  const [applyingId, setApplyingId] = React.useState(null); // Loading state for apply button
 
   React.useEffect(() => {
     async function fetchData() {
@@ -41,10 +49,10 @@ export default function DashboardApplicant() {
           setUsername("User");
         }
       }
+      
       // Fetch upcoming interviews
       try {
         const interviews = await getMyInterviews();
-        
         setUpcomingInterviews(interviews.map(interview => ({
           id: interview.id,
           company: interview.company_name || "HireHero",
@@ -52,38 +60,46 @@ export default function DashboardApplicant() {
           date: new Date(interview.scheduled_at).toLocaleDateString(),
           time: new Date(interview.scheduled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
           link: interview.location_detail,
-          type: interview.location_type || 'video' // <--- Added: capture the type (video, phone, in_person)
+          type: interview.location_type || 'video'
         })));
         
-        // Update Stats based on real interviews
         setStats(prev => prev.map(stat =>
           stat.label === "Interview Requests"
             ? { ...stat, value: interviews.length, sub: "Scheduled" }
             : stat
         ));
       } catch (err) {
-        console.error("Error fetching interviews:", err);
         setUpcomingInterviews([]);
       }
-      // Fetch applications
+
+      // Fetch applications (Used to mark jobs as applied)
       try {
         const applications = await getApplications();
+        // 1. Update Stats
         setStats(prev => prev.map(stat =>
           stat.label === "Applications Sent"
             ? { ...stat, value: applications.length, sub: `+${applications.length} total` }
             : stat
         ));
+        
+        // 2. Update Recent Activity
         setRecentActivity(applications.map(app => ({
           icon: Send,
           color: "#005193",
           text: `Applied for ${app.title || 'Job'} at ${app.company || 'Company'}`, 
           time: app.applied_at ? new Date(app.applied_at).toLocaleDateString() : "recently"
         })));
+
+        // 3. Track Applied IDs
+        const appliedIds = new Set(applications.map(app => app.job_id));
+        setAppliedJobIds(appliedIds);
+
       } catch {}
+
       // Fetch jobs
       try {
         const jobs = await getJobs();
-        setRecommendedJobs(jobs.slice(0, 2)); // Show top 2 jobs
+        setRecommendedJobs(jobs.slice(0, 2)); 
         setStats(prev => prev.map(stat =>
           stat.label === "AI Job Match"
             ? { ...stat, value: `${jobs.length * 10}%`, sub: "example match" }
@@ -94,26 +110,46 @@ export default function DashboardApplicant() {
     fetchData();
   }, []);
 
-  // ...existing code...
+  // --- HANDLER FOR APPLYING ---
+  const handleApply = async (jobId) => {
+    setApplyingId(jobId);
+    try {
+      await applyToJob(jobId);
+      setAppliedJobIds(prev => new Set(prev).add(jobId));
+      alert("Application sent successfully!");
+      
+      // Update Recent Activity locally to reflect the change immediately
+      const job = recommendedJobs.find(j => j.id === jobId);
+      if(job) {
+          setRecentActivity(prev => [{
+              icon: Send,
+              color: "#005193",
+              text: `Applied for ${job.title} at ${job.company}`,
+              time: "Just now"
+          }, ...prev]);
+      }
+    } catch (err) {
+      alert("Failed to apply. Please try again.");
+    }
+    setApplyingId(null);
+  };
 
   return (
     <section className="min-h-screen flex flex-col bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] font-inter">
       <TopNavbarApplicant activeTab={activeTab} setActiveTab={setActiveTab} />
       <main className="flex-1 p-8 flex flex-col gap-6">
-  {activeTab === "dashboard" && (
+        {activeTab === "dashboard" && (
           <>
             <div className="flex items-center mb-2">
               <h1 className="text-2xl font-extrabold text-[#013362]">
                   Welcome, <span className="font-semibold">{username || "User"}</span>
               </h1>
             </div>
+            
             {/* Stats Section */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {stats.map((stat, i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm text-center hover:shadow-md transition flex flex-col items-center"
-                >
+                <div key={i} className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm text-center hover:shadow-md transition flex flex-col items-center">
                   {stat.icon && <stat.icon className="h-7 w-7 mb-2 text-[#005193]" />}
                   <h3 className="text-3xl font-extrabold text-[#013362]">{stat.value}</h3>
                   <p className="text-gray-500 mt-1 text-sm font-medium">{stat.label}</p>
@@ -121,6 +157,7 @@ export default function DashboardApplicant() {
                 </div>
               ))}
             </div>
+
             {/* Main Content */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* AI Recommended Jobs */}
@@ -129,7 +166,7 @@ export default function DashboardApplicant() {
                   <h2 className="text-lg font-bold text-[#013362] flex items-center gap-2">
                     <FileText className="h-5 w-5 text-[#005193]" /> AI Recommended Jobs
                   </h2>
-                  <button className="text-[#005193] text-sm font-semibold hover:underline flex items-center gap-1">
+                  <button onClick={() => setActiveTab("jobs")} className="text-[#005193] text-sm font-semibold hover:underline flex items-center gap-1">
                     <BarChart2 className="h-4 w-4" /> View All
                   </button>
                 </div>
@@ -162,17 +199,32 @@ export default function DashboardApplicant() {
                         </div>
                       </div>
                       <div className="flex flex-col items-end space-y-2">
-                        <button className="px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2 text-[#005193] hover:underline bg-transparent border-none shadow-none">
+                        {/* FUNCTIONAL VIEW DETAILS BUTTON */}
+                        <button 
+                            onClick={() => setSelectedJob(job)}
+                            className="px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2 text-[#005193] hover:underline bg-transparent border-none shadow-none"
+                        >
                           View Details
                         </button>
-                        <button className="px-5 py-2 rounded-md text-sm font-semibold flex items-center gap-2 bg-gradient-to-r from-[#005193] to-[#013362] text-white shadow-lg hover:opacity-90 transition">
-                          Apply Now
+                        
+                        {/* FUNCTIONAL APPLY BUTTON */}
+                        <button 
+                            onClick={() => !appliedJobIds.has(job.id) && handleApply(job.id)}
+                            disabled={applyingId === job.id || appliedJobIds.has(job.id)}
+                            className={`px-5 py-2 rounded-md text-sm font-semibold flex items-center gap-2 text-white shadow-lg transition ${
+                                appliedJobIds.has(job.id) 
+                                ? "bg-green-600 cursor-default opacity-80" 
+                                : "bg-gradient-to-r from-[#005193] to-[#013362] hover:opacity-90"
+                            }`}
+                        >
+                          {applyingId === job.id ? "Sending..." : appliedJobIds.has(job.id) ? "Applied" : "Apply Now"}
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
+
               {/* Recent Activity */}
               <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
@@ -191,6 +243,7 @@ export default function DashboardApplicant() {
                 </ul>
               </div>
             </div>
+
             {/* Upcoming Interviews */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
@@ -198,10 +251,7 @@ export default function DashboardApplicant() {
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 {upcomingInterviews.length > 0 ? upcomingInterviews.map((interview, i) => (
-                  <div
-                    key={i}
-                    className="border rounded-md p-4 flex flex-col md:flex-row justify-between items-start md:items-center hover:bg-[#F7F8FF]"
-                  >
+                  <div key={i} className="border rounded-md p-4 flex flex-col md:flex-row justify-between items-start md:items-center hover:bg-[#F7F8FF]">
                     <div>
                       <p className="font-medium text-gray-800">{interview.company}</p>
                       <p className="text-sm text-gray-500 capitalize">{interview.role}</p>
@@ -209,8 +259,6 @@ export default function DashboardApplicant() {
                         {interview.date} at {interview.time}
                       </p>
                     </div>
-                    
-                    {/* UPDATED ACTION SECTION */}
                     <div className="flex space-x-2 mt-3 md:mt-0 items-center">
                       {interview.type === 'video' ? (
                         <button 
@@ -231,7 +279,6 @@ export default function DashboardApplicant() {
                         </div>
                       )}
                     </div>
-                    
                   </div>
                 )) : (
                   <p className="text-gray-500 text-sm italic">No upcoming interviews scheduled.</p>
@@ -240,13 +287,96 @@ export default function DashboardApplicant() {
             </div>
           </>
         )}
-        {/* Tab content for other tabs */}
+
+        {/* Tab content */}
         {activeTab === "jobs" && <JobSearch />}
         {activeTab === "applications" && <MyApplications />}
         {activeTab === "profile" && <ProfileApplicant />}
         {activeTab === "chat" && <Chatbot />}
       </main>
+
+      {/* --- DETAILS MODAL (Same as JobSearch) --- */}
+      {selectedJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <div className="p-8">
+              {/* Header */}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-2xl font-extrabold text-[#013362]">{selectedJob.title}</h3>
+                  <p className="text-base text-gray-500 font-semibold mt-1">{selectedJob.company || "HireHero Company"}</p>
+                </div>
+                <button 
+                    onClick={() => setSelectedJob(null)} 
+                    className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 p-2 rounded-full transition"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Tags */}
+              <div className="flex flex-wrap gap-2 mb-8">
+                <span className="bg-blue-50 text-[#005193] px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> {selectedJob.type || "Full-time"}
+                </span>
+                <span className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                    ₹ {selectedJob.salary || "Competitive"}
+                </span>
+                <span className="bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> {selectedJob.location || "Remote"}
+                </span>
+              </div>
+
+              {/* Description */}
+              <div className="prose prose-sm text-gray-700 mb-8 max-w-none">
+                <h4 className="text-sm font-bold text-[#013362] uppercase tracking-wide mb-3 border-b pb-2">Description</h4>
+                <p className="whitespace-pre-wrap leading-relaxed">{selectedJob.description}</p>
+                
+                {selectedJob.tags && selectedJob.tags.length > 0 && (
+                    <div className="mt-6">
+                        <h4 className="text-sm font-bold text-[#013362] uppercase tracking-wide mb-3 border-b pb-2">Required Skills</h4>
+                        <div className="flex flex-wrap gap-2">
+                            {(Array.isArray(selectedJob.tags) ? selectedJob.tags : typeof selectedJob.tags === 'string' ? selectedJob.tags.split(',') : []).map(tag => (
+                            <span key={tag} className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold">{tag}</span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+                <button 
+                    onClick={() => setSelectedJob(null)} 
+                    className="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 rounded-xl transition"
+                >
+                    Close
+                </button>
+                <button
+                  className={`px-6 py-2.5 text-white rounded-xl text-sm font-bold shadow-lg transition transform active:scale-95 ${
+                    appliedJobIds.has(selectedJob.id)
+                      ? "bg-green-600 cursor-default opacity-90 shadow-none"
+                      : "bg-gradient-to-r from-[#005193] to-[#013362] hover:opacity-95 hover:shadow-xl"
+                  }`}
+                  onClick={() => { 
+                    if (!appliedJobIds.has(selectedJob.id)) {
+                      handleApply(selectedJob.id); 
+                      setSelectedJob(null); 
+                    }
+                  }}
+                  disabled={applyingId === selectedJob.id || appliedJobIds.has(selectedJob.id)}
+                >
+                  {applyingId === selectedJob.id 
+                    ? 'Sending Application...' 
+                    : appliedJobIds.has(selectedJob.id) 
+                      ? 'Already Applied' 
+                      : 'Apply Now'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
-

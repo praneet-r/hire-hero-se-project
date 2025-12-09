@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getJobs, applyToJob, getApplications } from '../services/api';
+import {  MapPin, Clock } from "lucide-react";
 
 const JobSearch = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -297,7 +298,7 @@ const JobSearch = () => {
                   {applyingId === job.id 
                     ? 'Applying...' 
                     : appliedJobIds.has(job.id) 
-                      ? 'Application Sent' 
+                      ? 'Applied' 
                       : 'Apply Now'}
                 </button>
                 {/* Inline feedback removed, now handled by status pill */}
@@ -347,10 +348,16 @@ const JobSearch = () => {
                 <button onClick={() => setSelectedJob(null)} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-6">
-                <span className="bg-blue-50 text-[#005193] px-3 py-1 rounded-full text-xs font-semibold">{selectedJob.type || selectedJob.employmentType || "Full-time"}</span>
-                <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">{selectedJob.salary || "Competitive"}</span>
-                <span className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">{selectedJob.location || "Remote"}</span>
+              <div className="flex flex-wrap gap-2 mb-8">
+                <span className="bg-blue-50 text-[#005193] px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> {selectedJob.type || "Full-time"}
+                </span>
+                <span className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                    ₹ {selectedJob.salary || "Competitive"}
+                </span>
+                <span className="bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> {selectedJob.location || "Remote"}
+                </span>
               </div>
 
               <div className="prose text-sm text-gray-700 mb-6">
@@ -388,7 +395,7 @@ const JobSearch = () => {
                   {applyingId === selectedJob.id 
                     ? 'Applying...' 
                     : appliedJobIds.has(selectedJob.id) 
-                      ? 'Application Sent' 
+                      ? 'Already Applied' 
                       : 'Apply Now'}
                 </button>
               </div>
