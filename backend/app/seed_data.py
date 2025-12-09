@@ -1,13 +1,14 @@
 from .database import db
 from .models import User, Profile, Job, Application, Employee, Performance, Education, Experience, Interview
 from datetime import datetime, timedelta
+from .services.matching_service import matching_service
 import random
 
 # ==========================================
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = True
+CREATE_DUMMY_DATA = False
 
 def seed_database():
     """
@@ -287,11 +288,20 @@ def seed_database():
         for job in applied_jobs:
             if not Application.query.filter_by(user_id=seeker.id, job_id=job.id).first():
                 status = random.choice(statuses)
+                score = 0.0
+                if seeker.profile:
+                    try:
+                        score = matching_service.calculate_score(seeker.profile, job)
+                    except Exception as e:
+                        print(f"Error calculating seed score: {e}")
+                        score = 0.0
                 app = Application(
                     user_id=seeker.id,
                     job_id=job.id,
                     status=status,
-                    applied_at=datetime.utcnow() - timedelta(days=random.randint(1, 20))
+                    applied_at=datetime.utcnow() - timedelta(days=random.randint(1, 20)),
+                    match_score=score,
+                    match_explanation=None
                 )
                 db.session.add(app)
                 db.session.flush() 

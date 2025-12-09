@@ -615,7 +615,7 @@ const RecruitmentTab = () => {
               {/* View Applicants Modal */}
               {showApplicantsModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20">
-                  <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+                  <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
                     {/* Modal Header */}
                     <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
                       <div>
@@ -667,22 +667,8 @@ const RecruitmentTab = () => {
                                 </div>
                               </div>
 
-                              <div className="flex flex-col items-end mr-4 px-4 min-w-[100px]">
-                                <div className={`text-lg font-bold ${
-                                    app.match_score >= 80 ? 'text-green-600' : 
-                                    app.match_score >= 60 ? 'text-yellow-600' : 'text-red-500'
-                                }`}>
-                                    {app.match_score ? Math.round(app.match_score) : 0}%
-                                </div>
-                                
-                                <button 
-                                    onClick={() => handleShowExplanation(app.id, app.candidate_name)}
-                                    className="text-[10px] flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 px-2 py-1 rounded border border-blue-100 hover:border-blue-300 transition mt-1"
-                                >
-                                    <HelpCircle className="w-3 h-3" /> Why?
-                                </button>
-                            </div>
                               
+                              <div className="flex items-center gap-6">
                               {/* Actions Group */}
                               <div className="flex items-center gap-2">
                                 
@@ -784,6 +770,32 @@ const RecruitmentTab = () => {
                                 >
                                   View Profile <ExternalLink className="w-3 h-3" />
                                 </a>
+
+                                {/* Match Score */}
+                                <div className="flex flex-col items-end mr-4 px-4 min-w-[100px]">
+                                  <div className="flex items-baseline gap-1">
+                                      {/* Percentage Number */}
+                                      <span className={`text-xl font-extrabold leading-none ${
+                                          app.match_score >= 80 ? 'text-green-600' : 
+                                          app.match_score >= 60 ? 'text-yellow-600' : 'text-red-500'
+                                      }`}>
+                                          {app.match_score ? Math.round(app.match_score) : 0}%
+                                      </span>
+                                      
+                                      {/* Small 'match' text */}
+                                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+                                          match
+                                      </span>
+                                  </div>
+                                  
+                                  <button 
+                                      onClick={() => handleShowExplanation(app.id, app.candidate_name)}
+                                      className="text-[10px] flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 px-2 py-1 rounded border border-blue-100 hover:border-blue-300 transition mt-1"
+                                  >
+                                      <HelpCircle className="w-3 h-3" /> Why?
+                                  </button>
+                                </div>
+                              </div>
                               </div>
                             </div>
                           ))}
