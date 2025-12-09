@@ -7,7 +7,7 @@ import random
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = False
+CREATE_DUMMY_DATA = True
 
 def seed_database():
     """

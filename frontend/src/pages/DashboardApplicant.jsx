@@ -1,5 +1,5 @@
 import React from 'react';
-import { getJobs, getApplications, getMyInterviews, applyToJob } from '../services/api'; // Added applyToJob
+import { getRecommendedJobs, getJobs, getApplications, getMyInterviews, applyToJob } from '../services/api'; // Added applyToJob
 import TopNavbarApplicant from "../components/TopNavbarApplicant";
 import JobSearch from '../components/JobSearch';
 import MyApplications from '../components/MyApplications';
@@ -96,17 +96,30 @@ export default function DashboardApplicant() {
 
       } catch {}
 
-      // Fetch jobs
       try {
-        const jobs = await getJobs();
-        setRecommendedJobs(jobs.slice(0, 2)); 
-        setStats(prev => prev.map(stat =>
-          stat.label === "AI Job Match"
-            ? { ...stat, value: `${jobs.length * 10}%`, sub: "example match" }
-            : stat
-        ));
-      } catch {}
-    }
+          const recJobs = await getRecommendedJobs();
+          setRecommendedJobs(recJobs);
+          // Update stats if needed
+          if (recJobs.length > 0) {
+              setStats(prev => prev.map(stat => 
+                  stat.label === "AI Job Match" 
+                  ? { ...stat, value: `${Math.round(recJobs[0].match_score)}%`, sub: "Top Match" } 
+                  : stat
+              ));
+          }
+      } catch (e) { console.error(e); }
+
+      // Fetch jobs
+      // try {
+      //     const jobs = await getJobs();
+      //     setRecommendedJobs(jobs.slice(0, 2)); 
+      //     setStats(prev => prev.map(stat =>
+      //       stat.label === "AI Job Match"
+      //         ? { ...stat, value: `${jobs.length * 10}%`, sub: "example match" }
+      //         : stat
+      //     ));
+      //   } catch {}
+      }
     fetchData();
   }, []);
 
@@ -187,6 +200,9 @@ export default function DashboardApplicant() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">
+                          <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-md font-bold">
+                              {Math.round(job.match_score)}% Match
+                          </span>
                           {(Array.isArray(job.tags) ? job.tags : typeof job.tags === 'string' ? job.tags.split(',').map(t => t.trim()).filter(Boolean) : []).map((tag) => (
                             <span
                               key={tag}

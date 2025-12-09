@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMyJobs, getEmployees, getCandidates, axiosAuth, getCompanyApplications, updateApplicationStatus,
-  scheduleInterview } from "../services/api";
+  scheduleInterview, getApplicationExplanation } from "../services/api";
 import {
   Users,
   Briefcase,
@@ -19,7 +19,10 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
-  UserPlus
+  UserPlus,
+  HelpCircle,
+  X,
+  Loader,
 } from "lucide-react";
 
 const RecruitmentTab = () => {
@@ -40,6 +43,12 @@ const RecruitmentTab = () => {
   const [showApplicantsModal, setShowApplicantsModal] = useState(false);
   const [currentJobApplicants, setCurrentJobApplicants] = useState([]);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const [explanationModal, setExplanationModal] = useState({ 
+        show: false, 
+        data: null, 
+        loading: false,
+        candidateName: ""
+    });
   
   // Changed: Store full job object, not just title, to access department/title later
   const [viewingJob, setViewingJob] = useState(null); 
@@ -55,6 +64,19 @@ const RecruitmentTab = () => {
     link: "",
     type: "video" // video, phone, in_person
   });
+
+  const handleShowExplanation = async (appId, candidateName) => {
+        setExplanationModal({ show: true, data: null, loading: true, candidateName });
+        try {
+            const data = await getApplicationExplanation(appId);
+            setExplanationModal(prev => ({ ...prev, loading: false, data }));
+        } catch (err) {
+            console.error(err);
+            setExplanationModal(prev => ({ ...prev, loading: false, data: null })); // Handle error state in UI if needed
+        }
+    };
+
+    const closeExpModal = () => setExplanationModal({ show: false, data: null, loading: false, candidateName: "" });
 
   // Update job description API
   const handleSaveJob = async () => {
@@ -524,6 +546,71 @@ const RecruitmentTab = () => {
                           </div>
                         </div>
                       )}
+              
+              {/* The Explanation Modal */}
+              {explanationModal.show && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-[#005193] to-[#013362] px-6 py-4 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-yellow-300" /> AI Match Analysis
+                            </h3>
+                            <button onClick={closeExpModal} className="text-white/80 hover:text-white transition">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6">
+                            <p className="text-sm text-gray-500 mb-4">
+                                Analysis for <span className="font-semibold text-gray-800">{explanationModal.candidateName}</span>
+                            </p>
+
+                            {explanationModal.loading ? (
+                                <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                                    <Loader className="w-8 h-8 text-[#005193] animate-spin" />
+                                    <p className="text-sm text-gray-500 animate-pulse">Consulting AI model...</p>
+                                </div>
+                            ) : explanationModal.data ? (
+                                <div className="space-y-4 text-sm">
+                                    <div className="bg-green-50 border border-green-100 p-3 rounded-lg">
+                                        <h4 className="font-bold text-green-800 mb-1 flex items-center gap-2">✅ Strengths</h4>
+                                        <ul className="list-disc pl-4 text-green-800/80 space-y-1">
+                                            {explanationModal.data.strengths?.map((s, i) => <li key={i}>{s}</li>)}
+                                        </ul>
+                                    </div>
+
+                                    <div className="bg-red-50 border border-red-100 p-3 rounded-lg">
+                                        <h4 className="font-bold text-red-800 mb-1 flex items-center gap-2">⚠️ Missing / Gaps</h4>
+                                        <ul className="list-disc pl-4 text-red-800/80 space-y-1">
+                                            {explanationModal.data.missing?.map((m, i) => <li key={i}>{m}</li>)}
+                                        </ul>
+                                    </div>
+
+                                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                                        <h4 className="font-bold text-gray-700 mb-1">🤖 AI Verdict</h4>
+                                        <p className="text-gray-600 italic">"{explanationModal.data.verdict}"</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center text-red-500 py-4">Failed to load analysis.</div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
+                            <button 
+                                onClick={closeExpModal}
+                                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 transition"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+              )}
                 
               {/* View Applicants Modal */}
               {showApplicantsModal && (
@@ -579,6 +666,22 @@ const RecruitmentTab = () => {
                                   </div>
                                 </div>
                               </div>
+
+                              <div className="flex flex-col items-end mr-4 px-4 min-w-[100px]">
+                                <div className={`text-lg font-bold ${
+                                    app.match_score >= 80 ? 'text-green-600' : 
+                                    app.match_score >= 60 ? 'text-yellow-600' : 'text-red-500'
+                                }`}>
+                                    {app.match_score ? Math.round(app.match_score) : 0}%
+                                </div>
+                                
+                                <button 
+                                    onClick={() => handleShowExplanation(app.id, app.candidate_name)}
+                                    className="text-[10px] flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 px-2 py-1 rounded border border-blue-100 hover:border-blue-300 transition mt-1"
+                                >
+                                    <HelpCircle className="w-3 h-3" /> Why?
+                                </button>
+                            </div>
                               
                               {/* Actions Group */}
                               <div className="flex items-center gap-2">

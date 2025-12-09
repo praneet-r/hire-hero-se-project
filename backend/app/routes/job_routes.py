@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from ..database import db
 from ..models import Job
 from ..utils import get_current_user
+from ..services.matching_service import matching_service
+import json
 
 job_bp = Blueprint('job_bp', __name__)
 
@@ -214,3 +216,58 @@ def delete_job(job_id):
     db.session.delete(job)
     db.session.commit()
     return jsonify({'message': 'Job deleted successfully'})
+
+@job_bp.route('/jobs/recommendations', methods=['GET'])
+def get_job_recommendations():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    profile = user.profile
+    if not profile:
+        return jsonify({'error': 'Profile required for recommendations'}), 400
+
+    jobs = Job.query.all()
+    recommended = []
+
+    for job in jobs:
+        # Calculate score locally (fast)
+        score = matching_service.calculate_score(profile, job)
+        
+        # Only recommend if score > 60% (Lowered threshold slightly to ensure results)
+        if score > 10: 
+            job_data = {
+                'id': job.id,
+                'title': job.title,
+                'company': job.company,
+                'location': job.location,
+                'type': job.type,
+                'salary': job.salary,
+                'tags': job.tags.split(',') if job.tags else [],
+                'match_score': score
+            }
+            recommended.append(job_data)
+
+    # Sort by score descending
+    recommended.sort(key=lambda x: x['match_score'], reverse=True)
+    
+    return jsonify({
+        'jobs': recommended[:5] # Return top 5
+    })
+
+# Add this endpoint to get explanation for a specific job without applying
+@job_bp.route('/jobs/<int:job_id>/match-analysis', methods=['GET'])
+def get_job_match_analysis(job_id):
+    user = get_current_user()
+    if not user: return jsonify({'error': 'Unauthorized'}), 401
+    
+    job = Job.query.get_or_404(job_id)
+    profile = user.profile
+    
+    score = matching_service.calculate_score(profile, job)
+    explanation_json = matching_service.generate_explanation(profile, job, score)
+    
+    return jsonify({
+        'match_score': score,
+        'analysis': json.loads(explanation_json)
+    })

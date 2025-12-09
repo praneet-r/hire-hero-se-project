@@ -281,3 +281,18 @@ export const generateCoverLetter = async (data) => {
     const res = await axiosAuth.post("/gen-ai/generate-cover-letter", data);
     return res.data;
 };
+
+export const getRecommendedJobs = async () => {
+    const res = await axiosAuth.get("/jobs/recommendations");
+    return res.data.jobs;
+};
+
+export const getJobMatchAnalysis = async (jobId) => {
+    const res = await axiosAuth.get(`/jobs/${jobId}/match-analysis`);
+    return res.data;
+};
+
+export const getApplicationExplanation = async (appId) => {
+    const res = await axiosAuth.get(`/hr/applications/${appId}/explanation`);
+    return res.data;
+};
