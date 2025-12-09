@@ -87,7 +87,6 @@ def seed_database():
                 location="Bangalore, India",
                 summary="Experienced HR Professional specializing in technical recruitment.",
                 profile_pic=f"/uploads/{'woman.png' if is_female else 'man.png'}",
-                profile_pic_url=f"/uploads/{'woman.png' if is_female else 'man.png'}"
             )
             db.session.add(profile)
     db.session.commit()
@@ -194,7 +193,6 @@ def seed_database():
                     location="Bangalore, India",
                     summary=summary,
                     completeness=90,
-                    profile_pic_url=pic,
                     profile_pic=pic,
                     resume=resume_url
                 )
@@ -245,7 +243,6 @@ def seed_database():
                     location=random.choice(emp_locations),
                     summary=f"Professional looking for opportunities in {random.choice(emp_departments)}.",
                     completeness=random.choice([60, 80, 90, 100]),
-                    profile_pic_url=pic,
                     profile_pic=pic
                 )
                 db.session.add(profile)
