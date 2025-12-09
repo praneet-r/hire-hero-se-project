@@ -7,7 +7,7 @@ import random
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = True 
+CREATE_DUMMY_DATA = True
 
 def seed_database():
     """
@@ -155,7 +155,7 @@ def seed_database():
             type=random.choice(["Full-Time", "Contract"]),
             remote_option=random.choice(["Remote", "Hybrid", "On-site"]),
             experience_level=random.choice(["Junior", "Mid", "Senior", "Lead"]),
-            education="Bachelor's Degree",
+            education="Bachelor's",
             salary=f"{random.randint(5, 35)} LPA",
             tags=f"{dept},Tech,{title.split(' ')[0]},{random.choice(['Python','React','Java','Figma','Sales','Management'])}",
             benefits="Health Insurance,Paid Leave,Remote Work",

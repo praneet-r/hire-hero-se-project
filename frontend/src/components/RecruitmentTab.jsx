@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getJobs, getEmployees, getCandidates, axiosAuth, getCompanyApplications, updateApplicationStatus,
+import { getMyJobs, getEmployees, getCandidates, axiosAuth, getCompanyApplications, updateApplicationStatus,
   scheduleInterview } from "../services/api";
 import {
   Users,
@@ -93,14 +93,29 @@ const RecruitmentTab = () => {
 
   const handleDeleteJob = async () => {
     if (!selectedJob) return;
+    
+    // 1. Ask for confirmation
+    if (!window.confirm("Are you sure you want to delete this job? This action cannot be undone.")) {
+        return;
+    }
+
     setDeleting(true);
     try {
       await axiosAuth.delete(`/hr/jobs/${selectedJob.id}`);
       setJobs(jobs => jobs.filter(j => j.id !== selectedJob.id));
       setShowModal(false);
       setSelectedJob(null);
-    } catch (err) {}
+      
+      // 2. Show success pill
+      setPillMessage("Job deleted successfully.");
+      setPillType("success");
+    } catch (err) {
+      // 2. Show error pill
+      setPillMessage("Failed to delete job.");
+      setPillType("error");
+    }
     setDeleting(false);
+    setTimeout(() => setPillMessage(""), 3000);
   };
 
   const handleHoldJob = async () => {
@@ -111,8 +126,15 @@ const RecruitmentTab = () => {
       setJobs(jobs => jobs.map(j => j.id === selectedJob.id ? { ...j, status: 'on hold' } : j));
       setShowModal(false);
       setSelectedJob(null);
-    } catch (err) {}
+      
+      setPillMessage("Job status updated to 'On Hold'.");
+      setPillType("success");
+    } catch (err) {
+        setPillMessage("Failed to update status.");
+        setPillType("error");
+    }
     setHolding(false);
+    setTimeout(() => setPillMessage(""), 3000);
   };
 
   const handleViewApplicants = async (job) => {
@@ -137,7 +159,7 @@ const RecruitmentTab = () => {
         app.id === appId ? { ...app, status: newStatus } : app
       ));
       
-      setPillMessage(`Candidate ${newStatus === 'rejected' ? 'rejected' : 'moved to interview'}`);
+      setPillMessage(`Candidate ${newStatus === 'rejected' ? 'rejected' : 'moved to ' + newStatus.replace('_', ' ')}`);
       setPillType("success");
       setTimeout(() => setPillMessage(""), 3000);
     } catch (err) {
@@ -196,7 +218,8 @@ const RecruitmentTab = () => {
 
   useEffect(() => {
     async function fetchData() {
-      const jobsData = await getJobs();
+      // Use getMyJobs to fetch jobs posted by the logged-in user
+      const jobsData = await getMyJobs();
       const jobsWithIcons = (jobsData || []).map((job) => ({
         ...job,
         icon:
@@ -206,6 +229,10 @@ const RecruitmentTab = () => {
         applications: job.applications_count || 0,
         qualified: job.qualified_count || 0,
       }));
+      
+      // Sort jobs by application count descending
+      jobsWithIcons.sort((a, b) => b.applications - a.applications);
+      
       setJobs(jobsWithIcons);
 
       const profiles = await getCandidates();
@@ -222,9 +249,10 @@ const RecruitmentTab = () => {
   }, []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
+      {/* 3. Increased z-index to z-[100] to show above modals */}
       {pillMessage && (
-        <div className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-semibold shadow-lg text-sm transition-all duration-300 ${pillType === 'success' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'}`}>
+        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-2 rounded-full font-semibold shadow-lg text-sm transition-all duration-300 animate-bounce ${pillType === 'success' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'}`}>
           {pillMessage}
         </div>
       )}
@@ -274,7 +302,7 @@ const RecruitmentTab = () => {
             <Briefcase className="h-5 w-5 text-[#005193]" /> Active Job Postings
           </h2>
 
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
             {jobs.map((job) => (
               <div
                 key={job.id}

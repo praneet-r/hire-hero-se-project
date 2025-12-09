@@ -116,6 +116,39 @@ def get_job(job_id):
 
 # --- HR - Jobs Endpoints ---
 
+@job_bp.route('/hr/jobs/my', methods=['GET'])
+def get_my_jobs():
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized: HR role required'}), 403
+
+    # Fetch jobs posted by this user
+    jobs = Job.query.filter_by(posted_by=user.id).all()
+
+    job_list = [{
+        'id': job.id,
+        'title': job.title,
+        'company': job.company,
+        'department': job.department,
+        'description': job.description,
+        'location': job.location,
+        'type': job.type,
+        'remote_option': job.remote_option,
+        'salary': job.salary, 
+        'experience_level': job.experience_level,
+        'education': job.education,
+        'benefits': job.benefits,
+        'application_deadline': job.application_deadline,
+        'tags': job.tags.split(',') if job.tags else [],
+        'created_at': job.created_at,
+        'company_logo_url': getattr(job, 'company_logo_url', ''),
+        'applications_count': len(job.applications),
+        'qualified_count': 0, # Placeholder until logic is implemented
+        'status': getattr(job, 'status', 'Open')
+    } for job in jobs]
+
+    return jsonify({'jobs': job_list})
+
 @job_bp.route('/hr/jobs', methods=['POST'])
 def create_job():
     user = get_current_user()
@@ -137,7 +170,8 @@ def create_job():
         salary=data.get('salary'),
         tags=','.join(data.get('tags', [])) if isinstance(data.get('tags'), list) else data.get('tags'),
         benefits=data.get('benefits'),
-        application_deadline=data.get('application_deadline')
+        application_deadline=data.get('application_deadline'),
+        posted_by=user.id  # Assign to current user
     )
     db.session.add(job)
     db.session.commit()
@@ -145,7 +179,7 @@ def create_job():
 
 @job_bp.route('/hr/jobs/<int:job_id>', methods=['PUT'])
 def update_job(job_id):
-    # TODO: Auth Check (HR Role)
+    # TODO: Auth Check (HR Role + Ownership)
     job = Job.query.get_or_404(job_id)
     data = request.json
 
@@ -168,7 +202,7 @@ def update_job(job_id):
 
 @job_bp.route('/hr/jobs/<int:job_id>', methods=['DELETE'])
 def delete_job(job_id):
-    # TODO: Auth Check (HR Role)
+    # TODO: Auth Check (HR Role + Ownership)
     job = Job.query.get_or_404(job_id)
     db.session.delete(job)
     db.session.commit()

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom"; // Added useLocation
 import { getEmployees, getJobs, getCompanyApplications, getCandidates } from "../services/api";
 import { Download, Sparkles, AlertCircle, BookOpen, Users, Plus, Briefcase, FileText, User, BarChart2, Mail, Phone } from "lucide-react";
 import RecruitmentTab from "../components/RecruitmentTab";
@@ -10,6 +11,7 @@ import TopNavbarHR from "../components/TopNavbarHR";
 
 
 export default function DashboardHR() {
+    const location = useLocation(); // Hook to access state passed via navigate
     const [activeTab, setActiveTab] = useState("dashboard");
     const [username, setUsername] = useState("");
     const [metrics, setMetrics] = useState({
@@ -18,6 +20,14 @@ export default function DashboardHR() {
       openPositions: 0,
       aiEfficiency: 0,
     });
+    
+    // Check for incoming tab state on mount
+    useEffect(() => {
+        if (location.state && location.state.activeTab) {
+            setActiveTab(location.state.activeTab);
+        }
+    }, [location.state]);
+
     const [resumeScreening, setResumeScreening] = useState([]);
     useEffect(() => {
       async function fetchResumeScreening() {
@@ -221,7 +231,7 @@ export default function DashboardHR() {
                   </h2>
                   <div className="space-y-4">
                     <div className="border border-gray-200 rounded-lg p-4 flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-[#f59e42] mt-1" />
+                      <AlertCircle className="h-5 w-5 text-[#f59e0b] mt-1" />
                       <div>
                         <p className="font-semibold text-[#005193]">Retention Alert</p>
                         <p className="text-sm text-gray-600 mt-1">

@@ -22,13 +22,16 @@ const PostJob = () => {
     skillInput: "",
     experience_level: "",
     education: "",
-    salary: "",
     benefits: [],
     application_deadline: "",
-    postToCompany: false,
-    postToBoards: false,
     enableAIScreening: false,
   });
+
+  const [salaryMode, setSalaryMode] = useState("fixed"); // fixed, undisclosed, negotiable
+  const [salaryAmount, setSalaryAmount] = useState("");
+  
+  // Unified status state for pills
+  const [status, setStatus] = useState({ message: "", type: "" }); // type: 'success' | 'error'
 
   const benefitsOptions = ["Health Insurance", "Remote Work", "Paid Leave"];
 
@@ -76,24 +79,57 @@ const PostJob = () => {
     }));
   };
 
-  const handleSaveDraft = () => {
-    console.log("Draft saved:", formData);
-    alert("Draft saved!");
-  };
+  const navigate = useNavigate();
 
-  const handlePublish = async () => {
-    // Prepare payload, remove skillInput
-    const payload = { ...formData };
-    delete payload.skillInput;
-    try {
-      await createJob(payload);
-      alert("Job published successfully!");
-    } catch (err) {
-      alert("Failed to publish job");
+  const showPill = (message, type) => {
+    setStatus({ message, type });
+    // Auto-hide after 3 seconds if it's an error, keep success longer if redirecting
+    if (type === 'error') {
+        setTimeout(() => setStatus({ message: "", type: "" }), 3000);
     }
   };
 
-  const navigate = useNavigate();
+  const handlePublish = async () => {
+    // Validation
+    const requiredFields = ['title', 'company', 'department', 'type', 'location', 'description', 'experience_level'];
+    for (const field of requiredFields) {
+      if (!formData[field] || formData[field].trim() === "") {
+        showPill(`Please fill in the ${field.replace('_', ' ')}`, "error");
+        return;
+      }
+    }
+
+    if (salaryMode === 'fixed' && !salaryAmount) {
+        showPill("Please enter a salary amount.", "error");
+        return;
+    }
+
+    // Construct final salary string
+    let finalSalary = "Undisclosed";
+    if (salaryMode === 'fixed') {
+        finalSalary = `${salaryAmount} LPA`;
+    } else if (salaryMode === 'negotiable') {
+        finalSalary = "Negotiable";
+    }
+
+    // Prepare payload
+    const payload = { 
+        ...formData,
+        salary: finalSalary
+    };
+    delete payload.skillInput;
+
+    try {
+      await createJob(payload);
+      showPill("Job published successfully!", "success");
+      // Redirect after a delay
+      setTimeout(() => {
+        navigate("/dashboard-hr", { state: { activeTab: "recruitment" } });
+      }, 1500);
+    } catch (err) {
+      showPill("Failed to publish job. Please try again.", "error");
+    }
+  };
 
   const tabConfig = [
     { tab: "dashboard", icon: null },
@@ -114,12 +150,24 @@ const PostJob = () => {
   return (
     <section className="min-h-screen flex bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] font-inter">
       <SidebarHR />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col relative">
         <TopNavbarHR
           activeTab={activeTab}
           setActiveTab={handleTabClick}
           tabConfig={tabConfig}
         />
+        
+        {/* Unified Status Pill */}
+        {status.message && (
+            <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full font-bold shadow-lg text-sm animate-bounce ${
+                status.type === 'success' 
+                ? 'bg-green-100 text-green-700 border border-green-300' 
+                : 'bg-red-100 text-red-700 border border-red-300'
+            }`}>
+              {status.message}
+            </div>
+        )}
+
         <div className="p-8 flex flex-col gap-6">
           {/* Tab Content */}
           {activeTab === "employees" && <EmployeesTab />}
@@ -132,14 +180,8 @@ const PostJob = () => {
                 <h2 className="text-2xl font-extrabold text-[#013362]">Post New Job</h2>
                 <div className="flex gap-3">
                   <button
-                    onClick={handleSaveDraft}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-300 shadow-md hover:opacity-90"
-                  >
-                    Save Draft
-                  </button>
-                  <button
                     onClick={handlePublish}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-[#013362] to-[#005193] text-white shadow-md hover:opacity-90"
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold bg-gradient-to-r from-[#013362] to-[#005193] text-white shadow-md hover:opacity-90 transition-all transform hover:scale-105"
                   >
                     Publish Job
                   </button>
@@ -153,15 +195,15 @@ const PostJob = () => {
                   <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-inner">
                     <h2 className="text-lg font-semibold mb-4">Job Information</h2>
                     <div className="grid md:grid-cols-2 gap-4">
-                      <Input label="Job Title" name="title" value={formData.title} onChange={handleChange} />
-                      <Input label="Company Name" name="company" value={formData.company} onChange={handleChange} />
-                      <Select label="Select Department" name="department" value={formData.department} onChange={handleChange} options={["Engineering", "HR", "Marketing", "Finance"]} />
-                      <Select label="Employment Type" name="type" value={formData.type} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
-                      <Select label="Remote Option" name="remote_option" value={formData.remote_option} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />
-                      <Input label="Location" name="location" value={formData.location} onChange={handleChange} />
+                      <Input label="Job Title *" name="title" value={formData.title} onChange={handleChange} />
+                      <Input label="Company Name *" name="company" value={formData.company} onChange={handleChange} />
+                      <Select label="Select Department *" name="department" value={formData.department} onChange={handleChange} options={["Engineering", "HR", "Marketing", "Finance", "Sales", "Product"]} />
+                      <Select label="Employment Type *" name="type" value={formData.type} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
+                      <Select label="Remote Option *" name="remote_option" value={formData.remote_option} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />
+                      <Input label="Location *" name="location" value={formData.location} onChange={handleChange} />
                     </div>
                     <div className="mt-4">
-                      <label className="text-sm font-medium mb-1 block">Description</label>
+                      <label className="text-sm font-medium mb-1 block">Description *</label>
                       <textarea name="description" value={formData.description} onChange={handleChange} rows="4" className="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500" />
                     </div>
                   </div>
@@ -174,9 +216,9 @@ const PostJob = () => {
                         <label className="text-sm font-medium mb-1">Required Skills</label>
                         <div className="flex flex-wrap gap-2 mb-2">
                           {formData.requiredSkills.map((skill, idx) => (
-                            <span key={idx} className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1">
+                            <span key={idx} className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1 text-sm">
                               {skill}
-                              <button type="button" className="ml-1 text-red-500 hover:text-red-700" onClick={() => handleRemoveSkill(skill)}>&times;</button>
+                              <button type="button" className="ml-1 text-red-500 hover:text-red-700 font-bold" onClick={() => handleRemoveSkill(skill)}>&times;</button>
                             </span>
                           ))}
                         </div>
@@ -190,7 +232,7 @@ const PostJob = () => {
                           className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
-                      <Select label="Experience Level" name="experience_level" value={formData.experience_level} onChange={handleChange} options={["Junior", "Mid", "Senior", "Lead"]} />
+                      <Select label="Experience Level *" name="experience_level" value={formData.experience_level} onChange={handleChange} options={["Junior", "Mid", "Senior", "Lead"]} />
                       <Select label="Education" name="education" value={formData.education} onChange={handleChange} options={["Bachelor’s", "Master’s", "PhD"]} />
                     </div>
                   </div>
@@ -198,16 +240,62 @@ const PostJob = () => {
                   {/* Compensation */}
                   <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-inner">
                     <h2 className="text-lg font-semibold mb-4">Compensation & Benefits</h2>
-                    <div className="mb-4">
-                      <div className="flex items-center gap-3">
-                        <Input label="Estimated Salary" name="salary" value={formData.salary} onChange={handleChange} type="text" />
-                      </div>
+                    
+                    {/* Updated Salary Section */}
+                    <div className="mb-6">
+                        <label className="text-sm font-medium mb-2 block">Salary</label>
+                        <div className="flex gap-4 mb-3">
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input 
+                                    type="radio" 
+                                    name="salaryMode" 
+                                    value="fixed" 
+                                    checked={salaryMode === "fixed"} 
+                                    onChange={(e) => setSalaryMode(e.target.value)} 
+                                />
+                                Specific Amount
+                            </label>
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input 
+                                    type="radio" 
+                                    name="salaryMode" 
+                                    value="negotiable" 
+                                    checked={salaryMode === "negotiable"} 
+                                    onChange={(e) => setSalaryMode(e.target.value)} 
+                                />
+                                Negotiable
+                            </label>
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input 
+                                    type="radio" 
+                                    name="salaryMode" 
+                                    value="undisclosed" 
+                                    checked={salaryMode === "undisclosed"} 
+                                    onChange={(e) => setSalaryMode(e.target.value)} 
+                                />
+                                Undisclosed
+                            </label>
+                        </div>
+
+                        {salaryMode === "fixed" && (
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="number" 
+                                    placeholder="e.g. 12" 
+                                    value={salaryAmount} 
+                                    onChange={(e) => setSalaryAmount(e.target.value)} 
+                                    className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 w-32"
+                                />
+                                <span className="text-gray-700 font-semibold">LPA</span>
+                            </div>
+                        )}
                     </div>
+
                     <div>
                       <label className="text-sm font-medium mb-2 block">Benefits</label>
                       <div className="flex gap-6">
                         {benefitsOptions.map((b) => (
-                          <label key={b} className="flex items-center gap-2">
+                          <label key={b} className="flex items-center gap-2 text-sm">
                             <input type="checkbox" value={b} checked={formData.benefits.includes(b)} onChange={handleChange} />
                             {b}
                           </label>
@@ -228,15 +316,7 @@ const PostJob = () => {
                           <label className="text-sm font-medium block mb-1">Application Deadline</label>
                           <input type="date" name="application_deadline" value={formData.application_deadline} onChange={handleChange} className="w-full p-2 border rounded-xl" />
                         </div>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="postToCompany" checked={formData.postToCompany} onChange={handleChange} />
-                          Post to company website
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="postToBoards" checked={formData.postToBoards} onChange={handleChange} />
-                          Post to job boards
-                        </label>
-                        <label className="flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-sm">
                           <input type="checkbox" name="enableAIScreening" checked={formData.enableAIScreening} onChange={handleChange} />
                           Enable AI screening
                         </label>
@@ -257,7 +337,7 @@ const PostJob = () => {
                         <Wallet className="w-5 h-5 text-[#005193]" />
                         <h3 className="font-medium mb-1">Salary Range</h3>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3">Market rate: ₹50000 - ₹100000</p>
+                      <p className="text-sm text-gray-600 mb-3">Market rate: 10 LPA - 18 LPA</p>
                       <div className="flex items-center gap-2">
                         <BarChart2 className="w-5 h-5 text-[#005193]" />
                         <h3 className="font-medium mb-1">Market Demand</h3>

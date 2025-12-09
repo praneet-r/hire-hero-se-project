@@ -41,14 +41,11 @@ export const register = async (userData) => {
 
 // --- Job Seeker API ---
 
-export const getJobs = async () => {
-    // Returns { pagination: {...}, jobs: [...] }
-    // Frontend might expect array directly, let's check.
-    // DashboardApplicant: const jobs = await getJobs(); setRecommendedJobs(jobs.slice(0, 2));
-    // So it expects an array.
-    const res = await axiosAuth.get("/jobs");
+export const getJobs = async (limit) => {
+    const url = limit ? `/jobs?limit=${limit}` : "/jobs";
+    const res = await axiosAuth.get(url);
     if (res.data.jobs) return res.data.jobs;
-    return res.data; // Fallback
+    return res.data;
 };
 
 export const applyToJob = async (jobId) => {
@@ -233,16 +230,18 @@ export const createJob = async (jobData) => {
     return res.data;
 };
 
+export const getMyJobs = async () => {
+    const res = await axiosAuth.get("/hr/jobs/my");
+    if (res.data.jobs) return res.data.jobs;
+    return [];
+};
+
 export const getProfileByUserId = async (userId) => {
     const res = await axiosAuth.get(`/hr/profiles/${userId}`);
     return res.data;
 };
 
 export const getProfiles = async () => {
-    // Legacy endpoint? Not in YAML. Maybe for HR viewing list of candidates?
-    // Using /hr/profiles isn't a list endpoint in my spec.
-    // Assuming /users/basic or similar is used elsewhere.
-    // Leaving empty or mapped to something safe if needed.
     return [];
 };
 
