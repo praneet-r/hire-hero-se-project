@@ -1,13 +1,9 @@
 import React, { useState } from "react";
 import { createJob } from "../services/api";
-import { Wallet, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
-import EmployeesTab from "../components/EmployeesTab";
-import RecruitmentTab from "../components/RecruitmentTab";
-import PerformanceTab from "../components/PerformanceTab";
-import AnalyticsTab from "../components/AnalyticsTab";
+import { Wallet, BarChart2, Users, Briefcase, FileText } from "lucide-react";
 
 const PostJob = () => {
   const [formData, setFormData] = useState({
@@ -30,8 +26,7 @@ const PostJob = () => {
   const [salaryMode, setSalaryMode] = useState("fixed"); // fixed, undisclosed, negotiable
   const [salaryAmount, setSalaryAmount] = useState("");
   
-  // Unified status state for pills
-  const [status, setStatus] = useState({ message: "", type: "" }); // type: 'success' | 'error'
+  const [status, setStatus] = useState({ message: "", type: "" }); 
 
   const benefitsOptions = ["Health Insurance", "Remote Work", "Paid Leave"];
 
@@ -51,7 +46,6 @@ const PostJob = () => {
     }
   };
 
-  // Handle skill tag input
   const handleSkillInputChange = (e) => {
     setFormData((prev) => ({ ...prev, skillInput: e.target.value }));
   };
@@ -83,14 +77,12 @@ const PostJob = () => {
 
   const showPill = (message, type) => {
     setStatus({ message, type });
-    // Auto-hide after 3 seconds if it's an error, keep success longer if redirecting
     if (type === 'error') {
         setTimeout(() => setStatus({ message: "", type: "" }), 3000);
     }
   };
 
   const handlePublish = async () => {
-    // Validation
     const requiredFields = ['title', 'company', 'department', 'type', 'location', 'description', 'experience_level'];
     for (const field of requiredFields) {
       if (!formData[field] || formData[field].trim() === "") {
@@ -104,7 +96,6 @@ const PostJob = () => {
         return;
     }
 
-    // Construct final salary string
     let finalSalary = "Undisclosed";
     if (salaryMode === 'fixed') {
         finalSalary = `${salaryAmount} LPA`;
@@ -112,7 +103,6 @@ const PostJob = () => {
         finalSalary = "Negotiable";
     }
 
-    // Prepare payload
     const payload = { 
         ...formData,
         salary: finalSalary
@@ -122,7 +112,6 @@ const PostJob = () => {
     try {
       await createJob(payload);
       showPill("Job published successfully!", "success");
-      // Redirect after a delay
       setTimeout(() => {
         navigate("/dashboard-hr", { state: { activeTab: "recruitment" } });
       }, 1500);
@@ -132,19 +121,17 @@ const PostJob = () => {
   };
 
   const tabConfig = [
-    { tab: "dashboard", icon: null },
-    { tab: "employees", icon: null },
-    { tab: "recruitment", icon: null },
-    { tab: "performance", icon: null },
-    { tab: "analytics", icon: null },
+    { tab: "dashboard", icon: BarChart2 },
+    { tab: "employees", icon: Users },
+    { tab: "recruitment", icon: Briefcase },
+    { tab: "performance", icon: FileText },
+    { tab: "analytics", icon: BarChart2 },
   ];
   const [activeTab, setActiveTab] = useState("postJob");
+
+  // UPDATED: Navigation logic
   const handleTabClick = (tab) => {
-    if (tab === "dashboard") {
-      navigate("/dashboard-hr");
-    } else {
-      setActiveTab(tab);
-    }
+    navigate("/dashboard-hr", { state: { activeTab: tab } });
   };
 
   return (
@@ -157,7 +144,6 @@ const PostJob = () => {
           tabConfig={tabConfig}
         />
         
-        {/* Unified Status Pill */}
         {status.message && (
             <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full font-bold shadow-lg text-sm animate-bounce ${
                 status.type === 'success' 
@@ -169,11 +155,8 @@ const PostJob = () => {
         )}
 
         <div className="p-8 flex flex-col gap-6">
-          {/* Tab Content */}
-          {activeTab === "employees" && <EmployeesTab />}
-          {activeTab === "recruitment" && <RecruitmentTab />}
-          {activeTab === "performance" && <PerformanceTab />}
-          {activeTab === "analytics" && <AnalyticsTab />}
+          {/* Removed conditional renders for other tabs */}
+          
           {activeTab === "postJob" && (
             <>
               <div className="flex justify-between items-center mb-6">
@@ -241,7 +224,7 @@ const PostJob = () => {
                   <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-inner">
                     <h2 className="text-lg font-semibold mb-4">Compensation & Benefits</h2>
                     
-                    {/* Updated Salary Section */}
+                    {/* Salary Section */}
                     <div className="mb-6">
                         <label className="text-sm font-medium mb-2 block">Salary</label>
                         <div className="flex gap-4 mb-3">
@@ -355,7 +338,6 @@ const PostJob = () => {
   );
 };
 
-// --- Input Component ---
 const Input = ({ label, name, value, onChange, type = "text" }) => (
   <div className="flex flex-col">
     <label className="text-sm font-medium mb-1">{label}</label>
@@ -369,7 +351,6 @@ const Input = ({ label, name, value, onChange, type = "text" }) => (
   </div>
 );
 
-// --- Select Component ---
 const Select = ({ label, name, value, onChange, options }) => (
   <div className="flex flex-col">
     <label className="text-sm font-medium mb-1">{label}</label>

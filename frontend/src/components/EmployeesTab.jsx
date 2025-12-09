@@ -5,20 +5,13 @@ import {
   Users,
   Briefcase,
   BarChart2,
-  Lightbulb,
-  TrendingUp,
-  Plus,
-  Filter,
-  Mail,
   User,
-  Code,
-  Brush,
-  Sparkles,
-  Megaphone,
+  Plus,
+  X,
+  ExternalLink
 } from "lucide-react";
 
 const EmployeesTab = () => {
-
     const [searchTerm, setSearchTerm] = useState("");
     const [employees, setEmployees] = useState([]);
     const [filteredEmployees, setFilteredEmployees] = useState([]);
@@ -26,10 +19,25 @@ const EmployeesTab = () => {
     const [departmentOptions, setDepartmentOptions] = useState([]);
     const [locationFilter, setLocationFilter] = useState("");
     const [locationOptions, setLocationOptions] = useState([]);
-    const [selectedEmp, setSelectedEmp] = useState(null); // For Edit Modal
+    
+    // Edit Modal State
+    const [selectedEmp, setSelectedEmp] = useState(null); 
     const [editForm, setEditForm] = useState({});
 
-    // Fetch employee data (AJAX)
+    // Pill Message State
+    const [pillMessage, setPillMessage] = useState("");
+    const [pillType, setPillType] = useState(""); // 'success' or 'error'
+
+    const showPill = (message, type) => {
+        setPillMessage(message);
+        setPillType(type);
+        setTimeout(() => {
+            setPillMessage("");
+            setPillType("");
+        }, 3000);
+    };
+
+    // Fetch employee data
     const fetchEmployees = async () => {
       try {
         const data = await getEmployees();
@@ -52,59 +60,50 @@ const EmployeesTab = () => {
       if (!confirm("Are you sure you want to delete this employee?")) return;
       try {
         await deleteEmployee(id);
+        showPill("Employee deleted successfully", "success");
         fetchEmployees();
       } catch (err) {
-        alert("Failed to delete employee");
+        showPill("Failed to delete employee", "error");
       }
-    };
-
-    const handleStatusUpdate = async (id, status) => {
-      try {
-        // Assuming backend supports status update via generic update or we add it
-        // My backend update_employee supports generic fields.
-        // I need to ensure backend Employee model has 'status' field or I use another field.
-        // Checking backend model... Employee has job_title, department, job_location, photo. No status?
-        // Wait, User has role. Employee status might be implicit or missing.
-        // If missing, I can't update it. I'll check backend/app/models.
-        // Assuming it's missing, I'll skip backend update for status or use a placeholder if I can't change schema.
-        // Actually, let's just log it for now if model doesn't support it.
-        // But for completeness, I should assume I can update 'department' or 'job_location'.
-        // Let's implement Edit Modal instead of inline status toggle if status field doesn't exist.
-        // But I'll try to update job_location as a proxy for "active" if needed, or just skip status logic if backend lacks it.
-        // Re-reading `employee_routes.py`:
-        // if 'job_title' in data: e.job_title = data['job_title']
-        // if 'department' in data: e.department = data['department']
-        // if 'photo_url' in data: e.photo = data['photo_url']
-        // if 'job_location' in data: e.job_location = data['job_location']
-        // No status field. So I can't persist status.
-        // I will implement Delete and Edit (Title/Dept/Location).
-      } catch (err) {}
     };
 
     const handleEditClick = (emp) => {
       setSelectedEmp(emp);
+      // Populate form with all available fields
       setEditForm({
-        job_title: emp.job_title,
-        department: emp.department,
-        job_location: emp.job_location
+        first_name: emp.first_name || "",
+        last_name: emp.last_name || "",
+        email: emp.email || "",
+        phone: emp.phone || "",
+        job_title: emp.job_title || "",
+        department: emp.department || "",
+        job_location: emp.job_location || "",
+        hired_at: emp.hired_at ? new Date(emp.hired_at).toISOString().split('T')[0] : ""
       });
     };
 
     const handleSaveEdit = async () => {
       if (!selectedEmp) return;
       try {
-        await updateEmployee(selectedEmp.id, editForm);
+        // Only send editable fields to backend
+        const payload = {
+            job_title: editForm.job_title,
+            department: editForm.department,
+            job_location: editForm.job_location
+        };
+        await updateEmployee(selectedEmp.id, payload);
         setSelectedEmp(null);
+        showPill("Employee details updated successfully", "success");
         fetchEmployees();
       } catch (err) {
-        alert("Failed to update");
+        showPill("Failed to update employee", "error");
       }
     };
 
     // Live search + filter logic
     useEffect(() => {
       let filtered = employees.filter((emp) =>
-        (emp.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+        (emp.name || `${emp.first_name} ${emp.last_name}` || "").toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       if (departmentFilter)
@@ -115,7 +114,19 @@ const EmployeesTab = () => {
     }, [searchTerm, departmentFilter, locationFilter, employees]);
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 relative">
+          
+          {/* Pill Notification */}
+          {pillMessage && (
+            <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full font-bold shadow-lg text-sm animate-bounce ${
+                pillType === 'success' 
+                ? 'bg-green-100 text-green-700 border border-green-300' 
+                : 'bg-red-100 text-red-700 border border-red-300'
+            }`}>
+              {pillMessage}
+            </div>
+          )}
+
           {/* Header Section */}
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-extrabold text-[#013362] flex items-center gap-2">
@@ -124,7 +135,7 @@ const EmployeesTab = () => {
             </h1>
             <div className="flex justify-between gap-3">
               {/* Search Bar */}
-              <div className="relative w-full md:w-1/2">
+              <div className="relative w-full md:w-64">
                 <input
                   type="text"
                   placeholder="Search employees..."
@@ -142,19 +153,23 @@ const EmployeesTab = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z" />
                 </svg>
               </div>
-              <Link to="/add-employee" className="flex items-center gap-2 bg-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">
+              <Link to="/add-employee" state={{ activeTab: "addEmployee", reset: true }} className="flex items-center gap-2 bg-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">
                 <Plus className="h-4 w-4" /> Add Employee
               </Link>
             </div>
           </div>
+
           {/* Stats and Filters */}
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow">
               {[
                 { label: "Total Employees", value: employees.length, icon: Users },
                 { label: "Remote Workers", value: employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('remote')).length, icon: User },
-                { label: "On-site Workers", value: employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('on-site') || (e.job_location || e.status || '').toLowerCase().includes('onsite')).length, icon: Briefcase },
-                { label: "Avg Performance", value: employees.length ? `${Math.round(employees.reduce((sum, e) => sum + (e.performance || 80), 0) / employees.length)}%` : "—", icon: BarChart2 },
+                { label: "On-site Workers", value: employees.filter(e => {
+                    const loc = (e.job_location || e.status || '').toLowerCase();
+                    return !loc.includes('remote') && !loc.includes('hybrid');
+                }).length, icon: Briefcase },
+                { label: "Hybrid Workers", value: employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('hybrid')).length, icon: BarChart2 },
               ].map((stat, i) => (
                 <div
                   key={i}
@@ -167,6 +182,7 @@ const EmployeesTab = () => {
               ))}
             </div>
           </div>
+
           {/* Employee Directory */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-4">
@@ -199,6 +215,7 @@ const EmployeesTab = () => {
                 </div>
               </div>
             </div>
+
             {/* Table Header */}
             <div className="grid grid-cols-7 text-sm font-semibold text-[#013362] border-b border-gray-200 pb-2">
               <div>Employee</div>
@@ -206,45 +223,62 @@ const EmployeesTab = () => {
               <div>Job Location</div>
               <div>Status</div>
               <div>Start Date</div>
-              <div>Role</div>
+              <div>Job Title</div>
               <div className="text-right">Actions</div>
             </div>
+
             {/* Table Rows */}
             <div className="divide-y divide-gray-100 mt-2">
               {filteredEmployees.length > 0 ? (
                 filteredEmployees.map((emp, i) => (
                   <div
                     key={i}
-                    className="grid grid-cols-7 items-center text-sm py-3 hover:bg-[#F7F8FF] transition"
+                    className="grid grid-cols-7 items-center text-sm py-1.5 hover:bg-[#F7F8FF] transition"
                   >
                     <div className="flex items-center gap-3">
-                      <User className="h-5 w-5 text-[#005193]" />
-                      <span className="font-medium text-gray-800">{emp.name}</span>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#005193] font-bold text-xs">
+                         {emp.first_name ? emp.first_name[0] : (emp.name ? emp.name[0] : 'U')}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-800">{emp.first_name ? `${emp.first_name} ${emp.last_name}` : emp.name}</span>
+                        <span className="text-xs text-gray-500">{emp.email}</span>
+                      </div>
                     </div>
                     <div className="text-gray-600">{emp.department}</div>
                     <div className="text-gray-600">{emp.job_location}</div>
                     <div
                       className={`font-semibold ${
-                        emp.status === "Active"
+                        (emp.status || 'Active') === "Active"
                           ? "text-green-600"
-                          : emp.status === "On Leave"
-                          ? "text-yellow-600"
                           : "text-gray-600"
                       }`}
                     >
                       {emp.status || "Active"}
                     </div>
                     <div className="text-gray-600">{emp.hired_at ? new Date(emp.hired_at).toLocaleDateString() : "-"}</div>
-                    <div className="text-gray-600">{emp.role}</div>
+                    <div className="text-gray-600">{emp.job_title}</div>
                     <div className="text-right flex gap-2 justify-end">
+                      {/* View Profile Button */}
+                      {emp.user_id && (
+                        <a
+                          href={`/profile/${emp.user_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition flex items-center gap-1"
+                          title="View Profile"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      
                       <button
-                        className="border border-gray-300 text-[#005193] px-2 py-1 rounded-lg text-xs font-semibold hover:bg-gray-50 transition"
+                        className="border border-gray-300 text-[#005193] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition"
                         onClick={() => handleEditClick(emp)}
                       >
                         Edit
                       </button>
                       <button
-                        className="border border-red-500 text-red-600 px-2 py-1 rounded-lg text-xs font-semibold hover:bg-red-50 transition"
+                        className="border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-50 transition"
                         onClick={() => handleDelete(emp.id)}
                       >
                         Delete
@@ -261,47 +295,130 @@ const EmployeesTab = () => {
             </p>
           </div>
 
-          {/* Edit Modal */}
+          {/* Enhanced Edit Modal */}
           {selectedEmp && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-              <div className="bg-white rounded-xl shadow-lg p-6 w-96">
-                <h3 className="text-lg font-bold text-[#013362] mb-4">Edit Employee</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500">Job Title</label>
-                    <input
-                      className="w-full border border-gray-300 rounded p-2 text-sm"
-                      value={editForm.job_title || ''}
-                      onChange={e => setEditForm({...editForm, job_title: e.target.value})}
-                    />
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                {/* Modal Header */}
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <div>
+                        <h3 className="text-xl font-extrabold text-[#013362]">Edit Employee Details</h3>
+                        <p className="text-sm text-gray-500">Update job details for {editForm.first_name} {editForm.last_name}</p>
+                    </div>
+                    <button onClick={() => setSelectedEmp(null)} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Left Column: Personal Info (Read-Only) */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold text-[#005193] uppercase tracking-wide border-b pb-2">Personal Information</h4>
+                    
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">First Name</label>
+                        <input
+                            className="w-full border border-gray-200 bg-gray-100 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+                            value={editForm.first_name}
+                            disabled
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Last Name</label>
+                        <input
+                            className="w-full border border-gray-200 bg-gray-100 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+                            value={editForm.last_name}
+                            disabled
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Email Address</label>
+                        <input
+                            className="w-full border border-gray-200 bg-gray-100 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+                            value={editForm.email}
+                            disabled
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Phone Number</label>
+                        <input
+                            className="w-full border border-gray-200 bg-gray-100 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+                            value={editForm.phone}
+                            disabled
+                        />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500">Department</label>
-                    <input
-                      className="w-full border border-gray-300 rounded p-2 text-sm"
-                      value={editForm.department || ''}
-                      onChange={e => setEditForm({...editForm, department: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500">Location</label>
-                    <input
-                      className="w-full border border-gray-300 rounded p-2 text-sm"
-                      value={editForm.job_location || ''}
-                      onChange={e => setEditForm({...editForm, job_location: e.target.value})}
-                    />
+
+                  {/* Right Column: Job Details (Editable) */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold text-[#005193] uppercase tracking-wide border-b pb-2">Job Details</h4>
+                    
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Job Title</label>
+                        <input
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#005193] focus:border-transparent outline-none"
+                            value={editForm.job_title}
+                            onChange={e => setEditForm({...editForm, job_title: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Department</label>
+                        <select
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#005193] focus:border-transparent outline-none"
+                            value={editForm.department}
+                            onChange={e => setEditForm({...editForm, department: e.target.value})}
+                        >
+                            <option value="">Select Department...</option>
+                            {["Engineering", "HR", "Marketing", "Finance", "Sales", "Design"].map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Location</label>
+                        <input
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#005193] focus:border-transparent outline-none"
+                            value={editForm.job_location}
+                            onChange={e => setEditForm({...editForm, job_location: e.target.value})}
+                            placeholder="e.g. Remote, Bangalore..."
+                        />
+                    </div>
+                    
+                    {/* Removed Reporting Manager Field */}
+
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Start Date</label>
+                        <input
+                            type="date"
+                            className="w-full border border-gray-200 bg-gray-100 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+                            value={editForm.hired_at}
+                            disabled
+                        />
+                    </div>
                   </div>
                 </div>
-                <div className="flex justify-end gap-2 mt-6">
-                  <button onClick={() => setSelectedEmp(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                  <button onClick={handleSaveEdit} className="px-4 py-2 text-sm bg-[#005193] text-white rounded hover:opacity-90">Save</button>
+
+                {/* Modal Footer */}
+                <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                  <button 
+                    onClick={() => setSelectedEmp(null)} 
+                    className="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSaveEdit} 
+                    className="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#013362] to-[#005193] rounded-lg hover:opacity-90 transition shadow-md"
+                  >
+                    Save Changes
+                  </button>
                 </div>
               </div>
             </div>
           )}
         </div>  
-    
-        );
+    );
 };
 
 export default EmployeesTab;

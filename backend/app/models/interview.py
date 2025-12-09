@@ -12,7 +12,7 @@ class Interview(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    application = db.relationship('Application', backref=db.backref('interviews', lazy=True))
+    application = db.relationship('Application', backref=db.backref('interviews', lazy=True, cascade="all, delete-orphan"))
 
     def to_dict(self):
         return {

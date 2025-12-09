@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, request, jsonify, current_app
 from ..database import db
-from ..models import Employee, Performance, User
+from ..models import Employee, Performance, User, Profile
 from ..utils import get_current_user
 
 employee_bp = Blueprint('employee_bp', __name__)
@@ -25,15 +25,24 @@ def get_employees():
 
     employee_list = []
     for e in paginated:
-        # Fetch associated user to get the name
+        # Fetch associated user to get the name and details
         user_obj = e.user 
         full_name = f"{user_obj.first_name} {user_obj.last_name}" if user_obj else "Unknown"
         
+        # Safe phone fetch: User -> Profile -> phone
+        phone = ""
+        if user_obj and user_obj.profile:
+            phone = user_obj.profile.phone
+
         employee_list.append({
             'id': e.id,
             'user_id': e.user_id,
-            'name': full_name, 
-            'role': e.job_title,
+            'first_name': user_obj.first_name if user_obj else "",
+            'last_name': user_obj.last_name if user_obj else "",
+            'name': full_name,
+            'email': user_obj.email if user_obj else "",
+            'phone': phone,
+            'job_title': e.job_title,
             'department': e.department,
             'job_location': e.job_location,
             'hired_at': e.hired_at,
@@ -84,9 +93,8 @@ def create_employee():
     data = request.json
     user_id = data.get('user_id')
 
-    # Logic for creating user if not exists (from original code)
+    # Logic for creating user if not exists
     if not user_id:
-        # Check if email provided for new user
         if data.get('email'):
             existing_user = User.query.filter_by(email=data.get('email')).first()
             if existing_user:
@@ -104,11 +112,16 @@ def create_employee():
                 db.session.flush()
                 user_id = u.id
 
+                # Create Profile for phone number if provided
+                if data.get('phone'):
+                    prof = Profile(user_id=u.id, phone=data.get('phone'))
+                    db.session.add(prof)
+
     e = Employee(
         user_id=user_id,
         job_title=data.get('job_title'),
         department=data.get('department'),
-        job_location=data.get('job_location'), # Not in YAML Schema but in original model
+        job_location=data.get('job_location'),
         photo=data.get('photo_url') or data.get('photo'),
         hired_at=data.get('hired_at')
     )
@@ -171,11 +184,9 @@ def add_performance_review(emp_id):
     data = request.json
     p = Performance(
         employee_id=emp_id,
-        metric=data.get('metric'), # Legacy
-        value=data.get('value'),   # Legacy
+        metric=data.get('metric'),
+        value=data.get('value'),
         date=data.get('review_date') or data.get('date'),
-        # rating=data.get('rating'), # Add to model if missing
-        # comments=data.get('comments') # Add to model if missing
     )
     db.session.add(p)
     db.session.commit()
@@ -192,8 +203,3 @@ def update_performance_review(review_id):
 
     db.session.commit()
     return jsonify({'message': 'Review updated successfully'})
-
-# Note: DELETE not in YAML for performance reviews or employees, but originally present.
-# Keeping them if needed or removing. I'll omit them for strictness or keep if safe.
-# I'll omit DELETE /hr/performance-reviews/{id} as it's not in YAML.
-# I'll omit DELETE /hr/employees/{id} as it's not in YAML.

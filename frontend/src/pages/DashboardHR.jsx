@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom"; // Added useLocation
-import { getEmployees, getJobs, getCompanyApplications, getCandidates } from "../services/api";
+import { useLocation } from "react-router-dom"; 
+import { getEmployees, getMyJobs, getCompanyApplications, getCandidates } from "../services/api";
 import { Download, Sparkles, AlertCircle, BookOpen, Users, Plus, Briefcase, FileText, User, BarChart2, Mail, Phone } from "lucide-react";
 import RecruitmentTab from "../components/RecruitmentTab";
 import EmployeesTab from "../components/EmployeesTab";
@@ -11,7 +11,7 @@ import TopNavbarHR from "../components/TopNavbarHR";
 
 
 export default function DashboardHR() {
-    const location = useLocation(); // Hook to access state passed via navigate
+    const location = useLocation(); 
     const [activeTab, setActiveTab] = useState("dashboard");
     const [username, setUsername] = useState("");
     const [metrics, setMetrics] = useState({
@@ -92,24 +92,31 @@ export default function DashboardHR() {
     useEffect(() => {
       async function fetchMetrics() {
         try {
-          const [employees, jobs, applications] = await Promise.all([
+          // Changed: Fetch 'my' jobs instead of all jobs to calculate specific HR metrics
+          const [employees, myJobs, applications] = await Promise.all([
             getEmployees(),
-            getJobs(),
+            getMyJobs(),
             getCompanyApplications(),
           ]);
-          // Example logic for metrics
+
+          // Total Employees (Company wide)
           const totalEmployees = employees.length;
-          // New hires: employees created in last 30 days
-          const now = new Date();
-          const newHires = employees.filter(e => {
-            if (!e.created_at) return false;
-            const created = new Date(e.created_at);
-            return (now - created) / (1000 * 60 * 60 * 24) <= 30;
-          }).length;
-          // Open positions: jobs where status is 'open' or similar
-          const openPositions = jobs.filter(j => j.status === 'open' || j.status === 'Open').length || jobs.length;
-          // AI Efficiency: placeholder, could be calculated from analytics
-          const aiEfficiency = 92; // TODO: Replace with real value if available
+
+          // Open positions: Only count jobs posted by THIS HR user that are Open
+          const openPositions = myJobs.filter(j => !j.status || j.status.toLowerCase() === 'open').length;
+
+          // New Hires: Count applications for MY jobs that have status 'hired'
+          // 1. Get IDs of jobs posted by me
+          const myJobIds = new Set(myJobs.map(j => j.id));
+          
+          // 2. Filter applications
+          const newHires = applications.filter(app => 
+            myJobIds.has(app.job_id) && app.status === 'hired'
+          ).length;
+
+          // AI Efficiency: placeholder
+          const aiEfficiency = 92; 
+
           setMetrics({
             totalEmployees,
             newHires,
@@ -118,6 +125,7 @@ export default function DashboardHR() {
           });
         } catch (err) {
           // fallback to 0s
+          console.error("Error fetching metrics:", err);
           setMetrics({ totalEmployees: 0, newHires: 0, openPositions: 0, aiEfficiency: 0 });
         }
       }

@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { askChatbot, axiosAuth, getChatHistory, clearChatHistory } from "../services/api";
-import { Send, RotateCcw, Plus, Bot, User, Users, Briefcase, BarChart2, FileText, Sparkles, MessageSquare, ClipboardList, PenTool, CheckCircle } from "lucide-react";
+import { Send, Plus, Bot, BarChart2, FileText, Sparkles, MessageSquare, ClipboardList, PenTool, CheckCircle, Users, Briefcase } from "lucide-react";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
-import EmployeesTab from "../components/EmployeesTab";
-import RecruitmentTab from "../components/RecruitmentTab";
-import Performance from "../components/PerformanceTab";
-import Analytics from "../components/AnalyticsTab";
 
+// Defined locally to match other pages
 const tabConfig = [
   { tab: "dashboard", icon: BarChart2 },
   { tab: "employees", icon: Users },
@@ -18,51 +15,46 @@ const tabConfig = [
 ];
 
 const HRGenAI = ({ onNewChat }) => {
-  const [activeTab, setActiveTab] = useState("genai"); // Main nav tab
-  const [activeTool, setActiveTool] = useState("chatbot"); // GenAI tool tab
+  const [activeTab, setActiveTab] = useState("genai"); // Keeps 'genai' active to show we aren't on a main tab
+  const [activeTool, setActiveTool] = useState("chatbot");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (activeTab === "dashboard") {
-      navigate("/dashboard-hr");
-    }
-  }, [activeTab, navigate]);
+  // UPDATED: Navigation logic
+  const handleTabClick = (tab) => {
+    navigate("/dashboard-hr", { state: { activeTab: tab } });
+  };
 
   return (
     <section className="min-h-screen flex bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] font-inter">
       <SidebarHR />
       <main className="flex-1 flex flex-col">
-        <TopNavbarHR activeTab={activeTab} setActiveTab={setActiveTab} tabConfig={tabConfig} />
+        <TopNavbarHR 
+            activeTab={activeTab} 
+            setActiveTab={handleTabClick} 
+            tabConfig={tabConfig} 
+        />
 
-        {/* Tab Content */}
-        {activeTab === "employees" && <EmployeesTab />}
-        {activeTab === "recruitment" && <RecruitmentTab />}
-        {activeTab === "performance" && <Performance />}
-        {activeTab === "analytics" && <Analytics fetchAnalyticsData={async () => ({metrics: {employeeSatisfaction: 90, turnoverRate: 8, avgSalary: 65000, trainingCompletion: 85}, workforceTrends: [], departmentBreakdown: []})} />}
+        {/* GenAI Section - Always rendered since other tabs navigate away */}
+        <div className="p-8 flex flex-col gap-6 h-full">
+        <h2 className="text-2xl font-extrabold text-[#013362] flex items-center gap-2">
+            <Sparkles className="h-6 w-6 text-[#005193]" /> HR GenAI Studio
+        </h2>
 
-        {/* GenAI Section */}
-        {activeTab === "genai" && (
-          <div className="p-8 flex flex-col gap-6 h-full">
-            <h2 className="text-2xl font-extrabold text-[#013362] flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-[#005193]" /> HR GenAI Studio
-            </h2>
+        {/* Tools Navigation */}
+        <div className="flex space-x-2 bg-white p-1 rounded-xl shadow-sm border border-gray-200 w-fit">
+            <ToolButton active={activeTool === "chatbot"} onClick={() => setActiveTool("chatbot")} icon={MessageSquare} label="AI Chatbot" />
+            <ToolButton active={activeTool === "jd-gen"} onClick={() => setActiveTool("jd-gen")} icon={FileText} label="JD Generator" />
+            <ToolButton active={activeTool === "interview-guide"} onClick={() => setActiveTool("interview-guide")} icon={ClipboardList} label="Interview Guide" />
+            <ToolButton active={activeTool === "feedback-sum"} onClick={() => setActiveTool("feedback-sum")} icon={PenTool} label="Feedback Summarizer" />
+        </div>
 
-            {/* Tools Navigation */}
-            <div className="flex space-x-2 bg-white p-1 rounded-xl shadow-sm border border-gray-200 w-fit">
-                <ToolButton active={activeTool === "chatbot"} onClick={() => setActiveTool("chatbot")} icon={MessageSquare} label="AI Chatbot" />
-                <ToolButton active={activeTool === "jd-gen"} onClick={() => setActiveTool("jd-gen")} icon={FileText} label="JD Generator" />
-                <ToolButton active={activeTool === "interview-guide"} onClick={() => setActiveTool("interview-guide")} icon={ClipboardList} label="Interview Guide" />
-                <ToolButton active={activeTool === "feedback-sum"} onClick={() => setActiveTool("feedback-sum")} icon={PenTool} label="Feedback Summarizer" />
-            </div>
-
-            <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 overflow-auto">
-                {activeTool === "chatbot" && <ChatbotTool onNewChat={onNewChat} />}
-                {activeTool === "jd-gen" && <JDGeneratorTool />}
-                {activeTool === "interview-guide" && <InterviewGuideTool />}
-                {activeTool === "feedback-sum" && <FeedbackSummarizerTool />}
-            </div>
-          </div>
-        )}
+        <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 overflow-auto">
+            {activeTool === "chatbot" && <ChatbotTool onNewChat={onNewChat} />}
+            {activeTool === "jd-gen" && <JDGeneratorTool />}
+            {activeTool === "interview-guide" && <InterviewGuideTool />}
+            {activeTool === "feedback-sum" && <FeedbackSummarizerTool />}
+        </div>
+        </div>
       </main>
     </section>
   );
@@ -291,14 +283,12 @@ const InterviewGuideTool = () => {
                         <h4 className="font-bold text-lg border-b pb-2">Interview Guide: {result.job_title}</h4>
                         <div>
                             <h5 className="font-bold text-[#005193]">Behavioral Questions</h5>
-                            {/* FIX: Default to empty array to prevent map error */}
                             <ul className="list-disc pl-5 mt-1 space-y-1">
                                 {(result.behavioral_questions || []).map((q, i) => <li key={i}>{q}</li>)}
                             </ul>
                         </div>
                         <div>
                             <h5 className="font-bold text-[#005193]">Technical Questions</h5>
-                            {/* FIX: Default to empty array to prevent map error */}
                             <ul className="list-disc pl-5 mt-1 space-y-1">
                                 {(result.technical_questions || []).map((q, i) => <li key={i}>{q}</li>)}
                             </ul>
