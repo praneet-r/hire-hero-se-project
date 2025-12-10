@@ -65,6 +65,10 @@ const RecruitmentTab = () => {
     type: "video" // video, phone, in_person
   });
 
+  // --- NEW STATE FOR SINGLE REVIEW ---
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewApplication, setReviewApplication] = useState(null);
+
   const handleShowExplanation = async (appId, candidateName) => {
         setExplanationModal({ show: true, data: null, loading: true, candidateName });
         try {
@@ -182,8 +186,19 @@ const RecruitmentTab = () => {
     try {
       await updateApplicationStatus(appId, newStatus);
       
+      // Update in main applicants list
       setCurrentJobApplicants(prev => prev.map(app => 
         app.id === appId ? { ...app, status: newStatus } : app
+      ));
+
+      // Update in Review Modal if open
+      if (reviewApplication && reviewApplication.id === appId) {
+          setReviewApplication(prev => ({ ...prev, status: newStatus }));
+      }
+      
+      // Update in Candidates list
+      setCandidates(prev => prev.map(cand => 
+        cand.id === appId ? { ...cand, status: newStatus } : cand
       ));
       
       setPillMessage(`Candidate ${newStatus === 'rejected' ? 'rejected' : 'moved to ' + newStatus.replace('_', ' ')}`);
@@ -245,7 +260,7 @@ const RecruitmentTab = () => {
 
   useEffect(() => {
     async function fetchData() {
-      // Use getMyJobs to fetch jobs posted by the logged-in user
+      // 1. Fetch Jobs
       const jobsData = await getMyJobs();
       const jobsWithIcons = (jobsData || []).map((job) => ({
         ...job,
@@ -256,27 +271,44 @@ const RecruitmentTab = () => {
         applications: job.applications_count || 0,
         qualified: job.qualified_count || 0,
       }));
-      
       // Sort jobs by application count descending
       jobsWithIcons.sort((a, b) => b.applications - a.applications);
-      
       setJobs(jobsWithIcons);
 
-      const profiles = await getCandidates();
-      const candidates = (profiles || [])
-        .map((p, idx) => ({
-          id: p.id || idx,
-          name: p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.first_name || p.last_name || p.email,
-          role: 'Candidate', 
-          match: `${Math.floor(Math.random()*21)+80}%`,
-        }))
-        // Sort by Match Score Descending
-        .sort((a, b) => parseInt(b.match) - parseInt(a.match));
+      // 2. Fetch Top Candidates (Applications with score >= 80)
+      try {
+        const apps = await getCompanyApplications();
+        const myJobIds = new Set((jobsData || []).map(j => j.id));
+        
+        // Filter: Must be for one of my jobs AND Match score >= 80
+        const highMatch = apps.filter(app => 
+            myJobIds.has(app.job_id) && (app.match_score || 0) >= 80
+        );
+        
+        // Sort: Descending by score
+        highMatch.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+        // Take Top 5
+        const top5 = highMatch.slice(0, 5);
 
-      setCandidates(candidates);
+        // Map for display
+        const formattedCandidates = top5.map(app => ({
+            ...app,
+            name: app.candidate_name,
+            role: app.job_title,
+            match: `${Math.round(app.match_score)}%`
+        }));
+        setCandidates(formattedCandidates);
+      } catch (err) {
+        console.error("Error fetching candidates", err);
+      }
     }
     fetchData();
   }, []);
+
+  const handleReviewClick = (candidateApp) => {
+      setReviewApplication(candidateApp);
+      setShowReviewModal(true);
+  };
 
   const totalEmployees = employees.length;
   const remoteWorkers = employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('remote')).length;
@@ -392,7 +424,7 @@ const RecruitmentTab = () => {
                   </div>
                       {/* Edit Job Description Modal */}
                       {showModal && selectedJob && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                           <div className="bg-white rounded-2xl shadow-lg p-10 w-full max-w-4xl relative">
                             <button
                               className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-2xl font-bold"
@@ -619,7 +651,7 @@ const RecruitmentTab = () => {
                 
               {/* View Applicants Modal */}
               {showApplicantsModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                   <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
                     {/* Modal Header */}
                     <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
@@ -855,10 +887,10 @@ const RecruitmentTab = () => {
           {/* Recent Candidates */}
           <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
             <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
-              <Users className="h-5 w-5 text-[#005193]" /> Top Candidates
+              <Users className="h-5 w-5 text-[#005193]" /> Top Candidates (80%+)
             </h2>
             <div className="space-y-3">
-              {candidates.map((cand) => (
+              {candidates.length > 0 ? candidates.map((cand) => (
                 <div
                   key={cand.id}
                   className="flex justify-between items-center border border-gray-200 rounded-xl p-4 hover:bg-[#F8FAFF] transition"
@@ -872,12 +904,15 @@ const RecruitmentTab = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-[#005193]">{cand.match} match</span>
-                    <button className="border border-gray-300 text-[#005193] px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-50">
+                    <button 
+                        onClick={() => handleReviewClick(cand)}
+                        className="border border-gray-300 text-[#005193] px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-50"
+                    >
                       Review
                     </button>
                   </div>
                 </div>
-              ))}
+              )) : <div className="text-center text-gray-500 py-4">No top matches found.</div>}
             </div>
           </div>
 
@@ -978,6 +1013,179 @@ const RecruitmentTab = () => {
           </div>
         )}
       </div>
+        {/* Review Candidate Modal */}
+        {showReviewModal && reviewApplication && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                        <div>
+                            <h3 className="text-xl font-bold text-[#013362]">Review Application</h3>
+                            <p className="text-sm text-gray-500">Applicant for <span className="font-semibold">{reviewApplication.job_title}</span></p>
+                        </div>
+                        <button onClick={() => setShowReviewModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+                    </div>
+                    <div className="p-6">
+                        {/* Reused Row UI */}
+                        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-[#F8FAFF]">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-[#005193] font-bold text-lg">
+                                  {reviewApplication.candidate_name ? reviewApplication.candidate_name[0].toUpperCase() : "U"}
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-[#013362]">{reviewApplication.candidate_name || "Unknown Candidate"}</h4>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                                      reviewApplication.status === 'applied' ? 'bg-blue-100 text-blue-700' :
+                                      reviewApplication.status === 'interviewing' ? 'bg-purple-100 text-purple-700' :
+                                      reviewApplication.status === 'under_review' ? 'bg-yellow-100 text-yellow-700' : 
+                                      reviewApplication.status === 'offer_extended' ? 'bg-green-100 text-green-700' :
+                                      reviewApplication.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' :
+                                      reviewApplication.status === 'hired' ? 'bg-teal-100 text-teal-700' :
+                                      reviewApplication.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                      'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {reviewApplication.status.replace('_', ' ')}
+                                    </span>
+                                    <span className="text-xs text-gray-400">• Applied {new Date(reviewApplication.applied_at).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              
+                              <div className="flex items-center gap-6">
+                              {/* Actions Group */}
+                              <div className="flex items-center gap-2">
+                                
+                                {reviewApplication.status === 'applied' && (
+                                  <>
+                                    <button
+                                      onClick={() => openScheduleModal(reviewApplication)} 
+                                      title="Schedule Interview"
+                                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
+                                    >
+                                      <Calendar className="w-4 h-4" />
+                                      Interview
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => handleApplicationAction(reviewApplication.id, 'rejected')}
+                                      title="Reject Application"
+                                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                                    >
+                                      <XCircle className="w-4 h-4" />
+                                      Reject
+                                    </button>
+                                    <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                                  </>
+                                )}
+
+                                {reviewApplication.status === 'interviewing' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApplicationAction(reviewApplication.id, 'under_review')}
+                                      title="Mark Interview as Completed"
+                                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition"
+                                    >
+                                      <CheckCircle className="w-4 h-4" />
+                                      Mark Interview as Completed
+                                    </button>
+                                    <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                                  </>
+                                )}
+
+                                {reviewApplication.status === 'under_review' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApplicationAction(reviewApplication.id, 'offer_extended')}
+                                      title="Extend Offer"
+                                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition"
+                                    >
+                                      <Briefcase className="w-4 h-4" />
+                                      Offer
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleApplicationAction(reviewApplication.id, 'rejected')}
+                                      title="Reject Application"
+                                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                                    >
+                                      <XCircle className="w-4 h-4" />
+                                      Reject
+                                    </button>
+                                    <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                                  </>
+                                )}
+
+                                {reviewApplication.status === 'accepted' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        navigate('/add-employee', { 
+                                          state: { 
+                                            candidate_id: reviewApplication.user_id,
+                                            application_id: reviewApplication.id,
+                                            job_title: reviewApplication.job_title,
+                                            // department: viewingJob?.department // Not available here, minor
+                                          } 
+                                        });
+                                      }}
+                                      title="Add as Employee"
+                                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                                    >
+                                      <UserPlus className="w-4 h-4" />
+                                      Add as Employee
+                                    </button>
+                                    <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                                  </>
+                                )}
+                                
+                                <a 
+                                  href={`/profile/${reviewApplication.user_id}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-sm font-semibold text-[#005193] hover:underline bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition shadow-sm"
+                                >
+                                  View Profile <ExternalLink className="w-3 h-3" />
+                                </a>
+
+                                {/* Match Score */}
+                                <div className="flex flex-col items-end mr-4 px-4 min-w-[100px]">
+                                  <div className="flex items-baseline gap-1">
+                                      <span className={`text-xl font-extrabold leading-none ${
+                                          reviewApplication.match_score >= 80 ? 'text-green-600' : 
+                                          reviewApplication.match_score >= 50 ? 'text-yellow-600' : 'text-red-500'
+                                      }`}>
+                                          {reviewApplication.match_score ? Math.round(reviewApplication.match_score) : 0}%
+                                      </span>
+                                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+                                          match
+                                      </span>
+                                  </div>
+                                  
+                                  <button 
+                                      onClick={() => handleShowExplanation(reviewApplication.id, reviewApplication.candidate_name)}
+                                      className="text-[10px] flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 px-2 py-1 rounded border border-blue-100 hover:border-blue-300 transition mt-1"
+                                  >
+                                      <HelpCircle className="w-3 h-3" /> Why?
+                                  </button>
+                                </div>
+                              </div>
+                              </div>
+                            </div>
+                    </div>
+                    <div className="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50">
+                        <button onClick={() => setShowReviewModal(false)} className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+      
     </div>
   );
 };

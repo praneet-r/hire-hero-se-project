@@ -17,7 +17,7 @@ def get_employees():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 20, type=int)
 
-    employees = Employee.query.all()
+    employees = Employee.query.filter_by(hired_by=user.id).all()
     # Simple pagination
     start = (page - 1) * limit
     end = start + limit
@@ -123,7 +123,8 @@ def create_employee():
         department=data.get('department'),
         job_location=data.get('job_location'),
         photo=data.get('photo_url') or data.get('photo'),
-        hired_at=data.get('hired_at')
+        hired_at=data.get('hired_at'),
+        hired_by=user.id
     )
     if 'manager_id' in data and hasattr(e, 'manager_id'):
         e.manager_id = data['manager_id']

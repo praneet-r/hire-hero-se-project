@@ -39,11 +39,9 @@ const AddEmployee = () => {
 
   useEffect(() => {
     if (location.state && location.state.activeTab) {
-      // If navigating specifically to this page, keep it as 'addEmployee'
       if(location.state.activeTab === 'addEmployee') {
           setActiveTab("addEmployee");
       } else {
-          // If for some reason we land here with another tab state, redirect
           navigate("/dashboard-hr", { state: { activeTab: location.state.activeTab } });
       }
     }
@@ -83,8 +81,13 @@ const AddEmployee = () => {
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
+    
     if (name === "photo") {
       setFormData((prev) => ({ ...prev, photo: files[0] }));
+    } else if (name === "phone") {
+      // Restriction: Allow only numbers
+      const numericValue = value.replace(/\D/g, "");
+      setFormData((prev) => ({ ...prev, [name]: numericValue }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -93,6 +96,9 @@ const AddEmployee = () => {
   const handleSave = async (e) => {
     e.preventDefault();
 
+    // --- VALIDATION START ---
+    
+    // 1. Mandatory Fields Check
     if (!selectedUserId) {
         if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
             showPill("Please fill in all personal information fields.", "error");
@@ -109,6 +115,21 @@ const AddEmployee = () => {
         showPill("Please specify the location name.", "error");
         return;
     }
+
+    // 2. Email Format Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+        showPill("Please enter a valid email address.", "error");
+        return;
+    }
+
+    // 3. Phone Number Validation (Length check, simple 10 digits common, but >= 10 safe)
+    if (formData.phone.length < 10) {
+        showPill("Please enter a valid phone number (at least 10 digits).", "error");
+        return;
+    }
+
+    // --- VALIDATION END ---
 
     try {
       let photoPath = formData.photoUrl || "";
@@ -161,6 +182,7 @@ const AddEmployee = () => {
 
       showPill("Employee added successfully!", "success");
       
+      // Clear Form
       setFormData({
         firstName: "",
         lastName: "",
@@ -177,6 +199,11 @@ const AddEmployee = () => {
       });
       setSelectedUserId("");
       setApplicationId(null);
+
+      // Redirect after 1.5 seconds
+      setTimeout(() => {
+        navigate("/dashboard-hr", { state: { activeTab: "employees" } });
+      }, 1500);
       
     } catch (err) {
       showPill("Failed to add employee. Please try again.", "error");
@@ -210,13 +237,10 @@ const AddEmployee = () => {
     { tab: "analytics", icon: BarChart2 },
   ];
 
-  // UPDATED: Navigation logic
   const handleTabClick = (tab) => {
-    // Always redirect to dashboard for these tabs
     navigate("/dashboard-hr", { state: { activeTab: tab } });
   };
 
-  // Helper to construct image source
   const getPhotoSrc = () => {
     if (formData.photo) {
       return URL.createObjectURL(formData.photo);
@@ -251,8 +275,6 @@ const AddEmployee = () => {
         )}
 
         <div className="p-8 flex flex-col gap-6">
-          {/* UPDATED: Removed conditional rendering of other tabs */}
-          
           {activeTab === "addEmployee" && (
             <>
               <div className="flex justify-between items-center mb-6">
@@ -286,10 +308,10 @@ const AddEmployee = () => {
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
-                      <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
-                      <InputField label="Email" name="email" type="email" value={formData.email} onChange={handleChange} />
-                      <InputField label="Phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} />
+                      <InputField label="First Name *" name="firstName" value={formData.firstName} onChange={handleChange} />
+                      <InputField label="Last Name *" name="lastName" value={formData.lastName} onChange={handleChange} />
+                      <InputField label="Email *" name="email" type="email" value={formData.email} onChange={handleChange} />
+                      <InputField label="Phone *" name="phone" type="tel" value={formData.phone} onChange={handleChange} />
                     </div>
                   </div>
                   <div className="flex flex-col items-center">
@@ -307,9 +329,9 @@ const AddEmployee = () => {
                 <div>
                   <h2 className="text-lg font-semibold mb-4">Job Details</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label="Job Title" name="jobTitle" value={formData.jobTitle} onChange={handleChange} />
+                    <InputField label="Job Title *" name="jobTitle" value={formData.jobTitle} onChange={handleChange} />
                     <SelectField 
-                        label="Select Department" 
+                        label="Select Department *" 
                         name="department" 
                         value={formData.department} 
                         onChange={handleChange} 
@@ -320,7 +342,7 @@ const AddEmployee = () => {
                     <div className="flex gap-2">
                         <div className="flex-1">
                             <SelectField 
-                                label="Job Location Type" 
+                                label="Job Location Type *" 
                                 name="locationType" 
                                 value={formData.locationType} 
                                 onChange={handleChange} 
@@ -330,7 +352,7 @@ const AddEmployee = () => {
                         {(formData.locationType === "On-site" || formData.locationType === "Hybrid") && (
                             <div className="flex-1">
                                 <InputField 
-                                    label={formData.locationType === "Hybrid" ? "Office Location (for Hybrid)" : "Office Location"} 
+                                    label={formData.locationType === "Hybrid" ? "Office Location (Hybrid) *" : "Office Location *"} 
                                     name="specificLocation" 
                                     value={formData.specificLocation} 
                                     onChange={handleChange} 
@@ -340,7 +362,7 @@ const AddEmployee = () => {
                         )}
                     </div>
 
-                    <InputField label="Start Date" name="startDate" type="date" value={formData.startDate} onChange={handleChange} />
+                    <InputField label="Start Date *" name="startDate" type="date" value={formData.startDate} onChange={handleChange} />
                   </div>
                 </div>
               </form>

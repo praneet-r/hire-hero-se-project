@@ -10,7 +10,7 @@ import os
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = False
+CREATE_DUMMY_DATA = True
 
 def seed_database():
     if not CREATE_DUMMY_DATA:
@@ -254,7 +254,8 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 department=field_data["name"],
                 job_location="Bangalore",
                 hired_at=datetime.utcnow() - timedelta(days=random.randint(30, 1000)),
-                photo=f"/uploads/{'woman.png' if is_female else 'man.png'}"
+                photo=f"/uploads/{'woman.png' if is_female else 'man.png'}",
+                hired_by=assigned_hr.id
             )
             db.session.add(emp)
             db.session.commit()
@@ -375,7 +376,7 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
     # --- 5. Create Applications & Interviews ---
     print("\n--- Seeding Applications ---")
     app_count = 0
-    statuses = ['applied', 'screening', 'interviewing', 'under_review', 'offer_extended', 'rejected']
+    statuses = ['applied', 'interviewing', 'under_review', 'offer_extended', 'accepted', 'rejected']
 
     for seeker, expert_field_data in seekers:
         expert_dept = expert_field_data["name"]

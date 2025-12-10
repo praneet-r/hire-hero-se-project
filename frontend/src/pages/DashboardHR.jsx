@@ -173,7 +173,7 @@ export default function DashboardHR() {
               <div className="grid grid-cols-4 gap-6">
                 {[
                   { label: "Total Employees", value: metrics.totalEmployees, icon: Users },
-                  { label: "New Hires", value: metrics.newHires, icon: Plus },
+                  { label: "New Hires via Job Postings", value: metrics.newHires, icon: Plus },
                   { label: "Open Positions", value: metrics.openPositions, icon: Briefcase },
                   { label: "AI Efficiency", value: `${metrics.aiEfficiency}%`, icon: Sparkles },
                 ].map((item, i) => (
