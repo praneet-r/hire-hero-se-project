@@ -1,8 +1,10 @@
 from .database import db
 from .models import User, Profile, Job, Application, Employee, Performance, Education, Experience, Interview
-from datetime import datetime, timedelta
 from .services.matching_service import matching_service
+from datetime import datetime, timedelta
 import random
+import csv
+import os
 
 # ==========================================
 # CONFIGURATION
@@ -11,9 +13,6 @@ import random
 CREATE_DUMMY_DATA = False
 
 def seed_database():
-    """
-    Populates the database with dummy data for testing/demo purposes.
-    """
     if not CREATE_DUMMY_DATA:
         return
 
@@ -25,29 +24,151 @@ def seed_database():
     print("--- Seeding with Dummy Data ---")
     
     # --- Data Lists ---
-    male_names = ["Aarav", "Vihaan", "Aditya", "Arjun", "Sai", "Reyansh", "Muhammad", "Rahul", "Amit", "Vikram", "Rohan", "Karthik", "Siddharth", "Manish", "Varun"]
-    female_names = ["Diya", "Saanvi", "Ananya", "Aadhya", "Pari", "Fatima", "Priya", "Neha", "Sneha", "Anjali", "Kavya", "Isha", "Meera", "Riya", "Pooja"]
-    last_names = ["Kumar", "Sharma", "Patel", "Singh", "Das", "Nair", "Reddy", "Gupta", "Khan", "Mishra", "Joshi", "Chopra", "Desai", "Mehta", "Iyer"]
+    male_names = [
+        "Aarav", "Vihaan", "Aditya", "Arjun", "Sai", "Reyansh", "Rahul", "Amit", 
+        "Vikram", "Rohan", "Karthik", "Siddharth", "Manish", "Varun", "Nikhil", 
+        "Pranav", "Ishaan", "Dhruv", "Krishna", "Om"
+    ]
+    female_names = [
+        "Diya", "Saanvi", "Ananya", "Aadhya", "Pari", "Priya", "Neha", "Sneha", 
+        "Anjali", "Kavya", "Isha", "Meera", "Riya", "Pooja", "Aditi", "Nisha", 
+        "Kriti", "Tanvi", "Shruti", "Radha"
+    ]
+    last_names = [
+        "Kumar", "Sharma", "Patel", "Singh", "Das", "Nair", "Reddy", "Gupta", 
+        "Mishra", "Joshi", "Chopra", "Desai", "Mehta", "Iyer", "Verma", "Rao", 
+        "Saxena", "Malhotra", "Bhatia", "Kapoor"
+    ]
     
-    companies = ["Google", "Microsoft", "Tesla", "Apple", "Amazon", "Netflix", "Meta", "IBM", "Infosys", "TCS", "Wipro", "HCL", "Zoho", "Swiggy", "Zomato"]
-    
-    institutes = ["IIT Madras", "IIT Bombay", "NIT Trichy", "BITS Pilani", "Anna University", "Delhi University", "VIT Vellore", "Manipal Institute", "SRM University"]
-    degrees = ["B.Tech in Computer Science", "B.E. in Electronics", "M.Tech in Data Science", "MBA", "B.Sc in Mathematics"]
-    
-    descriptions_exp = [
-        "Led the migration of legacy monoliths to microservices architecture, improving system scalability by 40%.",
-        "Developed and maintained high-traffic web applications using React and Python, ensuring 99.9% uptime.",
-        "Collaborated with cross-functional teams to design and implement new features for the flagship product.",
-        "Optimized database queries and implemented caching strategies, reducing page load times by 30%.",
-        "Mentored junior developers and conducted code reviews to maintain high code quality standards."
+    # --- 10 Field Definitions (Grouped by Similarity) ---
+    fields_config = [
+        # Group A: Tech
+        {
+            "name": "Software Engineering",
+            "company": "TechNova Solutions",
+            "jobs": ["Senior Full Stack Developer", "DevOps Engineer"],
+            "skills": ["Python", "JavaScript", "React", "AWS", "Docker", "Kubernetes", "SQL", "Git", "CI/CD", "Node.js"],
+            "degrees": ["B.Tech in Computer Science", "M.S. in Software Engineering"],
+            "summaries": ["Passionate Software Engineer with 6+ years of experience building scalable web applications. Expert in Python and JavaScript ecosystems.", "DevOps specialist with a background in automating infrastructure and deployment pipelines."]
+        },
+        {
+            "name": "Data Science",
+            "company": "TechNova Solutions",
+            "jobs": ["Data Scientist", "Machine Learning Engineer"],
+            "skills": ["Python", "Machine Learning", "Pandas", "NumPy", "TensorFlow", "SQL", "Data Analysis", "Statistics", "AWS", "Visualization"],
+            "degrees": ["M.S. in Data Science", "B.Tech in Computer Science"],
+            "summaries": ["Analytical Data Scientist with a strong background in machine learning and statistical modeling. Experienced in building predictive models.", "Machine Learning Engineer focused on deploying scalable AI solutions. Proficient in Python and deep learning frameworks."]
+        },
+        # Group B: Medical
+        {
+            "name": "Healthcare",
+            "company": "City General Hospital",
+            "jobs": ["Registered Nurse (ICU)", "Medical Laboratory Technician"],
+            "skills": ["Patient Care", "ICU", "Vital Signs", "Phlebotomy", "Medical Terminology", "ACLS", "BLS", "Laboratory Safety", "Biology"],
+            "degrees": ["Bachelor of Science in Nursing", "Associate Degree in Medical Technology"],
+            "summaries": ["Dedicated Registered Nurse with extensive experience in critical care settings. Compassionate and detail-oriented.", "Skilled Medical Laboratory Technician with expertise in diagnostic testing and analysis. Committed to accuracy."]
+        },
+        {
+            "name": "Pharmacy",
+            "company": "City General Hospital",
+            "jobs": ["Pharmacist", "Pharmacy Technician"],
+            "skills": ["Pharmacology", "Medication Dispensing", "Patient Counseling", "Pharmacy Law", "Drug Interactions", "Inventory Management", "Calculations", "Biology"],
+            "degrees": ["Doctor of Pharmacy (Pharm.D.)", "Pharmacy Technician Certification"],
+            "summaries": ["Licensed Pharmacist with a focus on patient safety and medication therapy management. Strong knowledge of drug interactions.", "Certified Pharmacy Technician with experience in retail and hospital settings. Efficient and organized."]
+        },
+        # Group C: Marketing
+        {
+            "name": "Digital Marketing",
+            "company": "GrowthHive Agency",
+            "jobs": ["Digital Marketing Manager", "SEO Specialist"],
+            "skills": ["SEO", "SEM", "Google Analytics", "Content Marketing", "Social Media Management", "Copywriting", "Email Marketing", "PPC"],
+            "degrees": ["B.A. in Marketing", "Master's in Digital Communications"],
+            "summaries": ["Results-driven Digital Marketing Manager with a focus on growth strategies and brand development. Expert in SEO and PPC.", "Creative SEO Specialist with a knack for optimizing web content and improving organic search rankings."]
+        },
+        {
+            "name": "Public Relations",
+            "company": "GrowthHive Agency",
+            "jobs": ["Public Relations Manager", "Content Strategist"],
+            "skills": ["Public Relations", "Media Relations", "Press Releases", "Content Strategy", "Crisis Management", "Communications", "Social Media", "Writing"],
+            "degrees": ["B.A. in Public Relations", "B.A. in Communications"],
+            "summaries": ["Strategic Public Relations Manager with a proven track record of managing media relations and corporate communications.", "Content Strategist passionate about storytelling and brand messaging. Experienced in creating engaging content."]
+        },
+        # Group D: Legal
+        {
+            "name": "Legal",
+            "company": "Vanguard Law Firm",
+            "jobs": ["Corporate Attorney", "Legal Paralegal"],
+            "skills": ["Corporate Law", "Contract Negotiation", "Legal Research", "Litigation Support", "Compliance", "Drafting", "Case Management"],
+            "degrees": ["Juris Doctor (J.D.)", "Paralegal Certificate"],
+            "summaries": ["Experienced Corporate Attorney specializing in mergers and acquisitions. Strong negotiator with a deep understanding of business law.", "Detail-oriented Paralegal with strong organizational skills and experience in legal research and document preparation."]
+        },
+        {
+            "name": "Corporate Compliance",
+            "company": "Vanguard Law Firm",
+            "jobs": ["Compliance Officer", "Risk Manager"],
+            "skills": ["Compliance", "Risk Management", "Auditing", "Regulations", "Policy Development", "Legal Research", "Analysis", "Corporate Law"],
+            "degrees": ["Master's in Business Law", "B.S. in Business Administration"],
+            "summaries": ["Compliance Officer dedicated to ensuring organizational adherence to laws and regulations. Strong background in risk assessment.", "Risk Manager with experience in identifying and mitigating business risks. Skilled in developing control systems."]
+        },
+        # Group E: Finance
+        {
+            "name": "Finance",
+            "company": "Summit Capital",
+            "jobs": ["Investment Banker", "Financial Analyst"],
+            "skills": ["Financial Modeling", "Valuation", "Excel", "Data Analysis", "Accounting", "Risk Management", "Investment Banking", "Reporting"],
+            "degrees": ["MBA in Finance", "B.S. in Economics"],
+            "summaries": ["Ambitious Investment Banker with expertise in financial modeling and valuation. Proven ability to analyze complex market data.", "Analytical Financial Analyst with a strong background in budgeting and forecasting. Skilled in providing actionable insights."]
+        },
+        {
+            "name": "Accounting",
+            "company": "Summit Capital",
+            "jobs": ["Senior Accountant", "Tax Consultant"],
+            "skills": ["Accounting", "GAAP", "Taxation", "Financial Reporting", "Auditing", "Excel", "Bookkeeping", "Compliance"],
+            "degrees": ["B.S. in Accounting", "CPA Certification"],
+            "summaries": ["Senior Accountant with a thorough knowledge of GAAP and financial reporting. Experienced in managing month-end close processes.", "Tax Consultant with expertise in tax planning and compliance. Dedicated to minimizing tax liabilities for clients."]
+        }
     ]
 
-    descriptions_edu = [
-        "Specialized in Artificial Intelligence and Machine Learning. Graduated with First Class Distinction.",
-        "Served as President of the Computer Science Society. Completed capstone project on Distributed Systems.",
-        "Focus on Software Engineering and Database Management Systems. consistently ranked in top 5% of class.",
-        "Participated in multiple hackathons and coding competitions. Minor in Business Administration."
+    schools = [
+        "Delhi Public School", "Kendriya Vidyalaya", "National Public School", 
+        "The Doon School", "Mayo College", "St. Xavier's High School", 
+        "DAV Public School", "Ryan International School", "Army Public School"
     ]
+
+    hs_descriptions = [
+        "Completed Senior Secondary education with a focus on Physics, Chemistry, and Mathematics (PCM). Achieved an aggregate score of 95% in the board examinations.",
+        "Graduated High School with honors in the Commerce stream. Served as the School Prefect and organized various cultural and sports events."
+    ]
+
+    # --- Job Description Generator ---
+    def generate_job_description(title, company, dept):
+        csv_path = os.path.join(os.path.dirname(__file__), 'job_descriptions.csv')
+        description_map = {}
+        try:
+            with open(csv_path, mode='r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    description_map[row['title'].strip()] = row['description'].strip()
+        except FileNotFoundError:
+            print(f"Warning: {csv_path} not found.")
+
+        specific_desc = description_map.get(title, f"We are looking for a {title} to join our {dept} team.")
+        
+        return f"""
+**Role:** {title}
+**Department:** {dept}
+**Company:** {company}
+
+{specific_desc}
+
+**Company Culture:**
+At {company}, we foster a culture of innovation and collaboration. We believe in empowering our employees to take ownership of their work.
+
+**Benefits:**
+- Competitive salary and comprehensive health insurance packages.
+- Flexible working hours and remote work options.
+- Professional development and training.
+"""
 
     # --- Helper: Create User ---
     def create_user(email, first, last, role, company=None):
@@ -70,231 +191,223 @@ def seed_database():
     def gen_phone():
         return f"{random.choice(['9', '8', '7'])}{random.randint(100000000, 999999999)}"
 
-    # --- 1. Create HR Users (3) ---
-    hr_users = []
+    # --- 1. Create HR Users (5) ---
     print("\n--- Seeding HR Users ---")
-    for i in range(1, 4):
-        is_female = random.choice([True, False])
-        fname = random.choice(female_names) if is_female else random.choice(male_names)
-        lname = random.choice(last_names)
+    hr_users = []
+    
+    hr_names = [
+        ("Vikram", "Malhotra"), ("Anjali", "Desai"), ("Rohan", "Mehta"), 
+        ("Priya", "Iyer"), ("Siddharth", "Reddy")
+    ]
+
+    for i in range(5):
+        field_primary = fields_config[i * 2]
+        field_similar = fields_config[i * 2 + 1]
         
-        hr = create_user(f"hr{i}@gmail.com", fname, lname, "hr", "HireHero Corp")
-        hr_users.append(hr)
+        fname, lname = hr_names[i]
+        email = f"hr{i+1}@gmail.com" 
+        
+        hr = create_user(email, fname, lname, "hr", field_primary["company"])
+        hr_users.append((hr, [field_primary, field_similar]))
         
         if not hr.profile:
             profile = Profile(
                 user_id=hr.id,
                 phone=gen_phone(),
                 location="Bangalore, India",
-                summary="Experienced HR Professional specializing in technical recruitment.",
-                profile_pic=f"/uploads/{'woman.png' if is_female else 'man.png'}",
+                summary=f"HR Head at {field_primary['company']}.",
+                profile_pic=f"/uploads/{'woman.png' if (i%2!=0) else 'man.png'}",
             )
             db.session.add(profile)
     db.session.commit()
 
     # --- 2. Create Employees (15) ---
     print("\n--- Seeding Employees ---")
-    emp_departments = ["Engineering", "Marketing", "Design", "HR", "Sales", "Product"]
-    emp_locations = ["Remote", "Bangalore", "Hyderabad", "Pune", "Mumbai", "Chennai", "Delhi NCR"]
-    emp_titles = ["Senior Developer", "Marketing Specialist", "UX Designer", "Sales Lead", "Product Owner", "Data Analyst"]
     
     for i in range(1, 16):
-        is_female = random.choice([True, False])
-        fname = random.choice(female_names) if is_female else random.choice(male_names)
+        full_name = random.choice(male_names + female_names)
+        is_female = full_name in female_names
+        fname = full_name
         lname = random.choice(last_names)
+        email = f"employee{i}@gmail.com"
         
-        emp_user = create_user(f"employee{i}@gmail.com", fname, lname, "employee")
+        assigned_hr, assigned_fields = hr_users[(i-1) % 5]
+        field_data = random.choice(assigned_fields)
         
+        emp_user = create_user(email, fname, lname, "employee")
+        
+        if not emp_user.profile:
+            profile = Profile(
+                user_id=emp_user.id,
+                phone=gen_phone(),
+                location="Bangalore",
+                summary=f"Employee at {field_data['company']}.",
+                profile_pic=f"/uploads/{'woman.png' if is_female else 'man.png'}"
+            )
+            db.session.add(profile)
+            db.session.flush()
+
         if not emp_user.employee:
             emp = Employee(
                 user_id=emp_user.id,
-                job_title=random.choice(emp_titles),
-                department=random.choice(emp_departments),
-                job_location=random.choice(emp_locations),
+                job_title=random.choice(field_data["jobs"]),
+                department=field_data["name"],
+                job_location="Bangalore",
                 hired_at=datetime.utcnow() - timedelta(days=random.randint(30, 1000)),
                 photo=f"/uploads/{'woman.png' if is_female else 'man.png'}"
             )
             db.session.add(emp)
             db.session.commit()
             
-            for _ in range(random.randint(1, 4)):
+            for _ in range(random.randint(1, 3)):
                 perf = Performance(
                     employee_id=emp.id,
-                    metric="Quarterly Review",
-                    value=str(random.randint(70, 100)),
+                    metric="Annual Review",
+                    value=str(random.randint(75, 100)),
                     date=datetime.utcnow() - timedelta(days=random.randint(1, 365))
                 )
                 db.session.add(perf)
     db.session.commit()
 
-    # --- 3. Create Job Listings (25) ---
+    # --- 3. Create Jobs (10) ---
     print("\n--- Seeding Jobs ---")
-    jobs = []
-    base_titles = [
-        "Senior React Developer", "Product Marketing Manager", "UX/UI Designer", 
-        "Backend Engineer (Python)", "Sales Representative", "HR Generalist", 
-        "DevOps Engineer", "Data Scientist", "Full Stack Developer", 
-        "Business Analyst", "Machine Learning Engineer", "Content Writer"
-    ]
-
-    for i in range(25):
-        title = random.choice(base_titles)
-        dept = "Engineering" if "Developer" in title or "Engineer" in title or "Scientist" in title else "General"
-        if "Marketing" in title: dept = "Marketing"
-        if "Sales" in title: dept = "Sales"
-        if "HR" in title: dept = "HR"
-        if "Design" in title: dept = "Design"
-
-        company_name = random.choice(companies)
-        
-        job = Job(
-            title=title,
-            company=company_name,
-            department=dept,
-            description=f"We at {company_name} are looking for a talented {title} to join our growing {dept} team. You will work on cutting-edge projects and collaborate with cross-functional teams to deliver high-quality solutions.",
-            location=random.choice(emp_locations),
-            type=random.choice(["Full-Time", "Contract"]),
-            remote_option=random.choice(["Remote", "Hybrid", "On-site"]),
-            experience_level=random.choice(["Junior", "Mid", "Senior", "Lead"]),
-            education="Bachelor's",
-            salary=f"{random.randint(5, 35)} LPA",
-            tags=f"{dept},Tech,{title.split(' ')[0]},{random.choice(['Python','React','Java','Figma','Sales','Management'])}",
-            benefits="Health Insurance,Paid Leave,Remote Work",
-            application_deadline=(datetime.utcnow() + timedelta(days=random.randint(10, 60))).strftime('%Y-%m-%d'),
-            posted_by=random.choice(hr_users).id
-        )
-        db.session.add(job)
-        jobs.append(job)
+    all_jobs = []
+    
+    for hr, assigned_fields in hr_users:
+        for field_data in assigned_fields:
+            title = field_data["jobs"][0]
+            job = Job(
+                title=title,
+                company=field_data["company"],
+                department=field_data["name"],
+                description=generate_job_description(title, field_data["company"], field_data["name"]),
+                location="Bangalore",
+                type="Full-Time",
+                remote_option="Hybrid",
+                experience_level="Mid",
+                education="Bachelor's",
+                salary="Competitive",
+                tags=",".join(field_data["skills"][:5]),
+                benefits="Health Insurance,Paid Leave,Remote Work",
+                application_deadline=(datetime.utcnow() + timedelta(days=random.randint(10, 60))).strftime('%Y-%m-%d'),
+                posted_by=hr.id
+            )
+            db.session.add(job)
+            all_jobs.append(job)
+            
     db.session.commit()
-    print(f"  [+] Created {len(jobs)} Job Listings")
+    print(f"  [+] Created {len(all_jobs)} Job Listings")
 
-    # --- 4. Create Job Seekers (15) ---
+    # --- 4. Create Job Seekers (20) ---
     print("\n--- Seeding Job Seekers ---")
     seekers = []
+    seeker_names = (male_names + female_names)[:20]
     
-    for i in range(1, 16):
-        is_female = (i % 2 == 0)
-        fname = random.choice(female_names) if is_female else random.choice(male_names)
+    for i in range(20):
+        field_idx = i % 10
+        field_data = fields_config[field_idx]
+        
+        full_name = seeker_names[i]
+        is_female = full_name in female_names
+        fname = full_name
         lname = random.choice(last_names)
-        email = f"js{i}@gmail.com"
+        email = f"js{i+1}@gmail.com"
         
         seeker = create_user(email, fname, lname, "candidate")
-        seekers.append(seeker)
+        seekers.append((seeker, field_data)) 
         
-        # --- Configure JS1 Specifically for Demo ---
-        if i == 1:
-            resume_url = "/uploads/sample_resume.pdf"
-            summary = "Ambitious Software Engineer with 5+ years of experience in full-stack development. Passionate about building scalable solutions and leveraging AI in recruitment technology."
-            pic = "/uploads/man.png" # Assuming JS1 is male for consistency, or generic
+        if not seeker.profile:
+            pic = f"/uploads/{'woman.png' if is_female else 'man.png'}"
             
-            if not seeker.profile:
-                profile = Profile(
-                    user_id=seeker.id,
-                    phone="9876543210",
-                    location="Bangalore, India",
-                    summary=summary,
-                    completeness=90,
-                    profile_pic=pic,
-                    resume=resume_url
-                )
-                db.session.add(profile)
-                db.session.flush()
+            skills_str = ", ".join(field_data["skills"])
+            summary_text = f"{random.choice(field_data['summaries'])}\n\nCore Skills: {skills_str}"
+            
+            profile = Profile(
+                user_id=seeker.id,
+                phone=gen_phone(),
+                location="Bangalore",
+                summary=summary_text,
+                completeness=95,
+                profile_pic=pic
+            )
+            db.session.add(profile)
+            db.session.flush()
 
-                # Logic: No overlap. Job 2 (Recent) -> Job 1 (Past)
-                # Current/Recent Job
-                exp1 = Experience(
-                    profile_id=profile.id,
-                    title="Senior Software Engineer",
-                    company="TechSolutions India",
-                    start_date=datetime.utcnow() - timedelta(days=700), # ~2 years ago
-                    end_date=None, # Present
-                    description="Leading the frontend team in migrating to React 18. Improved application performance by 25%."
-                )
-                db.session.add(exp1)
+            # Education
+            uni_start = datetime.utcnow() - timedelta(days=2000)
+            uni_end = datetime.utcnow() - timedelta(days=600)
+            edu_uni = Education(
+                profile_id=profile.id,
+                degree=random.choice(field_data["degrees"]),
+                institution="Premier Institute of Technology",
+                start_date=uni_start,
+                end_date=uni_end,
+                description=f"Specialized in {field_data['name']} studies."
+            )
+            db.session.add(edu_uni)
 
-                # Past Job
-                exp2 = Experience(
-                    profile_id=profile.id,
-                    title="Software Developer",
-                    company="Innovate Corp",
-                    start_date=datetime.utcnow() - timedelta(days=1500), # ~4 years ago
-                    end_date=datetime.utcnow() - timedelta(days=730), # Left 2 years ago
-                    description="Developed RESTful APIs using Python Flask. Collaborated with UI/UX teams to implement responsive designs."
-                )
-                db.session.add(exp2)
+            # High School
+            hs_end = uni_start - timedelta(days=90)
+            hs_start = hs_end - timedelta(days=730)
+            edu_hs = Education(
+                profile_id=profile.id,
+                degree="Senior Secondary (Class XII)",
+                institution=random.choice(schools),
+                start_date=hs_start,
+                end_date=hs_end,
+                description=random.choice(hs_descriptions)
+            )
+            db.session.add(edu_hs)
 
-                # Education
-                edu = Education(
-                    profile_id=profile.id,
-                    degree="B.Tech in Computer Science",
-                    institution="IIT Madras",
-                    start_date=datetime.utcnow() - timedelta(days=2600),
-                    end_date=datetime.utcnow() - timedelta(days=1550),
-                    description="Graduated with First Class Distinction. Active member of the Coding Club."
-                )
-                db.session.add(edu)
-        
-        # --- Random Config for other seekers ---
-        else:
-            if not seeker.profile:
-                pic = f"/uploads/{'woman.png' if is_female else 'man.png'}"
-                profile = Profile(
-                    user_id=seeker.id,
-                    phone=gen_phone(),
-                    location=random.choice(emp_locations),
-                    summary=f"Professional looking for opportunities in {random.choice(emp_departments)}.",
-                    completeness=random.choice([60, 80, 90, 100]),
-                    profile_pic=pic
-                )
-                db.session.add(profile)
-                db.session.flush()
-
-                # Add 1-2 random past experiences
-                for _ in range(random.randint(1, 2)):
-                    start_dt = datetime.utcnow() - timedelta(days=random.randint(500, 2000))
-                    end_dt = start_dt + timedelta(days=random.randint(200, 600))
-                    exp = Experience(
-                        profile_id=profile.id,
-                        title=random.choice(emp_titles),
-                        company=random.choice(companies),
-                        start_date=start_dt,
-                        end_date=end_dt,
-                        description=random.choice(descriptions_exp)
-                    )
-                    db.session.add(exp)
-                
-                # Add Education
-                edu = Education(
-                    profile_id=profile.id,
-                    degree=random.choice(degrees),
-                    institution=random.choice(institutes),
-                    start_date=datetime.utcnow() - timedelta(days=3000),
-                    end_date=datetime.utcnow() - timedelta(days=1600),
-                    description=random.choice(descriptions_edu)
-                )
-                db.session.add(edu)
+            # Experience
+            exp = Experience(
+                profile_id=profile.id,
+                title=field_data["jobs"][0],
+                company="Global Corp",
+                start_date=datetime.utcnow() - timedelta(days=500),
+                end_date=None,
+                description=f"Working as a key member of the team in {field_data['name']} domain. Leveraging skills in {skills_str[:50]}..."
+            )
+            db.session.add(exp)
 
     db.session.commit()
 
-    # --- 5. Create Applications & Interviews (SKIP JS1) ---
-    print("\n--- Seeding Applications & Interviews ---")
-    statuses = ['applied', 'screening', 'interviewing', 'under_review', 'offer_extended', 'rejected']
+    # --- 5. Create Applications & Interviews ---
+    print("\n--- Seeding Applications ---")
     app_count = 0
-    interview_count = 0
-    
-    # Iterate through all seekers EXCEPT the first one (JS1)
-    for seeker in seekers[1:]: 
-        applied_jobs = random.sample(jobs, k=random.randint(2, 4))
-        for job in applied_jobs:
+    statuses = ['applied', 'screening', 'interviewing', 'under_review', 'offer_extended', 'rejected']
+
+    for seeker, expert_field_data in seekers:
+        expert_dept = expert_field_data["name"]
+        
+        idx = -1
+        for k, f in enumerate(fields_config):
+            if f["name"] == expert_dept:
+                idx = k
+                break
+        
+        similar_idx = idx + 1 if idx % 2 == 0 else idx - 1
+        similar_dept = fields_config[similar_idx]["name"]
+        
+        high_jobs = [j for j in all_jobs if j.department == expert_dept]
+        med_jobs = [j for j in all_jobs if j.department == similar_dept]
+        low_jobs = [j for j in all_jobs if j.department != expert_dept and j.department != similar_dept]
+        
+        target_jobs = []
+        if high_jobs: target_jobs.append(random.choice(high_jobs))
+        if med_jobs: target_jobs.append(random.choice(med_jobs))
+        if low_jobs: target_jobs.append(random.choice(low_jobs))
+            
+        for job in target_jobs:
             if not Application.query.filter_by(user_id=seeker.id, job_id=job.id).first():
                 status = random.choice(statuses)
+                
                 score = 0.0
-                if seeker.profile:
-                    try:
-                        score = matching_service.calculate_score(seeker.profile, job)
-                    except Exception as e:
-                        print(f"Error calculating seed score: {e}")
-                        score = 0.0
+                try:
+                    score = matching_service.calculate_score(seeker.profile, job)
+                except Exception as e:
+                    print(f"Error calculating score: {e}")
+                
                 app = Application(
                     user_id=seeker.id,
                     job_id=job.id,
@@ -304,34 +417,22 @@ def seed_database():
                     match_explanation=None
                 )
                 db.session.add(app)
-                db.session.flush() 
+                db.session.flush()
                 app_count += 1
-
+                
                 if status == 'interviewing':
-                    loc_type = random.choice(['video', 'phone', 'in_person'])
-                    loc_detail = ""
-                    if loc_type == 'video':
-                        loc_detail = f"https://meet.google.com/{''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=3))}-{''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=4))}-{''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=3))}"
-                    elif loc_type == 'phone':
-                        loc_detail = gen_phone()
-                    else:
-                        loc_detail = f"Building {random.choice(['A','B','C'])}, Room {random.randint(100,500)}"
-
                     interview = Interview(
                         application_id=app.id,
                         stage="Technical Round",
                         scheduled_at=datetime.utcnow() + timedelta(days=random.randint(1, 7), hours=random.randint(9, 17)),
-                        location_type=loc_type,
-                        location_detail=loc_detail
+                        location_type="video",
+                        location_detail="https://meet.google.com/abc-defg-hij"
                     )
                     db.session.add(interview)
-                    interview_count += 1
 
     db.session.commit()
-    print(f"  [+] Created {app_count} applications (Skipped JS1).")
-    print(f"  [+] Created {interview_count} scheduled interviews.")
-    
+    print(f"  [+] Created {app_count} applications.")
     print("--- Database Seed Complete ---")
     print("DEMO CREDENTIALS:")
-    print("  HR Account: hr1@gmail.com / 123")
-    print("  Job Seeker: js1@gmail.com / 123 (Clean slate, pre-filled profile)")
+    print("  HR (Software/Data): hr1@gmail.com / 123")
+    print("  JS (Software Exp): js1@gmail.com / 123")

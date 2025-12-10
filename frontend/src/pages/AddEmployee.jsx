@@ -313,7 +313,7 @@ const AddEmployee = () => {
                         name="department" 
                         value={formData.department} 
                         onChange={handleChange} 
-                        options={["Engineering", "HR", "Marketing", "Finance", "Sales", "Design"]} 
+                        options={["Software Engineering", "Healthcare", "Digital Marketing", "Legal", "Finance"]} 
                     />
                   </div>
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -99,10 +99,11 @@ const GenerateReports = () => {
                 </select>
                 <select value={department} onChange={(e) => setDepartment(e.target.value)} className="border rounded-md p-2 w-full">
                   <option value="">Department Filter</option>
-                  <option>Engineering</option>
-                  <option>Marketing</option>
-                  <option>HR</option>
-                  <option>Design</option>
+                  <option>Software Engineering</option>
+                  <option>Healthcare</option>
+                  <option>Digital Marketing</option>
+                  <option>Legal</option>
+                  <option>Finance</option>
                 </select>
                 <input type="date" value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="border rounded-md p-2 w-full" />
                 <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value)} className="border rounded-md p-2 w-full">

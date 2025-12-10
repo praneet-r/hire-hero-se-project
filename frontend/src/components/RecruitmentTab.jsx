@@ -165,7 +165,12 @@ const RecruitmentTab = () => {
     setLoadingApplicants(true);
     try {
       const apps = await getCompanyApplications(job.id);
-      setCurrentJobApplicants(apps);
+      const sortedApps = apps.sort((a, b) => {
+        const scoreA = a.match_score || 0;
+        const scoreB = b.match_score || 0;
+        return scoreB - scoreA; 
+      });
+      setCurrentJobApplicants(sortedApps);
     } catch (err) {
       console.error("Failed to load applicants", err);
       setCurrentJobApplicants([]);
@@ -777,7 +782,7 @@ const RecruitmentTab = () => {
                                       {/* Percentage Number */}
                                       <span className={`text-xl font-extrabold leading-none ${
                                           app.match_score >= 80 ? 'text-green-600' : 
-                                          app.match_score >= 60 ? 'text-yellow-600' : 'text-red-500'
+                                          app.match_score >= 50 ? 'text-yellow-600' : 'text-red-500'
                                       }`}>
                                           {app.match_score ? Math.round(app.match_score) : 0}%
                                       </span>

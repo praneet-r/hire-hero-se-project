@@ -180,7 +180,7 @@ const PostJob = () => {
                     <div className="grid md:grid-cols-2 gap-4">
                       <Input label="Job Title *" name="title" value={formData.title} onChange={handleChange} />
                       <Input label="Company Name *" name="company" value={formData.company} onChange={handleChange} />
-                      <Select label="Select Department *" name="department" value={formData.department} onChange={handleChange} options={["Engineering", "HR", "Marketing", "Finance", "Sales", "Product"]} />
+                      <Select label="Select Department *" name="department" value={formData.department} onChange={handleChange} options={["Software Engineering", "Healthcare", "Digital Marketing", "Legal", "Finance"]} />
                       <Select label="Employment Type *" name="type" value={formData.type} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
                       <Select label="Remote Option *" name="remote_option" value={formData.remote_option} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />
                       <Input label="Location *" name="location" value={formData.location} onChange={handleChange} />
