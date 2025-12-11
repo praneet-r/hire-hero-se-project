@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getEmployees, deleteEmployee, updateEmployee, getDepartments } from "../services/api";
+import { getEmployees, deleteEmployee, updateEmployee, getDepartments, addPerformanceReview } from "../services/api";
 import {
   Users,
   Briefcase,
@@ -8,7 +8,8 @@ import {
   User,
   Plus,
   X,
-  ExternalLink
+  ExternalLink,
+  Star // Added Star icon
 } from "lucide-react";
 
 const EmployeesTab = () => {
@@ -23,6 +24,11 @@ const EmployeesTab = () => {
     // Edit Modal State
     const [selectedEmp, setSelectedEmp] = useState(null); 
     const [editForm, setEditForm] = useState({});
+
+    // --- NEW: Review Modal State ---
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [reviewTarget, setReviewTarget] = useState(null);
+    const [reviewForm, setReviewForm] = useState({ rating: 5, comments: "", date: "" });
 
     // Pill Message State
     const [pillMessage, setPillMessage] = useState("");
@@ -107,6 +113,27 @@ const EmployeesTab = () => {
       } catch (err) {
         showPill("Failed to update employee", "error");
       }
+    };
+
+    // --- NEW: Handle Opening Review Modal ---
+    const handleOpenReview = (emp) => {
+        setReviewTarget(emp);
+        setReviewForm({ rating: 5, comments: "", date: new Date().toISOString().split('T')[0] });
+        setShowReviewModal(true);
+    };
+
+    // --- NEW: Handle Submitting Review ---
+    const handleSubmitReview = async (e) => {
+        e.preventDefault();
+        if(!reviewTarget) return;
+        try {
+            await addPerformanceReview(reviewTarget.id, reviewForm);
+            setShowReviewModal(false);
+            showPill("Review submitted successfully!", "success");
+            fetchEmployees(); // Refresh to update stats if needed later
+        } catch (err) {
+            showPill("Failed to submit review", "error");
+        }
     };
 
     // Live search + filter logic
@@ -271,6 +298,16 @@ const EmployeesTab = () => {
                         <div className="text-gray-600">{emp.job_title}</div>
                         <div className="text-gray-600 font-medium">{emp.salary || "-"}</div>
                         <div className="text-right flex gap-2 justify-end">
+                          
+                          {/* --- NEW: Add Review Button --- */}
+                          <button
+                            className="border border-yellow-300 bg-yellow-50 text-yellow-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-yellow-100 transition flex items-center justify-center"
+                            onClick={() => handleOpenReview(emp)}
+                            title="Rate Performance"
+                          >
+                            <Star className="w-3.5 h-3.5" />
+                          </button>
+
                           {/* View Profile Button */}
                           {emp.user_id && (
                             <a
@@ -437,6 +474,55 @@ const EmployeesTab = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* --- NEW: Add Review Modal --- */}
+          {showReviewModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden p-6 animate-in fade-in zoom-in duration-200">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold text-[#013362]">Add Performance Review</h3>
+                        <button onClick={() => setShowReviewModal(false)}><X className="w-5 h-5 text-gray-500" /></button>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">Reviewing: <span className="font-bold">{reviewTarget?.name || reviewTarget?.first_name}</span></p>
+                    <form onSubmit={handleSubmitReview} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                            <input 
+                                type="number" min="1" max="5" step="0.1" 
+                                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#005193] outline-none"
+                                value={reviewForm.rating}
+                                onChange={e => setReviewForm({...reviewForm, rating: parseFloat(e.target.value)})}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <input 
+                                type="date" 
+                                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#005193] outline-none"
+                                value={reviewForm.date}
+                                onChange={e => setReviewForm({...reviewForm, date: e.target.value})}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Feedback / Comments</label>
+                            <textarea 
+                                rows="3"
+                                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#005193] outline-none"
+                                value={reviewForm.comments}
+                                onChange={e => setReviewForm({...reviewForm, comments: e.target.value})}
+                                placeholder="E.g. Excellent performance in the last sprint..."
+                                required
+                            ></textarea>
+                        </div>
+                        <button type="submit" className="w-full bg-[#005193] text-white py-2 rounded-lg font-bold hover:opacity-90 transition">
+                            Submit Review
+                        </button>
+                    </form>
+                </div>
             </div>
           )}
         </div>  

@@ -301,3 +301,12 @@ export const getDepartments = async () => {
     const res = await axiosAuth.get("/departments");
     return res.data;
 };
+
+export const addPerformanceReview = async (empId, reviewData) => {
+    // reviewData: { rating, comments, date }
+    const res = await axiosAuth.post(
+        `/hr/employees/${empId}/performance-reviews`,
+        reviewData
+    );
+    return res.data;
+};

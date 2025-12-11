@@ -3,147 +3,172 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, ResponsiveContainer
 } from "recharts";
-import { Star, User, Download, PlusCircle } from "lucide-react";
-
-const COLORS = ["#6366f1", "#22c55e", "#facc15"];
-
+import { Star, User, Download, Activity } from "lucide-react";
 import { getEmployees, getPerformanceInsights } from "../services/api";
 
-const fetchPerformanceData = async () => {
-  // Fetch employees from backend
-  const employees = await getEmployees();
-  const totalEmployees = employees.length;
-  // Count remote and on-site workers by job_location or status
-  const remoteWorkers = employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('remote')).length;
-  const onSiteWorkers = employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('on-site') || (e.job_location || e.status || '').toLowerCase().includes('onsite')).length;
-  // Calculate average performance if available (placeholder logic)
-  const avgPerformance = employees.length ? Math.round(employees.reduce((sum, e) => sum + (e.performance || 80), 0) / employees.length) : 0;
-
-  // Fetch AI Insights from backend
-  let insights = [];
-  try {
-    insights = await getPerformanceInsights();
-  } catch (e) {
-    insights = [
-      { title: "Top Performer", detail: "User_01 exceeded all goals by 25% this quarter." },
-      { title: "Team Growth", detail: "Engineering team improved 18% this quarter." },
-      { title: "Needs Support", detail: "3 employees showing performance decline." }
-    ];
-  }
-
-  return {
-    summary: {
-      totalEmployees,
-      remoteWorkers,
-      onSiteWorkers,
-      avgPerformance
-    },
-    performanceTrends: [
-      { month: "Jan", performance: 80 },
-      { month: "Feb", performance: 85 },
-      { month: "Mar", performance: 90 },
-      { month: "Apr", performance: 87 },
-      { month: "May", performance: 92 }
-    ],
-    workforce: [
-      { name: "Remote", value: remoteWorkers },
-      { name: "On-site", value: onSiteWorkers }
-    ],
-    reviews: [
-      { name: "User_01", role: "Frontend Dev", rating: 4.5, date: "Dec 15" },
-      { name: "User_02", role: "Backend Dev", rating: 4.8, date: "Nov 10" }
-    ],
-    insights,
-    goals: [
-      { title: "Q1 Revenue Target", progress: 75 },
-      { title: "Customer Satisfaction", progress: 82 },
-      { title: "Training Completion", progress: 60 }
-    ]
-  };
-};
+const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#a855f7"];
 
 const Performance = () => {
   const [data, setData] = useState({
-    summary: {},
+    summary: { total: 0, remote: 0, hybrid: 0, onsite: 0, avg: 0, totalReviews: 0 },
     performanceTrends: [],
     workforce: [],
     reviews: [],
-    insights: [],
-    goals: []
+    insights: []
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadData = async () => {
-      let res = await fetchPerformanceData();
-      setData(res);
-    };
+    async function loadData() {
+        try {
+            const employees = await getEmployees();
+            
+            // 1. Core Summary Stats
+            const total = employees.length;
+            
+            // Refined Workforce Logic
+            let remote = 0;
+            let hybrid = 0;
+            let onsite = 0;
+
+            employees.forEach(e => {
+                const loc = (e.job_location || '').toLowerCase();
+                if (loc.includes('remote')) {
+                    remote++;
+                } else if (loc.includes('hybrid')) {
+                    hybrid++;
+                } else {
+                    onsite++;
+                }
+            });
+            
+            // Calculate Global Average
+            const validAvgScores = employees.map(e => e.performance_avg).filter(s => s > 0);
+            const avg = validAvgScores.length 
+                ? (validAvgScores.reduce((a, b) => a + b, 0) / validAvgScores.length).toFixed(1) 
+                : 0;
+
+            // 2. Aggregate Reviews
+            let allReviews = [];
+            employees.forEach(e => {
+                if (e.performances) {
+                    e.performances.forEach(p => {
+                        allReviews.push({ ...p, employeeName: e.name });
+                    });
+                }
+            });
+
+            // Capture Total Count BEFORE slicing
+            const totalReviews = allReviews.length;
+
+            // Sort by date asc for trends
+            allReviews.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Group by Month for Trend Chart
+            const trendMap = {};
+            allReviews.forEach(r => {
+                const month = new Date(r.date).toLocaleString('default', { month: 'short' });
+                if (!trendMap[month]) trendMap[month] = { sum: 0, count: 0 };
+                trendMap[month].sum += r.rating;
+                trendMap[month].count += 1;
+            });
+
+            const performanceTrends = Object.keys(trendMap).map(m => ({
+                month: m,
+                rating: parseFloat((trendMap[m].sum / trendMap[m].count).toFixed(1))
+            }));
+
+            // Recent Reviews List (Top 5 most recent) - Reverse sort by date
+            const recentReviews = [...allReviews].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+            // 4. Workforce Distribution Data
+            const workforce = [
+                { name: "Remote", value: remote },
+                { name: "Hybrid", value: hybrid },
+                { name: "On-site", value: onsite }
+            ].filter(item => item.value > 0); // Only show segments that have data
+
+            // 5. Insights
+            let insights = [];
+            try {
+                insights = await getPerformanceInsights(); 
+            } catch {
+                insights = [{ title: "Data Loaded", detail: "Real performance data loaded successfully." }];
+            }
+
+            setData({
+                summary: { total, remote, hybrid, onsite, avg, totalReviews },
+                performanceTrends,
+                workforce,
+                reviews: recentReviews,
+                insights
+            });
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    }
     loadData();
   }, []);
 
-  const {
-    summary,
-    performanceTrends,
-    workforce,
-    reviews,
-    insights,
-    goals
-  } = data;
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading performance analytics...</div>;
+
+  const { summary, performanceTrends, workforce, reviews, insights } = data;
 
   return (
   <div className="p-8 bg-white rounded-2xl border border-gray-200 shadow-sm space-y-8">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-extrabold text-[#013362]">Performance</h2>
+        <h2 className="text-2xl font-extrabold text-[#013362]">Performance Analytics</h2>
         <div className="flex gap-3">
-          <button
-            type="button"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-[#013362] to-[#005193] text-white shadow-md hover:opacity-90"
-          >
-            <Download className="w-4 h-4" /> Export
-          </button>
-          <button
-            type="button"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-500 text-white shadow-md hover:bg-indigo-600"
-          >
-            <PlusCircle className="w-4 h-4" /> Start Review
+          <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-300 shadow-sm hover:bg-gray-50">
+            <Download className="w-4 h-4" /> Export Report
           </button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-6">
-        <SummaryCard label="Total Employees" value={summary.totalEmployees} icon={User} />
-        <SummaryCard label="Remote Workers" value={summary.remoteWorkers} icon={User} />
-        <SummaryCard label="On-Site Workers" value={summary.onSiteWorkers} icon={User} />
-        <SummaryCard label="Avg Performance" value={`${summary.avgPerformance}%`} icon={Star} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <SummaryCard label="Total Employees" value={summary.total} icon={User} />
+        {/* Adjusted to show Hybrid count here or stick to generic workforce stats */}
+        <SummaryCard label="Avg Rating" value={summary.avg} icon={Star} color="text-yellow-500" />
+        <SummaryCard label="Total Reviews" value={summary.totalReviews} icon={Activity} />
+        <SummaryCard label="Remote / Hybrid" value={`${summary.remote} / ${summary.hybrid}`} icon={User} />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex justify-between mb-2">
-            <h3 className="text-lg font-bold text-[#013362] flex items-center gap-2">Performance Trends</h3>
-            <select className="bg-transparent border rounded-lg px-2 py-1 text-sm text-gray-800">
-              <option>6m</option>
-              <option>1y</option>
-            </select>
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={performanceTrends}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="performance" fill="#6366f1" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="text-lg font-bold text-[#013362] mb-4">Performance Trends (Avg Rating)</h3>
+          {performanceTrends.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={performanceTrends}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" />
+                <YAxis domain={[0, 5]} />
+                <Tooltip cursor={{ fill: '#f3f4f6' }} />
+                <Bar dataKey="rating" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-gray-400">Not enough data yet.</div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-lg font-bold mb-3 text-[#013362]">Workforce Distribution</h3>
+          <h3 className="text-lg font-bold mb-3 text-[#013362]">Workforce Split</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={workforce} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
+              <Pie 
+                data={workforce} 
+                dataKey="value" 
+                nameKey="name" 
+                cx="50%" 
+                cy="50%" 
+                innerRadius={60} 
+                outerRadius={80} 
+                paddingAngle={5}
+              >
                 {workforce.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
@@ -151,55 +176,55 @@ const Performance = () => {
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
+          {/* Updated Legend with Hybrid */}
+          <div className="flex flex-wrap justify-center gap-4 text-sm mt-2">
+              <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[0] }}></div> 
+                  Remote
+              </div>
+              <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[1] }}></div> 
+                  Hybrid
+              </div>
+              <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[2] }}></div> 
+                  On-site
+              </div>
+          </div>
         </div>
       </div>
 
-      {/* Insights, Reviews, Goals */}
+      {/* Reviews & Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* AI Insights */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-3">
-          <h3 className="text-lg font-bold text-[#013362]">AI Insights</h3>
-          {insights.map((ins, idx) => (
-            <div key={idx} className="border-l-4 border-indigo-500 pl-3 text-sm">
-              <p className="font-semibold">{ins.title}</p>
-              <p className="text-gray-600">{ins.detail}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent Reviews */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-3">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
           <h3 className="text-lg font-bold text-[#013362]">Recent Reviews</h3>
-          {reviews.map((r, idx) => (
-            <div key={idx} className="flex justify-between items-center border-b border-gray-200 pb-2">
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-indigo-500" />
+          {reviews.length > 0 ? reviews.map((r, idx) => (
+            <div key={idx} className="flex justify-between items-start border-b border-gray-100 pb-3 last:border-0">
+              <div className="flex gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-[#005193] font-bold text-sm">
+                    {r.employeeName?.[0]}
+                </div>
                 <div>
-                  <p className="font-medium">{r.name}</p>
-                  <p className="text-xs text-gray-500">{r.role}</p>
+                  <p className="font-semibold text-gray-800">{r.employeeName}</p>
+                  <p className="text-sm text-gray-600 italic">"{r.comments}"</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm font-semibold">{r.rating}</span>
-                <span className="text-xs text-gray-400 ml-1">{r.date}</span>
+              <div className="text-right">
+                <div className="flex items-center justify-end gap-1 text-yellow-500 font-bold">
+                    {r.rating} <Star className="w-3 h-3 fill-current" />
+                </div>
+                <span className="text-xs text-gray-400">{new Date(r.date).toLocaleDateString()}</span>
               </div>
             </div>
-          ))}
+          )) : <div className="text-gray-500 italic">No reviews submitted yet.</div>}
         </div>
 
-        {/* Goal Progress */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-3">
-          <h3 className="text-lg font-bold text-[#013362]">Goal Progress</h3>
-          {goals.map((g, idx) => (
-            <div key={idx}>
-              <div className="flex justify-between text-sm">
-                <span>{g.title}</span>
-                <span>{g.progress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${g.progress}%` }}></div>
-              </div>
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
+          <h3 className="text-lg font-bold text-[#013362]">AI Insights</h3>
+          {insights.map((ins, idx) => (
+            <div key={idx} className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl">
+              <p className="font-bold text-indigo-900 text-sm mb-1">{ins.title}</p>
+              <p className="text-indigo-700 text-xs leading-relaxed">{ins.detail}</p>
             </div>
           ))}
         </div>
@@ -208,12 +233,11 @@ const Performance = () => {
   );
 };
 
-// Small reusable summary card
-const SummaryCard = ({ label, value, icon: Icon }) => (
+const SummaryCard = ({ label, value, icon: Icon, color = "text-[#005193]" }) => (
   <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm text-center flex flex-col items-center">
-    {Icon && <Icon className="h-7 w-7 mb-2 text-[#005193]" />}
-    <h3 className="text-3xl font-extrabold text-[#013362]">{value ?? "—"}</h3>
-    <p className="text-gray-500 mt-1 text-sm font-medium">{label}</p>
+    {Icon && <Icon className={`h-8 w-8 mb-2 ${color}`} />}
+    <h3 className="text-3xl font-extrabold text-gray-800">{value}</h3>
+    <p className="text-gray-500 mt-1 text-sm font-medium uppercase tracking-wide">{label}</p>
   </div>
 );
 

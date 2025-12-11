@@ -14,25 +14,28 @@ def get_employees():
     if not user or user.role != 'hr':
         return jsonify({'error': 'Unauthorized: HR role required'}), 403
 
-    page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 20, type=int)
-
+    # Fetch all employees hired by this HR
     employees = Employee.query.filter_by(hired_by=user.id).all()
-    # Simple pagination
-    start = (page - 1) * limit
-    end = start + limit
-    paginated = employees[start:end]
 
     employee_list = []
-    for e in paginated:
-        # Fetch associated user to get the name and details
+    for e in employees:
         user_obj = e.user 
         full_name = f"{user_obj.first_name} {user_obj.last_name}" if user_obj else "Unknown"
         
-        # Safe phone fetch: User -> Profile -> phone
-        phone = ""
-        if user_obj and user_obj.profile:
-            phone = user_obj.profile.phone
+        # Calculate Average Rating
+        ratings = [p.rating for p in e.performances if p.rating]
+        avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else 0
+
+        # Get Latest Review
+        latest_review = None
+        if e.performances:
+            # Sort by date descending
+            sorted_perfs = sorted(e.performances, key=lambda x: x.date, reverse=True)
+            latest_review = {
+                'rating': sorted_perfs[0].rating,
+                'date': sorted_perfs[0].date.isoformat(),
+                'comments': sorted_perfs[0].comments
+            }
 
         employee_list.append({
             'id': e.id,
@@ -41,23 +44,24 @@ def get_employees():
             'last_name': user_obj.last_name if user_obj else "",
             'name': full_name,
             'email': user_obj.email if user_obj else "",
-            'phone': phone,
+            'phone': user_obj.profile.phone if (user_obj and user_obj.profile) else "",
             'job_title': e.job_title,
             'department': e.department,
             'job_location': e.job_location,
             'salary': e.salary,
             'hired_at': e.hired_at,
             'photo_url': e.photo,
-            'manager_id': getattr(e, 'manager_id', None)
+            'manager_id': getattr(e, 'manager_id', None),
+            'performance_avg': avg_rating,
+            'performances': [{
+                'id': p.id,
+                'date': p.date.isoformat(),
+                'rating': p.rating,
+                'comments': p.comments
+            } for p in e.performances]
         })
 
     return jsonify({
-        'pagination': {
-            'page': page,
-            'per_page': limit,
-            'total_items': len(employees),
-            'total_pages': (len(employees) + limit - 1) // limit
-        },
         'employees': employee_list
     })
 
@@ -187,11 +191,12 @@ def upload_employee_photo():
 def add_performance_review(emp_id):
     e = Employee.query.get_or_404(emp_id)
     data = request.json
+    
     p = Performance(
         employee_id=emp_id,
-        metric=data.get('metric'),
-        value=data.get('value'),
-        date=data.get('review_date') or data.get('date'),
+        rating=data.get('rating', 0.0),
+        comments=data.get('comments', ''),
+        date=data.get('date') # Expecting 'YYYY-MM-DD'
     )
     db.session.add(p)
     db.session.commit()

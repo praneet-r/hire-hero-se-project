@@ -10,7 +10,7 @@ import os
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = True
+CREATE_DUMMY_DATA = False
 
 def seed_database():
     if not CREATE_DUMMY_DATA:
@@ -285,12 +285,30 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
             db.session.add(emp)
             db.session.commit()
             
-            for _ in range(random.randint(1, 3)):
+            # --- PERFORMANCE SEEDING ---
+            # Create 1-4 reviews per employee
+            for _ in range(random.randint(1, 4)):
+                # Generate a random date within the last year
+                review_date = datetime.utcnow() - timedelta(days=random.randint(1, 365))
+                
+                # Generate a realistic rating (mostly 3.0 to 5.0)
+                rating = round(random.uniform(3.0, 5.0), 1)
+                
+                # Generate dummy comments
+                comments_pool = [
+                    "Exceeds expectations in delivery.",
+                    "Needs to improve communication skills.",
+                    "Great team player, always helpful.",
+                    "Consistent performance throughout the quarter.",
+                    "Showed great initiative on the last project.",
+                    "Technical skills are strong, but missed a few deadlines."
+                ]
+                
                 perf = Performance(
                     employee_id=emp.id,
-                    metric="Annual Review",
-                    value=str(random.randint(75, 100)),
-                    date=datetime.utcnow() - timedelta(days=random.randint(1, 365))
+                    rating=rating,
+                    comments=random.choice(comments_pool),
+                    date=review_date
                 )
                 db.session.add(perf)
     db.session.commit()
