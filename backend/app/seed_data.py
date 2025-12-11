@@ -10,7 +10,7 @@ import os
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = True
+CREATE_DUMMY_DATA = False
 
 def seed_database():
     if not CREATE_DUMMY_DATA:
@@ -155,16 +155,12 @@ def seed_database():
         specific_desc = description_map.get(title, f"We are looking for a {title} to join our {dept} team.")
         
         return f"""
-**Role:** {title}
-**Department:** {dept}
-**Company:** {company}
-
 {specific_desc}
 
-**Company Culture:**
+Company Culture:
 At {company}, we foster a culture of innovation and collaboration. We believe in empowering our employees to take ownership of their work.
 
-**Benefits:**
+Benefits:
 - Competitive salary and comprehensive health insurance packages.
 - Flexible working hours and remote work options.
 - Professional development and training.

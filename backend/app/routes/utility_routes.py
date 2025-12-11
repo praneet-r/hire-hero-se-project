@@ -11,3 +11,19 @@ def health_check():
 def get_uploaded_file(filename):
     upload_folder = os.path.join(current_app.root_path, 'uploads')
     return send_from_directory(upload_folder, filename)
+
+@utility_bp.route('/departments', methods=['GET'])
+def get_departments():
+    departments = [
+        "Software Engineering",
+        "Data Science",
+        "Healthcare",
+        "Pharmacy",
+        "Digital Marketing",
+        "Public Relations",
+        "Legal",
+        "Corporate Compliance",
+        "Finance",
+        "Accounting"
+    ]
+    return jsonify(departments)

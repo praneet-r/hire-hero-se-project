@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getDepartments } from "../services/api";
 import { Users, BarChart2, Briefcase, FileText, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
@@ -10,6 +11,7 @@ const GenerateReports = () => {
     const [dateRange, setDateRange] = useState("");
     const [outputFormat, setOutputFormat] = useState("pdf");
     const [deliveryEmail, setDeliveryEmail] = useState("");
+    const [departmentOptions, setDepartmentOptions] = useState([]);
 
     const recentReports = [
       {
@@ -42,6 +44,12 @@ const GenerateReports = () => {
     const handleTabClick = (tab) => {
       navigate("/dashboard-hr", { state: { activeTab: tab } });
     };
+
+    useEffect(() => {
+        getDepartments()
+            .then(data => setDepartmentOptions(data))
+            .catch(err => console.error(err));
+    }, []);
 
     return (
       <section className="min-h-screen flex bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] font-inter">
@@ -99,11 +107,9 @@ const GenerateReports = () => {
                 </select>
                 <select value={department} onChange={(e) => setDepartment(e.target.value)} className="border rounded-md p-2 w-full">
                   <option value="">Department Filter</option>
-                  <option>Software Engineering</option>
-                  <option>Healthcare</option>
-                  <option>Digital Marketing</option>
-                  <option>Legal</option>
-                  <option>Finance</option>
+                  {departmentOptions.map((dept, i) => (
+                    <option key={i} value={dept}>{dept}</option>
+                  ))}
                 </select>
                 <input type="date" value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="border rounded-md p-2 w-full" />
                 <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value)} className="border rounded-md p-2 w-full">

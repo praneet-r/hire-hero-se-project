@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getEmployees, deleteEmployee, updateEmployee } from "../services/api";
+import { getEmployees, deleteEmployee, updateEmployee, getDepartments } from "../services/api";
 import {
   Users,
   Briefcase,
@@ -40,15 +40,22 @@ const EmployeesTab = () => {
     // Fetch employee data
     const fetchEmployees = async () => {
       try {
-        const data = await getEmployees();
-        setEmployees(data);
-        setFilteredEmployees(data);
-        const departments = Array.from(new Set(data.map(e => e.department).filter(Boolean)));
-        const locations = Array.from(new Set(data.map(e => e.job_location).filter(Boolean)));
-        setDepartmentOptions(departments);
+        const [empData, deptData] = await Promise.all([
+            getEmployees(),
+            getDepartments()
+        ]);
+        
+        setEmployees(empData);
+        setFilteredEmployees(empData);
+        
+        // Set the department options from the API instead of deriving from employees
+        setDepartmentOptions(deptData); 
+        
+        // Continue deriving locations from existing data (or fetch if you had an API)
+        const locations = Array.from(new Set(empData.map(e => e.job_location).filter(Boolean)));
         setLocationOptions(locations);
       } catch (err) {
-        console.error("Failed to fetch employees", err);
+        console.error("Failed to fetch data", err);
       }
     };
 
@@ -370,8 +377,8 @@ const EmployeesTab = () => {
                             onChange={e => setEditForm({...editForm, department: e.target.value})}
                         >
                             <option value="">Select Department...</option>
-                            {["Engineering", "HR", "Marketing", "Finance", "Sales", "Design"].map(dept => (
-                                <option key={dept} value={dept}>{dept}</option>
+                            {departmentOptions.map((dept, i) => (
+                                <option key={i} value={dept}>{dept}</option>
                             ))}
                         </select>
                     </div>

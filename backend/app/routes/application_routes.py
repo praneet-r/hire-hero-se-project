@@ -89,7 +89,11 @@ def get_my_applications():
                 'company': job.company if job else '',
                 'tags': job.tags.split(',') if job and job.tags else [],
                 'description': job.description if job else '',
-                'salary': job.salary if job else 'Not disclosed'
+                'salary': job.salary if job else 'Not disclosed',
+                'experience_level': job.experience_level if job else '',
+                'education': job.education if job else '',
+                'remote_option': job.remote_option if job else '',
+                'benefits': job.benefits if job else ''
             }
         })
     return jsonify(enriched)

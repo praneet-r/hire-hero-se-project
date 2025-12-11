@@ -7,7 +7,7 @@ const tabConfig = [
   { tab: "dashboard", label: "Dashboard" },
   { tab: "jobs", label: "Jobs" },
   { tab: "applications", label: "Applications" },
-  { tab: "chat", label: "Chat" },
+  { tab: "chat", label: "AI Studio" },
 ];
 
 const TopNavbarApplicant = ({ activeTab, setActiveTab }) => {
@@ -43,15 +43,19 @@ const TopNavbarApplicant = ({ activeTab, setActiveTab }) => {
       </div>
       <div className="flex items-center gap-4 text-gray-600">
         <Bell className="h-5 w-5 cursor-pointer hover:text-[#005193]" />
-        <div className="relative">
-          <User
-            className="h-5 w-5 cursor-pointer hover:text-[#005193]"
+        
+        {/* CLICKABLE USER ICON */}
+        <div 
+            className={`cursor-pointer transition ${activeTab === 'profile' ? 'text-[#005193] bg-blue-50 p-1.5 rounded-full' : 'hover:text-[#005193]'}`}
             onClick={() => {
-              setActiveTab && setActiveTab("profile");
-              setShowProfile(false);
+                if (setActiveTab) setActiveTab("profile");
+                setShowProfile(false);
             }}
-          />
+            title="My Profile"
+        >
+            <User className="h-5 w-5" />
         </div>
+
         <Settings className="h-5 w-5 cursor-pointer hover:text-[#005193]" />
         <button
           className="flex items-center gap-1 px-2 py-1 rounded text-[#d32f2f] font-medium text-sm transition"

@@ -152,7 +152,7 @@ def get_my_jobs():
         'created_at': job.created_at,
         'company_logo_url': getattr(job, 'company_logo_url', ''),
         'applications_count': len(job.applications),
-        'qualified_count': 0, # Placeholder until logic is implemented
+        'qualified_count': len([app for app in job.applications if (app.match_score or 0) >= 80]),
         'status': getattr(job, 'status', 'Open')
     } for job in jobs]
 
@@ -234,8 +234,8 @@ def get_job_recommendations():
         # Calculate score locally (fast)
         score = matching_service.calculate_score(profile, job)
         
-        # Only recommend if score > 60% (Lowered threshold slightly to ensure results)
-        if score > 10: 
+        # Only recommend if score > 70% (Lowered threshold slightly to ensure results)
+        if score > 70: 
             job_data = {
                 'id': job.id,
                 'title': job.title,
@@ -243,6 +243,11 @@ def get_job_recommendations():
                 'location': job.location,
                 'type': job.type,
                 'salary': job.salary,
+                'description': job.description,
+                'experience_level': job.experience_level,
+                'education': job.education,
+                'remote_option': job.remote_option,
+                'benefits': job.benefits,
                 'tags': job.tags.split(',') if job.tags else [],
                 'match_score': score
             }

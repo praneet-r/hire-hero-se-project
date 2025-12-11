@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { createEmployee, axiosAuth, updateApplicationStatus } from "../services/api";
+import { createEmployee, axiosAuth, updateApplicationStatus, getDepartments } from "../services/api";
 import { getProfileByUserId } from "../services/api";
 import { useNavigate, useLocation } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
@@ -31,6 +31,7 @@ const AddEmployee = () => {
 
   const [selectedUserId, setSelectedUserId] = useState("");
   const [applicationId, setApplicationId] = useState(null);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
 
   const showPill = (message, type) => {
     setStatus({ message, type });
@@ -60,6 +61,12 @@ const AddEmployee = () => {
       }));
     }
   }, [location.state, navigate]);
+
+  useEffect(() => {
+    getDepartments()
+      .then(data => setDepartmentOptions(data))
+      .catch(err => console.error("Failed to fetch departments", err));
+  }, []);
 
   useEffect(() => {
     if (selectedUserId) {
@@ -335,7 +342,7 @@ const AddEmployee = () => {
                         name="department" 
                         value={formData.department} 
                         onChange={handleChange} 
-                        options={["Software Engineering", "Healthcare", "Digital Marketing", "Legal", "Finance"]} 
+                        options={departmentOptions} 
                     />
                   </div>
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">

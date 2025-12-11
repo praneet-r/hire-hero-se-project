@@ -6,6 +6,7 @@ import RecruitmentTab from "../components/RecruitmentTab";
 import EmployeesTab from "../components/EmployeesTab";
 import PerformanceTab from "../components/PerformanceTab";
 import AnalyticsTab from "../components/AnalyticsTab";
+import ProfileHR from "../components/ProfileHR";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
 
@@ -267,6 +268,7 @@ export default function DashboardHR() {
           {activeTab === "recruitment" && <RecruitmentTab />}
           {activeTab === "performance" && <PerformanceTab />}
           {activeTab === "analytics" && <AnalyticsTab />}
+          {activeTab === "profile" && <ProfileHR />}
         </div>
       </main>
     </section>

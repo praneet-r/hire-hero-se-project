@@ -296,3 +296,8 @@ export const getApplicationExplanation = async (appId) => {
     const res = await axiosAuth.get(`/hr/applications/${appId}/explanation`);
     return res.data;
 };
+
+export const getDepartments = async () => {
+    const res = await axiosAuth.get("/departments");
+    return res.data;
+};

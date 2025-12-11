@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { createJob } from "../services/api";
+import React, { useState, useEffect } from "react";
+import { createJob, getDepartments } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
@@ -29,6 +29,19 @@ const PostJob = () => {
   const [status, setStatus] = useState({ message: "", type: "" }); 
 
   const benefitsOptions = ["Health Insurance", "Remote Work", "Paid Leave"];
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    async function fetchDepts() {
+      try {
+        const data = await getDepartments();
+        setDepartments(data);
+      } catch (err) {
+        console.error("Failed to fetch departments", err);
+      }
+    }
+    fetchDepts();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -180,7 +193,7 @@ const PostJob = () => {
                     <div className="grid md:grid-cols-2 gap-4">
                       <Input label="Job Title *" name="title" value={formData.title} onChange={handleChange} />
                       <Input label="Company Name *" name="company" value={formData.company} onChange={handleChange} />
-                      <Select label="Select Department *" name="department" value={formData.department} onChange={handleChange} options={["Software Engineering", "Healthcare", "Digital Marketing", "Legal", "Finance"]} />
+                      <Select label="Select Department *" name="department" value={formData.department} onChange={handleChange} options={departments} />
                       <Select label="Employment Type *" name="type" value={formData.type} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
                       <Select label="Remote Option *" name="remote_option" value={formData.remote_option} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />
                       <Input label="Location *" name="location" value={formData.location} onChange={handleChange} />
