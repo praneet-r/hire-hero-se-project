@@ -45,6 +45,7 @@ def get_employees():
             'job_title': e.job_title,
             'department': e.department,
             'job_location': e.job_location,
+            'salary': e.salary,
             'hired_at': e.hired_at,
             'photo_url': e.photo,
             'manager_id': getattr(e, 'manager_id', None)
@@ -69,6 +70,7 @@ def get_employee(emp_id):
         'job_title': e.job_title,
         'department': e.department,
         'job_location': e.job_location,
+        'salary': e.salary,
         'hired_at': e.hired_at,
         'photo_url': e.photo,
         'manager_id': getattr(e, 'manager_id', None),
@@ -122,6 +124,7 @@ def create_employee():
         job_title=data.get('job_title'),
         department=data.get('department'),
         job_location=data.get('job_location'),
+        salary=data.get('salary'),
         photo=data.get('photo_url') or data.get('photo'),
         hired_at=data.get('hired_at'),
         hired_by=user.id
@@ -141,6 +144,7 @@ def update_employee(emp_id):
     if 'department' in data: e.department = data['department']
     if 'photo_url' in data: e.photo = data['photo_url']
     if 'job_location' in data: e.job_location = data['job_location']
+    if 'salary' in data: e.salary = data['salary']
 
     db.session.commit()
     return jsonify({'message': 'Employee updated'})

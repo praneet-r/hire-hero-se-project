@@ -21,6 +21,7 @@ const AddEmployee = () => {
     phone: "",
     jobTitle: "",
     department: "",
+    salary: "", // Added salary field
     manager: "",
     startDate: "",
     photo: null,
@@ -57,7 +58,8 @@ const AddEmployee = () => {
       setFormData(prev => ({
         ...prev,
         jobTitle: location.state.job_title || "",
-        department: location.state.department || ""
+        department: location.state.department || "",
+        salary: location.state.salary || "" // Autofill salary if passed
       }));
     }
   }, [location.state, navigate]);
@@ -91,7 +93,7 @@ const AddEmployee = () => {
     
     if (name === "photo") {
       setFormData((prev) => ({ ...prev, photo: files[0] }));
-    } else if (name === "phone") {
+    } else if (name === "phone" || name === "salary") {
       // Restriction: Allow only numbers
       const numericValue = value.replace(/\D/g, "");
       setFormData((prev) => ({ ...prev, [name]: numericValue }));
@@ -113,8 +115,9 @@ const AddEmployee = () => {
         }
     }
 
-    if (!formData.jobTitle || !formData.department || !formData.startDate || !formData.locationType) {
-        showPill("Please fill in all job details.", "error");
+    // Added salary to required fields check
+    if (!formData.jobTitle || !formData.department || !formData.startDate || !formData.locationType || !formData.salary) {
+        showPill("Please fill in all job details (including salary).", "error");
         return;
     }
 
@@ -165,7 +168,8 @@ const AddEmployee = () => {
         manager: formData.manager,
         start_date: formData.startDate,
         photo: photoPath,
-        job_location: finalLocation
+        job_location: finalLocation,
+        salary: formData.salary // Sending salary in payload
       };
 
       if (selectedUserId) {
@@ -197,6 +201,7 @@ const AddEmployee = () => {
         phone: "",
         jobTitle: "",
         department: "",
+        salary: "",
         manager: "",
         startDate: "",
         photo: null,
@@ -225,6 +230,7 @@ const AddEmployee = () => {
       phone: "",
       jobTitle: "",
       department: "",
+      salary: "",
       manager: "",
       startDate: "",
       photo: null,
@@ -260,6 +266,9 @@ const AddEmployee = () => {
     }
     return null;
   };
+
+  // Helper to determine if fields should be disabled (Autofill mode)
+  const isAutofillMode = !!selectedUserId;
 
   return (
     <section className="min-h-screen flex bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] font-inter">
@@ -311,14 +320,15 @@ const AddEmployee = () => {
                     <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
                     {selectedUserId && (
                       <div className="mb-4 bg-blue-50 text-blue-800 p-3 rounded-lg text-sm border border-blue-100">
-                        <strong>Note:</strong> You are adding a registered candidate as an employee. Their personal details are pre-filled.
+                        <strong>Note:</strong> You are adding a registered candidate as an employee. Personal details, Job Title, and Department are locked.
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <InputField label="First Name *" name="firstName" value={formData.firstName} onChange={handleChange} />
-                      <InputField label="Last Name *" name="lastName" value={formData.lastName} onChange={handleChange} />
-                      <InputField label="Email *" name="email" type="email" value={formData.email} onChange={handleChange} />
-                      <InputField label="Phone *" name="phone" type="tel" value={formData.phone} onChange={handleChange} />
+                      {/* Disabled when in autofill mode */}
+                      <InputField label="First Name *" name="firstName" value={formData.firstName} onChange={handleChange} disabled={isAutofillMode} />
+                      <InputField label="Last Name *" name="lastName" value={formData.lastName} onChange={handleChange} disabled={isAutofillMode} />
+                      <InputField label="Email *" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isAutofillMode} />
+                      <InputField label="Phone *" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isAutofillMode} />
                     </div>
                   </div>
                   <div className="flex flex-col items-center">
@@ -330,19 +340,31 @@ const AddEmployee = () => {
                         <span className="text-gray-500 text-sm">No Photo</span>
                       )}
                     </div>
-                    <input type="file" name="photo" accept="image/*" onChange={handleChange} className="text-sm" />
+                    {/* Disable photo upload if in autofill mode as well, as profile pic comes from profile */}
+                    <input type="file" name="photo" accept="image/*" onChange={handleChange} className="text-sm" disabled={isAutofillMode} />
                   </div>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold mb-4">Job Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label="Job Title *" name="jobTitle" value={formData.jobTitle} onChange={handleChange} />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Job Title and Department disabled in autofill mode */}
+                    <InputField label="Job Title *" name="jobTitle" value={formData.jobTitle} onChange={handleChange} disabled={isAutofillMode} />
                     <SelectField 
                         label="Select Department *" 
                         name="department" 
                         value={formData.department} 
                         onChange={handleChange} 
                         options={departmentOptions} 
+                        disabled={isAutofillMode}
+                    />
+                    {/* Salary Field - Required, Number, Editable (Always enabled) */}
+                    <InputField 
+                        label="Salary *" 
+                        name="salary" 
+                        type="number" 
+                        value={formData.salary} 
+                        onChange={handleChange} 
+                        placeholder="e.g. 1200000"
                     />
                   </div>
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -381,7 +403,7 @@ const AddEmployee = () => {
   );
 };
 
-const InputField = ({ label, name, value, onChange, type = "text", placeholder }) => (
+const InputField = ({ label, name, value, onChange, type = "text", placeholder, disabled = false }) => (
   <div className="flex flex-col w-full">
     <label className="text-sm font-medium mb-1">{label}</label>
     <input
@@ -390,19 +412,25 @@ const InputField = ({ label, name, value, onChange, type = "text", placeholder }
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full"
+      disabled={disabled}
+      className={`p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full ${
+        disabled ? "opacity-60 cursor-not-allowed bg-gray-200" : ""
+      }`}
     />
   </div>
 );
 
-const SelectField = ({ label, name, value, onChange, options = [] }) => (
+const SelectField = ({ label, name, value, onChange, options = [], disabled = false }) => (
   <div className="flex flex-col w-full">
     <label className="text-sm font-medium mb-1">{label}</label>
     <select
       name={name}
       value={value}
       onChange={onChange}
-      className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full"
+      disabled={disabled}
+      className={`p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full ${
+        disabled ? "opacity-60 cursor-not-allowed bg-gray-200" : ""
+      }`}
     >
       <option value="">Select...</option>
       {options.map((opt) => (

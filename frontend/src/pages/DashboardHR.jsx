@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom"; 
-import { getEmployees, getMyJobs, getCompanyApplications, getCandidates } from "../services/api";
-import { Download, Sparkles, AlertCircle, BookOpen, Users, Plus, Briefcase, FileText, User, BarChart2, Mail, Phone } from "lucide-react";
+import { getEmployees, getMyJobs, getCompanyApplications } from "../services/api";
+import { Download, Sparkles, AlertCircle, Users, Plus, Briefcase, FileText, BarChart2, Calendar, TrendingUp, CheckCircle } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import RecruitmentTab from "../components/RecruitmentTab";
 import EmployeesTab from "../components/EmployeesTab";
 import PerformanceTab from "../components/PerformanceTab";
@@ -10,18 +11,22 @@ import ProfileHR from "../components/ProfileHR";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
 
-
 export default function DashboardHR() {
     const location = useLocation(); 
     const [activeTab, setActiveTab] = useState("dashboard");
     const [username, setUsername] = useState("");
+    
+    // Updated Metrics State
     const [metrics, setMetrics] = useState({
       totalEmployees: 0,
       newHires: 0,
       openPositions: 0,
-      aiEfficiency: 0,
+      pipelineConversion: 0,
     });
-    
+
+    const [qualityDistribution, setQualityDistribution] = useState([]);
+    const [actionItems, setActionItems] = useState([]);
+
     // Check for incoming tab state on mount
     useEffect(() => {
         if (location.state && location.state.activeTab) {
@@ -29,54 +34,17 @@ export default function DashboardHR() {
         }
     }, [location.state]);
 
-    const [resumeScreening, setResumeScreening] = useState([]);
-    useEffect(() => {
-      async function fetchResumeScreening() {
-        try {
-          const profiles = await getCandidates();
-          // Mock AI match: random or based on completeness (if available, otherwise random)
-          const aiProfiles = profiles.map(p => {
-            let fullName = '';
-            if (p.first_name && p.last_name) {
-              fullName = `${p.first_name} ${p.last_name}`.trim();
-            } else if (p.first_name) {
-              fullName = p.first_name;
-            } else if (p.last_name) {
-              fullName = p.last_name;
-            } else {
-              fullName = p.email;
-            }
-            return {
-              name: fullName,
-              email: p.email || '',
-              phone: p.phone || '',
-              role: 'Candidate', // getCandidates returns basic info
-              match: `${Math.floor(Math.random()*21)+80}%`,
-            };
-          });
-          // Sort by match descending, take top 3
-          aiProfiles.sort((a, b) => parseInt(b.match) - parseInt(a.match));
-          setResumeScreening(aiProfiles.slice(0, 3));
-        } catch (err) {
-          setResumeScreening([]);
-        }
-      }
-      fetchResumeScreening();
-    }, []);
-
+    // Fetch Username
     useEffect(() => {
       async function fetchUsername() {
         const token = localStorage.getItem('token');
         if (!token) return;
         try {
           const res = await fetch('/api/auth/me', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
           });
           if (res.ok) {
             const data = await res.json();
-            // Prefer first_name + last_name, fallback to username/email
             if (data.first_name || data.last_name) {
               setUsername(`${data.first_name || ''} ${data.last_name || ''}`.trim());
             } else {
@@ -90,49 +58,99 @@ export default function DashboardHR() {
       fetchUsername();
     }, []);
 
+    // Main Data Fetch Effect
     useEffect(() => {
-      async function fetchMetrics() {
+      async function fetchData() {
         try {
-          // Changed: Fetch 'my' jobs instead of all jobs to calculate specific HR metrics
           const [employees, myJobs, applications] = await Promise.all([
             getEmployees(),
             getMyJobs(),
             getCompanyApplications(),
           ]);
 
-          // Total Employees (Company wide)
-          const totalEmployees = employees.length;
-
-          // Open positions: Only count jobs posted by THIS HR user that are Open
-          const openPositions = myJobs.filter(j => !j.status || j.status.toLowerCase() === 'open').length;
-
-          // New Hires: Count applications for MY jobs that have status 'hired'
-          // 1. Get IDs of jobs posted by me
+          // --- Filter Applications for Current HR's Jobs ---
           const myJobIds = new Set(myJobs.map(j => j.id));
-          
-          // 2. Filter applications
-          const newHires = applications.filter(app => 
-            myJobIds.has(app.job_id) && app.status === 'hired'
-          ).length;
+          const myApps = applications.filter(app => myJobIds.has(app.job_id));
 
-          // AI Efficiency: placeholder
-          const aiEfficiency = 92; 
+          // 1. Calculate Core Metrics
+          const totalEmployees = employees.length;
+          const openPositions = myJobs.filter(j => !j.status || j.status.toLowerCase() === 'open').length;
+          const newHires = myApps.filter(app => ['hired', 'accepted'].includes(app.status)).length;
+
+          // Pipeline Conversion: (Interviewing + Offer + Hired) / Total Apps
+          const funnelSteps = new Set(['interviewing', 'under_review', 'offer_extended', 'accepted', 'hired']);
+          const converted = myApps.filter(app => funnelSteps.has(app.status)).length;
+          const pipelineConversion = myApps.length > 0 ? Math.round((converted / myApps.length) * 100) : 0;
 
           setMetrics({
             totalEmployees,
             newHires,
             openPositions,
-            aiEfficiency,
+            pipelineConversion,
           });
+
+          // 2. Candidate Quality Distribution (Bar Chart)
+          const buckets = [
+            { name: 'Low Match (0-49%)', range: [0, 49], count: 0, color: '#EF4444' },     // Red
+            { name: 'Potential (50-79%)', range: [50, 79], count: 0, color: '#F59E0B' },   // Yellow
+            { name: 'Top Talent (80%+)', range: [80, 100], count: 0, color: '#10B981' }, // Green
+          ];
+
+          myApps.forEach(app => {
+            const score = app.match_score || 0;
+            if (score >= 80) buckets[2].count++;
+            else if (score >= 50) buckets[1].count++;
+            else buckets[0].count++;
+          });
+          setQualityDistribution(buckets);
+
+          // 3. Smart Action Items
+          const actions = [];
+
+          // Alert: High Match Candidates Pending Review
+          const pendingHighMatch = myApps.filter(app => app.status === 'applied' && (app.match_score || 0) >= 80).length;
+          if (pendingHighMatch > 0) {
+            actions.push({
+              type: 'urgent',
+              title: 'Top Talent Waiting',
+              desc: `${pendingHighMatch} candidates with >80% match score are waiting for review.`
+            });
+          }
+
+          // Alert: Active Interviews
+          const activeInterviews = myApps.filter(app => app.status === 'interviewing').length;
+          if (activeInterviews > 0) {
+            actions.push({
+              type: 'info',
+              title: 'Interview Stage',
+              desc: `You have ${activeInterviews} candidates currently in the interview stage.`
+            });
+          }
+
+          // Alert: New Applications (Last 24h)
+          const oneDayAgo = new Date();
+          oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+          const newApps = myApps.filter(app => new Date(app.applied_at) > oneDayAgo).length;
+          if (newApps > 0) {
+            actions.push({
+              type: 'success',
+              title: 'New Applications',
+              desc: `${newApps} new applications received in the last 24 hours.`
+            });
+          }
+
+          if (actions.length === 0) {
+            actions.push({ type: 'neutral', title: 'All Caught Up', desc: 'No urgent items requiring attention right now.' });
+          }
+
+          setActionItems(actions);
+
         } catch (err) {
-          // fallback to 0s
-          console.error("Error fetching metrics:", err);
-          setMetrics({ totalEmployees: 0, newHires: 0, openPositions: 0, aiEfficiency: 0 });
+          console.error("Error fetching dashboard data:", err);
         }
       }
-      fetchMetrics();
+      fetchData();
     }, []);
-
 
   return (
     <section className="min-h-screen flex bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] font-inter">
@@ -174,9 +192,9 @@ export default function DashboardHR() {
               <div className="grid grid-cols-4 gap-6">
                 {[
                   { label: "Total Employees", value: metrics.totalEmployees, icon: Users },
-                  { label: "New Hires via Job Postings", value: metrics.newHires, icon: Plus },
+                  { label: "New Hires (My Jobs)", value: metrics.newHires, icon: Plus },
                   { label: "Open Positions", value: metrics.openPositions, icon: Briefcase },
-                  { label: "AI Efficiency", value: `${metrics.aiEfficiency}%`, icon: Sparkles },
+                  { label: "Pipeline Conversion", value: `${metrics.pipelineConversion}%`, icon: TrendingUp },
                 ].map((item, i) => (
                   <div
                     key={i}
@@ -189,81 +207,78 @@ export default function DashboardHR() {
                 ))}
               </div>
 
-              {/* Resume Screening + AI Insights */}
-              <div className="grid grid-cols-3 gap-6">
-                {/* AI Resume Screening */}
-                <div className="col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold text-[#013362] flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-[#005193]" /> AI Resume Screening
-                    </h2>
-                    <button className="text-[#005193] text-sm font-semibold hover:underline flex items-center gap-1">
-                      <BookOpen className="h-4 w-4" /> View All
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {resumeScreening.length === 0 ? (
-                      <div className="text-gray-400 text-center py-4">No profiles found.</div>
-                    ) : (
-                      resumeScreening.map((user, i) => (
-                        <div
-                          key={i}
-                          className="flex justify-between items-center border border-gray-200 rounded-lg px-4 py-3 hover:bg-[#F7F8FF] transition"
-                        >
-                          <div className="flex items-center gap-3">
-                            <User className="h-5 w-5 text-[#005193]" />
-                            <div>
-                              <p className="font-medium text-gray-800">{user.name}</p>
-                              {user.role && <p className="text-sm text-gray-600">{user.role}</p>}
-                              <div className="flex items-center gap-2 mt-1">
-                                {user.email && (
-                                  <span className="flex items-center text-xs text-gray-600"><Mail className="h-3 w-3 mr-1" />{user.email}</span>
-                                )}
-                                {user.phone && (
-                                  <span className="flex items-center text-xs text-gray-600"><Phone className="h-3 w-3 mr-1" />{user.phone}</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="font-semibold text-[#005193]">{user.match} match</div>
-                        </div>
-                      ))
-                    )}
+              {/* Data Visualization Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Candidate Quality Distribution Chart */}
+                <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col">
+                  <h2 className="text-lg font-bold text-[#013362] mb-6 flex items-center gap-2">
+                    <BarChart2 className="h-5 w-5 text-[#005193]" /> Candidate Quality Distribution
+                  </h2>
+                  <div className="flex-1 w-full min-h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={qualityDistribution} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#4B5563', fontSize: 12 }} 
+                          dy={10}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#9CA3AF', fontSize: 12 }} 
+                        />
+                        <Tooltip 
+                          cursor={{ fill: '#F3F4F6' }}
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                        />
+                        <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={60}>
+                          {qualityDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
 
-                {/* AI Insights */}
+                {/* Smart Action Items */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-[#005193]" /> AI Insights
+                    <Sparkles className="h-5 w-5 text-[#005193]" /> Smart Action Items
                   </h2>
                   <div className="space-y-4">
-                    <div className="border border-gray-200 rounded-lg p-4 flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-[#f59e0b] mt-1" />
-                      <div>
-                        <p className="font-semibold text-[#005193]">Retention Alert</p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          3 high-performers at risk of leaving. Consider retention strategies.
-                        </p>
+                    {actionItems.map((action, i) => (
+                      <div key={i} className="border border-gray-200 rounded-xl p-4 flex items-start gap-3 hover:bg-gray-50 transition">
+                        {action.type === 'urgent' && <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />}
+                        {action.type === 'info' && <Calendar className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />}
+                        {action.type === 'success' && <Sparkles className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />}
+                        {action.type === 'neutral' && <CheckCircle className="h-5 w-5 text-gray-400 mt-0.5 shrink-0" />}
+                        <div>
+                          <p className="font-bold text-[#013362] text-sm">{action.title}</p>
+                          <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                            {action.desc}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="border border-gray-200 rounded-lg p-4 flex items-start gap-2">
-                      <BookOpen className="h-5 w-5 text-[#005193] mt-1" />
-                      <div>
-                        <p className="font-semibold text-[#005193]">Training Due</p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          12 employees need compliance training by November 2025.
-                        </p>
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+                  
+                  <div className="mt-6 pt-4 border-t border-gray-100">
+                    <p className="text-xs text-center text-gray-400">
+                      Insights generated based on real-time data
+                    </p>
                   </div>
                 </div>
+
               </div>
             </>
           )}
 
-          {/* Employees Feature Tab */}
+          {/* Feature Tabs */}
           {activeTab === "employees" && <EmployeesTab />}
           {activeTab === "recruitment" && <RecruitmentTab />}
           {activeTab === "performance" && <PerformanceTab />}

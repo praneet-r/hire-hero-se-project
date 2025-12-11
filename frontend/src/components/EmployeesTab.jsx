@@ -48,10 +48,10 @@ const EmployeesTab = () => {
         setEmployees(empData);
         setFilteredEmployees(empData);
         
-        // Set the department options from the API instead of deriving from employees
+        // Set the department options from the API
         setDepartmentOptions(deptData); 
         
-        // Continue deriving locations from existing data (or fetch if you had an API)
+        // Derive locations from existing data
         const locations = Array.from(new Set(empData.map(e => e.job_location).filter(Boolean)));
         setLocationOptions(locations);
       } catch (err) {
@@ -76,7 +76,7 @@ const EmployeesTab = () => {
 
     const handleEditClick = (emp) => {
       setSelectedEmp(emp);
-      // Populate form with all available fields
+      // Populate form with all available fields including salary
       setEditForm({
         first_name: emp.first_name || "",
         last_name: emp.last_name || "",
@@ -85,6 +85,7 @@ const EmployeesTab = () => {
         job_title: emp.job_title || "",
         department: emp.department || "",
         job_location: emp.job_location || "",
+        salary: emp.salary || "", // Added salary
         hired_at: emp.hired_at ? new Date(emp.hired_at).toISOString().split('T')[0] : ""
       });
     };
@@ -96,7 +97,8 @@ const EmployeesTab = () => {
         const payload = {
             job_title: editForm.job_title,
             department: editForm.department,
-            job_location: editForm.job_location
+            job_location: editForm.job_location,
+            salary: editForm.salary // Added salary to payload
         };
         await updateEmployee(selectedEmp.id, payload);
         setSelectedEmp(null);
@@ -121,7 +123,7 @@ const EmployeesTab = () => {
     }, [searchTerm, departmentFilter, locationFilter, employees]);
 
     return (
-        <div className="space-y-8 relative">
+        <div className="relative">
           
           {/* Pill Notification */}
           {pillMessage && (
@@ -134,177 +136,182 @@ const EmployeesTab = () => {
             </div>
           )}
 
-          {/* Header Section */}
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-extrabold text-[#013362] flex items-center gap-2">
-              <Users className="h-6 w-6 text-[#005193]" />
-              Employees
-            </h1>
-            <div className="flex justify-between gap-3">
-              {/* Search Bar */}
-              <div className="relative w-full md:w-64">
-                <input
-                  type="text"
-                  placeholder="Search employees..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#005193] focus:border-[#005193]"
-                />
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 absolute left-3 top-2.5 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z" />
-                </svg>
-              </div>
-              <Link to="/add-employee" state={{ activeTab: "addEmployee", reset: true }} className="flex items-center gap-2 bg-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">
-                <Plus className="h-4 w-4" /> Add Employee
-              </Link>
-            </div>
-          </div>
-
-          {/* Stats and Filters */}
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow">
-              {[
-                { label: "Total Employees", value: employees.length, icon: Users },
-                { label: "Remote Workers", value: employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('remote')).length, icon: User },
-                { label: "On-site Workers", value: employees.filter(e => {
-                    const loc = (e.job_location || e.status || '').toLowerCase();
-                    return !loc.includes('remote') && !loc.includes('hybrid');
-                }).length, icon: Briefcase },
-                { label: "Hybrid Workers", value: employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('hybrid')).length, icon: BarChart2 },
-              ].map((stat, i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm text-center hover:shadow-md transition flex flex-col items-center"
-                >
-                  <stat.icon className="h-6 w-6 mb-1 text-[#005193]" />
-                  <h3 className="text-xl font-extrabold text-[#013362]">{stat.value}</h3>
-                  <p className="text-gray-500 text-xs font-medium">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Employee Directory */}
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-[#013362] flex items-center gap-2">
-                <Users className="h-5 w-5 text-[#005193]" /> Employee Directory
-              </h2>
-              {/* Filters */}
-              <div className="flex justify-end items-center">
-                <div className="flex gap-2">
-                  <select
-                    value={departmentFilter}
-                    onChange={(e) => setDepartmentFilter(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-[#005193] focus:border-[#005193]"
-                  >
-                    <option value="">All Departments</option>
-                    {departmentOptions.map((dept, i) => (
-                      <option key={i} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={locationFilter}
-                    onChange={(e) => setLocationFilter(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-[#005193] focus:border-[#005193]"
-                  >
-                    <option value="">All Job Locations</option>
-                    {locationOptions.map((loc, i) => (
-                      <option key={i} value={loc}>{loc}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Table Header */}
-            <div className="grid grid-cols-7 text-sm font-semibold text-[#013362] border-b border-gray-200 pb-2">
-              <div>Employee</div>
-              <div>Department</div>
-              <div>Job Location</div>
-              <div>Status</div>
-              <div>Start Date</div>
-              <div>Job Title</div>
-              <div className="text-right">Actions</div>
-            </div>
-
-            {/* Table Rows */}
-            <div className="divide-y divide-gray-100 mt-2">
-              {filteredEmployees.length > 0 ? (
-                filteredEmployees.map((emp, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-7 items-center text-sm py-1.5 hover:bg-[#F7F8FF] transition"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#005193] font-bold text-xs">
-                         {emp.first_name ? emp.first_name[0] : (emp.name ? emp.name[0] : 'U')}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-800">{emp.first_name ? `${emp.first_name} ${emp.last_name}` : emp.name}</span>
-                        <span className="text-xs text-gray-500">{emp.email}</span>
-                      </div>
-                    </div>
-                    <div className="text-gray-600">{emp.department}</div>
-                    <div className="text-gray-600">{emp.job_location}</div>
-                    <div
-                      className={`font-semibold ${
-                        (emp.status || 'Active') === "Active"
-                          ? "text-green-600"
-                          : "text-gray-600"
-                      }`}
+          {/* Main Layout Wrapper (Applies space-y-8 only to content, not modal) */}
+          <div className="space-y-8">
+              {/* Header Section */}
+              <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-extrabold text-[#013362] flex items-center gap-2">
+                  <Users className="h-6 w-6 text-[#005193]" />
+                  Employees
+                </h1>
+                <div className="flex justify-between gap-3">
+                  {/* Search Bar */}
+                  <div className="relative w-full md:w-64">
+                    <input
+                      type="text"
+                      placeholder="Search employees..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#005193] focus:border-[#005193]"
+                    />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 absolute left-3 top-2.5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      {emp.status || "Active"}
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z" />
+                    </svg>
+                  </div>
+                  <Link to="/add-employee" state={{ activeTab: "addEmployee", reset: true }} className="flex items-center gap-2 bg-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">
+                    <Plus className="h-4 w-4" /> Add Employee
+                  </Link>
+                </div>
+              </div>
+
+              {/* Stats and Filters */}
+              <div className="flex justify-between items-center flex-wrap gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow">
+                  {[
+                    { label: "Total Employees", value: employees.length, icon: Users },
+                    { label: "Remote Workers", value: employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('remote')).length, icon: User },
+                    { label: "On-site Workers", value: employees.filter(e => {
+                        const loc = (e.job_location || e.status || '').toLowerCase();
+                        return !loc.includes('remote') && !loc.includes('hybrid');
+                    }).length, icon: Briefcase },
+                    { label: "Hybrid Workers", value: employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('hybrid')).length, icon: BarChart2 },
+                  ].map((stat, i) => (
+                    <div
+                      key={i}
+                      className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm text-center hover:shadow-md transition flex flex-col items-center"
+                    >
+                      <stat.icon className="h-6 w-6 mb-1 text-[#005193]" />
+                      <h3 className="text-xl font-extrabold text-[#013362]">{stat.value}</h3>
+                      <p className="text-gray-500 text-xs font-medium">{stat.label}</p>
                     </div>
-                    <div className="text-gray-600">{emp.hired_at ? new Date(emp.hired_at).toLocaleDateString() : "-"}</div>
-                    <div className="text-gray-600">{emp.job_title}</div>
-                    <div className="text-right flex gap-2 justify-end">
-                      {/* View Profile Button */}
-                      {emp.user_id && (
-                        <a
-                          href={`/profile/${emp.user_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition flex items-center gap-1"
-                          title="View Profile"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                      
-                      <button
-                        className="border border-gray-300 text-[#005193] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition"
-                        onClick={() => handleEditClick(emp)}
+                  ))}
+                </div>
+              </div>
+
+              {/* Employee Directory */}
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-bold text-[#013362] flex items-center gap-2">
+                    <Users className="h-5 w-5 text-[#005193]" /> Employee Directory
+                  </h2>
+                  {/* Filters */}
+                  <div className="flex justify-end items-center">
+                    <div className="flex gap-2">
+                      <select
+                        value={departmentFilter}
+                        onChange={(e) => setDepartmentFilter(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-[#005193] focus:border-[#005193]"
                       >
-                        Edit
-                      </button>
-                      <button
-                        className="border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-50 transition"
-                        onClick={() => handleDelete(emp.id)}
+                        <option value="">All Departments</option>
+                        {departmentOptions.map((dept, i) => (
+                          <option key={i} value={dept}>{dept}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={locationFilter}
+                        onChange={(e) => setLocationFilter(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-[#005193] focus:border-[#005193]"
                       >
-                        Delete
-                      </button>
+                        <option value="">All Job Locations</option>
+                        {locationOptions.map((loc, i) => (
+                          <option key={i} value={loc}>{loc}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500 py-6">No employees found.</div>
-              )}
-            </div>
-            <p className="text-xs text-gray-500 mt-3">
-              Showing {filteredEmployees.length} of {employees.length} employees
-            </p>
+                </div>
+
+                {/* Table Header - Updated Grid to 8 Columns for Salary */}
+                <div className="grid grid-cols-8 text-sm font-semibold text-[#013362] border-b border-gray-200 pb-2">
+                  <div>Employee</div>
+                  <div>Department</div>
+                  <div>Job Location</div>
+                  <div>Status</div>
+                  <div>Start Date</div>
+                  <div>Job Title</div>
+                  <div>Salary</div>
+                  <div className="text-right">Actions</div>
+                </div>
+
+                {/* Table Rows */}
+                <div className="divide-y divide-gray-100 mt-2">
+                  {filteredEmployees.length > 0 ? (
+                    filteredEmployees.map((emp, i) => (
+                      <div
+                        key={i}
+                        className="grid grid-cols-8 items-center text-sm py-1.5 hover:bg-[#F7F8FF] transition"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#005193] font-bold text-xs">
+                             {emp.first_name ? emp.first_name[0] : (emp.name ? emp.name[0] : 'U')}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-800">{emp.first_name ? `${emp.first_name} ${emp.last_name}` : emp.name}</span>
+                            <span className="text-xs text-gray-500">{emp.email}</span>
+                          </div>
+                        </div>
+                        <div className="text-gray-600">{emp.department}</div>
+                        <div className="text-gray-600">{emp.job_location}</div>
+                        <div
+                          className={`font-semibold ${
+                            (emp.status || 'Active') === "Active"
+                              ? "text-green-600"
+                              : "text-gray-600"
+                          }`}
+                        >
+                          {emp.status || "Active"}
+                        </div>
+                        <div className="text-gray-600">{emp.hired_at ? new Date(emp.hired_at).toLocaleDateString() : "-"}</div>
+                        <div className="text-gray-600">{emp.job_title}</div>
+                        <div className="text-gray-600 font-medium">{emp.salary || "-"}</div>
+                        <div className="text-right flex gap-2 justify-end">
+                          {/* View Profile Button */}
+                          {emp.user_id && (
+                            <a
+                              href={`/profile/${emp.user_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition flex items-center gap-1"
+                              title="View Profile"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                          
+                          <button
+                            className="border border-gray-300 text-[#005193] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-50 transition"
+                            onClick={() => handleEditClick(emp)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-50 transition"
+                            onClick={() => handleDelete(emp.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-6">No employees found.</div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Showing {filteredEmployees.length} of {employees.length} employees
+                </p>
+              </div>
           </div>
 
           {/* Enhanced Edit Modal */}
           {selectedEmp && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50">
               <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                 {/* Modal Header */}
                 <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -391,9 +398,17 @@ const EmployeesTab = () => {
                             placeholder="e.g. Remote, Bangalore..."
                         />
                     </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Salary</label>
+                        <input
+                            type="number"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#005193] focus:border-transparent outline-none"
+                            value={editForm.salary}
+                            onChange={e => setEditForm({...editForm, salary: e.target.value})}
+                            placeholder="e.g. 1200000"
+                        />
+                    </div>
                     
-                    {/* Removed Reporting Manager Field */}
-
                     <div>
                         <label className="block text-xs font-semibold text-gray-500 mb-1">Start Date</label>
                         <input

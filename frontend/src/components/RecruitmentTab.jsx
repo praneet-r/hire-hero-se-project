@@ -50,7 +50,6 @@ const RecruitmentTab = () => {
         candidateName: ""
     });
   
-  // Changed: Store full job object, not just title, to access department/title later
   const [viewingJob, setViewingJob] = useState(null); 
   
   const [saving, setSaving] = useState(false);
@@ -65,7 +64,6 @@ const RecruitmentTab = () => {
     type: "video" // video, phone, in_person
   });
 
-  // --- NEW STATE FOR SINGLE REVIEW ---
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewApplication, setReviewApplication] = useState(null);
 
@@ -76,13 +74,12 @@ const RecruitmentTab = () => {
             setExplanationModal(prev => ({ ...prev, loading: false, data }));
         } catch (err) {
             console.error(err);
-            setExplanationModal(prev => ({ ...prev, loading: false, data: null })); // Handle error state in UI if needed
+            setExplanationModal(prev => ({ ...prev, loading: false, data: null })); 
         }
     };
 
     const closeExpModal = () => setExplanationModal({ show: false, data: null, loading: false, candidateName: "" });
 
-  // Update job description API
   const handleSaveJob = async () => {
     if (!selectedJob) return;
     setSaving(true);
@@ -120,7 +117,6 @@ const RecruitmentTab = () => {
   const handleDeleteJob = async () => {
     if (!selectedJob) return;
     
-    // 1. Ask for confirmation
     if (!window.confirm("Are you sure you want to delete this job? This action cannot be undone.")) {
         return;
     }
@@ -132,11 +128,9 @@ const RecruitmentTab = () => {
       setShowModal(false);
       setSelectedJob(null);
       
-      // 2. Show success pill
       setPillMessage("Job deleted successfully.");
       setPillType("success");
     } catch (err) {
-      // 2. Show error pill
       setPillMessage("Failed to delete job.");
       setPillType("error");
     }
@@ -164,7 +158,7 @@ const RecruitmentTab = () => {
   };
 
   const handleViewApplicants = async (job) => {
-    setViewingJob(job); // Store the full job object
+    setViewingJob(job);
     setShowApplicantsModal(true);
     setLoadingApplicants(true);
     try {
@@ -200,6 +194,11 @@ const RecruitmentTab = () => {
       setCandidates(prev => prev.map(cand => 
         cand.id === appId ? { ...cand, status: newStatus } : cand
       ));
+
+      // Update pipeline counts locally to reflect change immediately
+      setPipelineCounts(prev => {
+        return prev; 
+      });
       
       setPillMessage(`Candidate ${newStatus === 'rejected' ? 'rejected' : 'moved to ' + newStatus.replace('_', ' ')}`);
       setPillType("success");
@@ -248,15 +247,7 @@ const RecruitmentTab = () => {
 
   const [jobs, setJobs] = useState([]);
   const [candidates, setCandidates] = useState([]);
-  const [employees, setEmployees] = useState([]);
-
-  useEffect(() => {
-    async function fetchEmployees() {
-      const data = await getEmployees();
-      setEmployees(data || []);
-    }
-    fetchEmployees();
-  }, []);
+  const [pipelineCounts, setPipelineCounts] = useState({});
 
   useEffect(() => {
     async function fetchData() {
@@ -275,10 +266,25 @@ const RecruitmentTab = () => {
       jobsWithIcons.sort((a, b) => b.applications - a.applications);
       setJobs(jobsWithIcons);
 
-      // 2. Fetch Top Candidates (Applications with score >= 80)
+      // 2. Fetch Applications for Pipeline & Top Candidates
       try {
         const apps = await getCompanyApplications();
+        
+        // Create a set of IDs for jobs posted by the current HR user
         const myJobIds = new Set((jobsData || []).map(j => j.id));
+
+        // --- Calculate Pipeline Counts (Filtered by My Jobs) ---
+        const counts = {};
+        apps.forEach(app => {
+            // Only count if the application belongs to a job posted by me
+            if (myJobIds.has(app.job_id)) {
+                const s = app.status;
+                counts[s] = (counts[s] || 0) + 1;
+            }
+        });
+        setPipelineCounts(counts);
+
+        // --- Top Candidates Logic ---
         
         // Filter: Must be for one of my jobs AND Match score >= 80
         const highMatch = apps.filter(app => 
@@ -299,7 +305,7 @@ const RecruitmentTab = () => {
         }));
         setCandidates(formattedCandidates);
       } catch (err) {
-        console.error("Error fetching candidates", err);
+        console.error("Error fetching data", err);
       }
     }
     fetchData();
@@ -310,23 +316,18 @@ const RecruitmentTab = () => {
       setShowReviewModal(true);
   };
 
-  const totalEmployees = employees.length;
-  const remoteWorkers = employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('remote')).length;
-
-  // Updated On-site Logic: Exclude 'remote' AND 'hybrid'
-  const onSiteWorkers = employees.filter(e => {
-    const loc = (e.job_location || e.status || '').toLowerCase();
-    return !loc.includes('remote') && !loc.includes('hybrid');
-  }).length;
-
-  // New Hybrid Logic
-  const hybridWorkers = employees.filter(e => (e.job_location || e.status || '').toLowerCase().includes('hybrid')).length;
+  // Metrics Calculation
+  const totalJobPostings = jobs.length;
+  // Calculate total applicants from the jobs array or pipeline counts
+  const totalApplicants = jobs.reduce((sum, job) => sum + (job.applications || 0), 0);
+  const qualifiedApplicants = jobs.reduce((sum, job) => sum + (job.qualified || 0), 0);
+  const topMatchScore = candidates.length > 0 ? candidates[0].match : "0%";
 
   const metrics = [
-    { label: "Total Employees", value: totalEmployees, icon: Users },
-    { label: "Remote Workers", value: remoteWorkers, icon: User },
-    { label: "On-site Workers", value: onSiteWorkers, icon: Briefcase },
-    { label: "Hybrid Workers", value: hybridWorkers, icon: BarChart2 }, 
+    { label: "Total Job Postings", value: totalJobPostings, icon: Briefcase },
+    { label: "Total Applicants", value: totalApplicants, icon: Users },
+    { label: "Qualified Applicants", value: qualifiedApplicants, icon: CheckCircle },
+    { label: "Top Match Score", value: topMatchScore, icon: Sparkles },
   ];
 
   return (
@@ -916,22 +917,26 @@ const RecruitmentTab = () => {
             </div>
           </div>
 
-          {/* Hiring Pipeline + Quick Actions */}
+          {/* Hiring Pipeline */}
           <div className="space-y-6">
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
               <h3 className="text-md font-bold text-[#013362] mb-3">Hiring Pipeline</h3>
               <div className="space-y-2 text-sm text-gray-700">
-                <div className="bg-[#E8F1FF] px-3 py-2 rounded-lg font-medium">Applied</div>
-                <div className="bg-[#D9E8FF] px-3 py-2 rounded-lg font-medium">Screening</div>
-                <div className="bg-[#C3DAFF] px-3 py-2 rounded-lg font-medium">Interview</div>
+                {[
+                    { key: 'applied', label: 'Applied', bg: 'bg-blue-50 text-blue-700' },
+                    { key: 'interviewing', label: 'Interviewing', bg: 'bg-purple-50 text-purple-700' },
+                    { key: 'under_review', label: 'Under Review', bg: 'bg-yellow-50 text-yellow-700' },
+                    { key: 'offer_extended', label: 'Offer Extended', bg: 'bg-indigo-50 text-indigo-700' },
+                    { key: 'accepted', label: 'Accepted', bg: 'bg-emerald-50 text-emerald-700' },
+                    { key: 'hired', label: 'Hired', bg: 'bg-teal-50 text-teal-700' },
+                    { key: 'rejected', label: 'Rejected', bg: 'bg-red-50 text-red-700' },
+                ].map(status => (
+                    <div key={status.key} className={`px-3 py-2 rounded-lg font-medium flex justify-between items-center ${status.bg}`}>
+                        <span>{status.label}</span>
+                        <span className="font-bold">{pipelineCounts[status.key] || 0}</span>
+                    </div>
+                ))}
               </div>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
-              <h3 className="text-md font-bold text-[#013362] mb-3">Quick Actions</h3>
-              <button className="flex items-center gap-2 border border-gray-300 text-[#005193] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 w-full justify-center">
-                <Mail className="h-4 w-4" /> Send Bulk Messages
-              </button>
             </div>
           </div>
         </div>
