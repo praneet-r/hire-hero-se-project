@@ -23,6 +23,7 @@ import {
   HelpCircle,
   X,
   Loader,
+  AlertCircle // Added for Action Items
 } from "lucide-react";
 
 const RecruitmentTab = () => {
@@ -66,6 +67,9 @@ const RecruitmentTab = () => {
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewApplication, setReviewApplication] = useState(null);
+
+  // New State for Smart Action Items
+  const [actionItems, setActionItems] = useState([]);
 
   const handleShowExplanation = async (appId, candidateName) => {
         setExplanationModal({ show: true, data: null, loading: true, candidateName });
@@ -275,9 +279,12 @@ const RecruitmentTab = () => {
 
         // --- Calculate Pipeline Counts (Filtered by My Jobs) ---
         const counts = {};
+        const myApps = [];
+
         apps.forEach(app => {
             // Only count if the application belongs to a job posted by me
             if (myJobIds.has(app.job_id)) {
+                myApps.push(app); // Keep filtered list for Action Items
                 const s = app.status;
                 counts[s] = (counts[s] || 0) + 1;
             }
@@ -287,9 +294,7 @@ const RecruitmentTab = () => {
         // --- Top Candidates Logic ---
         
         // Filter: Must be for one of my jobs AND Match score >= 80
-        const highMatch = apps.filter(app => 
-            myJobIds.has(app.job_id) && (app.match_score || 0) >= 80
-        );
+        const highMatch = myApps.filter(app => (app.match_score || 0) >= 80);
         
         // Sort: Descending by score
         highMatch.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
@@ -304,6 +309,48 @@ const RecruitmentTab = () => {
             match: `${Math.round(app.match_score)}%`
         }));
         setCandidates(formattedCandidates);
+
+        // --- Smart Action Items Logic ---
+        const actions = [];
+
+        // Alert: High Match Candidates Pending Review
+        const pendingHighMatch = myApps.filter(app => app.status === 'applied' && (app.match_score || 0) >= 80).length;
+        if (pendingHighMatch > 0) {
+          actions.push({
+            type: 'urgent',
+            title: 'Top Talent Waiting',
+            desc: `${pendingHighMatch} candidates with >80% match score are waiting for review.`
+          });
+        }
+
+        // Alert: Active Interviews
+        const activeInterviews = myApps.filter(app => app.status === 'interviewing').length;
+        if (activeInterviews > 0) {
+          actions.push({
+            type: 'info',
+            title: 'Interview Stage',
+            desc: `You have ${activeInterviews} candidates currently in the interview stage.`
+          });
+        }
+
+        // Alert: New Applications (Last 24h)
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        const newAppsCount = myApps.filter(app => new Date(app.applied_at) > oneDayAgo).length;
+        if (newAppsCount > 0) {
+          actions.push({
+            type: 'success',
+            title: 'New Applications',
+            desc: `${newAppsCount} new applications received in the last 24 hours.`
+          });
+        }
+
+        if (actions.length === 0) {
+          actions.push({ type: 'neutral', title: 'All Caught Up', desc: 'No urgent items requiring attention right now.' });
+        }
+
+        setActionItems(actions);
+
       } catch (err) {
         console.error("Error fetching data", err);
       }
@@ -367,7 +414,7 @@ const RecruitmentTab = () => {
           ))}
         </div>
 
-        {/* Active Job Postings + AI Insights */}
+        {/* Active Job Postings + Smart Action Items */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Active Job Postings */}
           <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
@@ -858,26 +905,31 @@ const RecruitmentTab = () => {
             </div>
           </div>
 
-          {/* AI Insights */}
-          <div className="lg:col-span-1 bg-white border border-gray-200 rounded-2xl shadow-sm p-6 space-y-6">
+          {/* Smart Action Items (Replacing AI Insights) */}
+          <div className="lg:col-span-1 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
             <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-[#005193]" /> AI Insights
+              <Sparkles className="h-5 w-5 text-[#005193]" /> Smart Action Items
             </h2>
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
-              <h3 className="text-md font-bold text-[#013362] flex items-center gap-2 mb-3">
-                <Lightbulb className="h-5 w-5 text-[#005193]" /> Top Skill Demand
-              </h3>
-              <p className="text-sm text-gray-600">
-                React and Node.js skills are in high demand this quarter.
-              </p>
+            <div className="space-y-4">
+              {actionItems.map((action, i) => (
+                <div key={i} className="border border-gray-200 rounded-xl p-4 flex items-start gap-3 hover:bg-gray-50 transition">
+                  {action.type === 'urgent' && <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />}
+                  {action.type === 'info' && <Calendar className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />}
+                  {action.type === 'success' && <Sparkles className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />}
+                  {action.type === 'neutral' && <CheckCircle className="h-5 w-5 text-gray-400 mt-0.5 shrink-0" />}
+                  <div>
+                    <p className="font-bold text-[#013362] text-sm">{action.title}</p>
+                    <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                      {action.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
-              <h3 className="text-md font-bold text-[#013362] flex items-center gap-2 mb-3">
-                <TrendingUp className="h-5 w-5 text-[#005193]" /> Hiring Trend
-              </h3>
-              <p className="text-sm text-gray-600">
-                Remote positions receive 40% more applications.
+            
+            <div className="mt-6 pt-4 border-t border-gray-100">
+              <p className="text-xs text-center text-gray-400">
+                Insights generated based on real-time data
               </p>
             </div>
           </div>

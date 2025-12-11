@@ -39,6 +39,14 @@ export const register = async (userData) => {
     return res.data;
 };
 
+export const changePassword = async (passwordData) => {
+    const res = await axiosAuth.put(
+        `${AUTH_BASE}/change-password`,
+        passwordData
+    );
+    return res.data;
+};
+
 // --- Job Seeker API ---
 
 export const getJobs = async (limit) => {
