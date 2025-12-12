@@ -20,8 +20,6 @@ class LLMService:
             return self._mock_response(system_prompt, user_prompt)
         elif self.mode == "gemini":
             try:
-                # Gemini doesn't support system prompt in v1 natively in the same way as OpenAI,
-                # but we can prepend it.
                 combined_prompt = f"{system_prompt}\n\nUser Request: {user_prompt}"
                 response = self.model.generate_content(combined_prompt)
                 return response.text

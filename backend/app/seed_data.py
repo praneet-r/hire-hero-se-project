@@ -10,7 +10,7 @@ import os
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = True
+CREATE_DUMMY_DATA = False
 
 def seed_database():
     if not CREATE_DUMMY_DATA:
@@ -408,7 +408,8 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 location=loc,
                 summary=summary_text,
                 completeness=min(comp_score, 100),
-                profile_pic=pic
+                profile_pic=pic,
+                views=random.randint(2, 15)
             )
             db.session.add(profile)
             db.session.flush()

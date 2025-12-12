@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { getRecommendedJobs, getMyInterviews, applyToJob, getApplications } from '../services/api';
+import { getRecommendedJobs, getMyInterviews, applyToJob, getApplications, getProfileMe } from '../services/api';
 import TopNavbarApplicant from "../components/TopNavbarApplicant";
 import JobSearch from '../components/JobSearch';
 import MyApplications from '../components/MyApplications';
-import Chatbot from '../components/Chatbot';
+import Chatbot from '../components/JobSeekerGenAI';
 import ProfileApplicant from '../components/ProfileApplicant';
 import { 
   Briefcase, Send, Eye, Users, Sparkles, FileText, 
@@ -15,7 +15,7 @@ export default function DashboardApplicant() {
   const [username, setUsername] = useState("");
   const [stats, setStats] = useState([
     { label: "Applications Sent", value: 0, sub: "", icon: Send },
-    { label: "Profile Views", value: 0, sub: "", icon: Eye },
+    { label: "Profile Views", value: 0, sub: "Total Views", icon: Eye },
     { label: "Interview Requests", value: 0, sub: "", icon: Briefcase },
     { label: "AI Job Match", value: "0%", sub: "", icon: Sparkles },
   ]);
@@ -28,11 +28,45 @@ export default function DashboardApplicant() {
   const [appliedJobIds, setAppliedJobIds] = useState(new Set()); 
   const [applyingId, setApplyingId] = useState(null); 
 
+  // --- Helper: Salary Formatter ---
+  const formatSalary = (amount, type) => {
+    if (!amount) return "Competitive";
+    
+    const cleanAmount = amount.toString().replace(/[^0-9.]/g, '');
+    const value = parseFloat(cleanAmount);
+
+    if (isNaN(value)) return amount;
+
+    let formattedNumber = "";
+    
+    if (value >= 100000) {
+        formattedNumber = `${parseFloat((value / 100000).toFixed(2))}L`; 
+    } else if (value >= 1000) {
+        formattedNumber = `${parseFloat((value / 1000).toFixed(2))}K`;
+    } else {
+        formattedNumber = value.toString();
+    }
+
+    let suffix = "";
+    const lowerType = (type || "").toLowerCase();
+    
+    if (lowerType === "full-time" || lowerType === "part-time") {
+        suffix = " per annum";
+    } else if (lowerType === "internship") {
+        suffix = " per month";
+    } else if (lowerType === "contract") {
+        suffix = " fixed";
+    }
+
+    return `₹${formattedNumber}${suffix}`;
+  };
+
   React.useEffect(() => {
     async function fetchData() {
       const token = localStorage.getItem('token');
       if (token) {
         try {
+          // 1. Fetch User Basic Info
           const res = await fetch('/api/auth/me', {
             headers: { 'Authorization': `Bearer ${token}` },
           });
@@ -44,6 +78,19 @@ export default function DashboardApplicant() {
               setUsername(data.username || data.email || "User");
             }
           }
+
+          // 2. Fetch Profile Stats (Real Profile Views)
+          try {
+            const profileData = await getProfileMe();
+            setStats(prev => prev.map(stat => 
+                stat.label === "Profile Views" 
+                ? { ...stat, value: profileData.views || 0 } 
+                : stat
+            ));
+          } catch(e) {
+            console.error("Failed to load profile views", e);
+          }
+
         } catch {
           setUsername("User");
         }
@@ -317,7 +364,8 @@ export default function DashboardApplicant() {
                 <div className="bg-green-50 p-3 rounded-xl border border-green-100 flex flex-col items-center text-center">
                     <IndianRupee className="w-5 h-5 text-green-700 mb-1" />
                     <span className="text-xs text-gray-500 font-medium uppercase">Salary</span>
-                    <span className="text-sm font-bold text-green-700">{selectedJob.salary || "Competitive"}</span>
+                    {/* UPDATED SALARY FORMATTING */}
+                    <span className="text-sm font-bold text-green-700">{formatSalary(selectedJob.salary, selectedJob.type)}</span>
                 </div>
                 <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 flex flex-col items-center text-center">
                     <MapPin className="w-5 h-5 text-purple-700 mb-1" />
@@ -426,4 +474,4 @@ export default function DashboardApplicant() {
       )}
     </section>
   );
-};
+}

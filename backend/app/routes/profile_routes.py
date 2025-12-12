@@ -31,15 +31,16 @@ def profile_me():
             'phone': profile.phone,
             'location': profile.location,
             'summary': profile.summary,
-            'profile_pic': profile.profile_pic, # Legacy field name in model?
-            'profile_pic_url': profile.profile_pic, # YAML expects profile_pic_url
-            'resume_url': profile.resume, # YAML expects resume_url
+            'profile_pic': profile.profile_pic, 
+            'profile_pic_url': profile.profile_pic, 
+            'resume_url': profile.resume, 
             'resume': profile.resume,
-            'linkedin_profile': getattr(profile, 'linkedin_profile', ''), # Model might need update
+            'linkedin_profile': getattr(profile, 'linkedin_profile', ''),
             'github_profile': getattr(profile, 'github_profile', ''),
             'portfolio_url': getattr(profile, 'portfolio_url', ''),
             'skills': getattr(profile, 'skills', []),
             'completeness': profile.completeness,
+            'views': profile.views or 0,  # Include view count
             'experiences': [
                 {
                     'id': e.id,
@@ -66,10 +67,8 @@ def profile_me():
 
     # PUT: update profile fields
     data = request.json or {}
-    # Fields allowed to be updated by user
     allowed_fields = ['phone', 'location', 'summary', 'profile_pic', 'completeness', 'linkedin_profile', 'github_profile', 'portfolio_url']
 
-    # Also handle first_name, last_name in User model
     if 'first_name' in data:
         user.first_name = data['first_name']
     if 'last_name' in data:
@@ -110,7 +109,6 @@ def upload_resume():
     profile.resume = f"/uploads/{filename}"
     profile.calculate_completeness()
     db.session.commit()
-    # TODO: Trigger AI training logic here with file_path
     return jsonify({'message': 'Resume uploaded successfully', 'resume_url': profile.resume, 
                     'completeness': profile.completeness})
 
@@ -142,7 +140,6 @@ def upload_avatar():
 
 # --- Job Seeker - Experience Endpoints ---
 
-# POST /profiles/me/experiences
 @profile_bp.route('/profiles/me/experiences', methods=['POST'])
 def add_my_experience():
     user = get_current_user()
@@ -160,8 +157,6 @@ def add_my_experience():
         start_date=data.get('start_date'),
         end_date=data.get('end_date'),
         description=data.get('description'),
-        # location=data.get('location'), # Add if model supports
-        # is_current=data.get('is_current', False) # Add if model supports
     )
     db.session.add(e)
     db.session.flush()
@@ -169,7 +164,6 @@ def add_my_experience():
     db.session.commit()
     return jsonify({'message': 'Experience added', 'id': e.id}), 201
 
-# PUT /profiles/me/experiences/{exp_id}
 @profile_bp.route('/profiles/me/experiences/<int:exp_id>', methods=['PUT'])
 def update_my_experience(exp_id):
     user = get_current_user()
@@ -187,14 +181,11 @@ def update_my_experience(exp_id):
     e.start_date = data.get('start_date', e.start_date)
     e.end_date = data.get('end_date', e.end_date)
     e.description = data.get('description', e.description)
-    # e.location = data.get('location', e.location)
-    # e.is_current = data.get('is_current', e.is_current)
 
     profile.calculate_completeness()
     db.session.commit()
     return jsonify({'message': 'Experience updated'})
 
-# DELETE /profiles/me/experiences/{exp_id}
 @profile_bp.route('/profiles/me/experiences/<int:exp_id>', methods=['DELETE'])
 def delete_my_experience(exp_id):
     user = get_current_user()
@@ -256,14 +247,18 @@ def delete_education(edu_id):
 # GET /hr/profiles/{user_id}
 @profile_bp.route('/hr/profiles/<int:user_id>', methods=['GET'])
 def get_user_profile_hr(user_id):
-    # TODO: Add check for HR role
-    # user = get_current_user()
-    # if not user or user.role != 'hr': return jsonify({'error': 'Forbidden'}), 403
-
+    viewer = get_current_user()
+    
     target_user = User.query.get_or_404(user_id)
     profile = target_user.profile
     if not profile:
         return jsonify({'error': 'Profile not found'}), 404
+    
+    # Increment View Logic: If viewer exists and is NOT the owner
+    if viewer and viewer.id != target_user.id:
+        profile.views = (profile.views or 0) + 1
+        db.session.commit()
+
     return jsonify({
         'id': profile.id,
         'user_id': profile.user_id,
@@ -278,6 +273,7 @@ def get_user_profile_hr(user_id):
         'profile_pic_url': profile.profile_pic,
         'resume_url': profile.resume,
         'completeness': profile.completeness,
+        'views': profile.views,
         'experiences': [
             {
                 'id': e.id,
@@ -294,19 +290,25 @@ def get_user_profile_hr(user_id):
 # --- Public Profile Endpoint ---
 @profile_bp.route('/public/profile/<int:user_id>', methods=['GET'])
 def get_public_profile(user_id):
-    # No auth check here - this is for public viewing
     target_user = User.query.get_or_404(user_id)
     profile = target_user.profile
     
     if not profile:
         return jsonify({'error': 'Profile not found'}), 404
 
-    # Return safe public data (omit sensitive fields if necessary)
+    # Attempt to identify viewer to prevent self-view counting
+    viewer = get_current_user() 
+    
+    # Increment if viewer is anonymous OR viewer is not the owner
+    if not viewer or viewer.id != target_user.id:
+        profile.views = (profile.views or 0) + 1
+        db.session.commit()
+
     return jsonify({
         'first_name': target_user.first_name,
         'last_name': target_user.last_name,
         'full_name': f"{target_user.first_name} {target_user.last_name}",
-        'email': target_user.email, # Optional: decide if you want to share email publicly
+        'email': target_user.email,
         'role': target_user.role,
         'location': profile.location,
         'summary': profile.summary,
@@ -338,4 +340,3 @@ def get_public_profile(user_id):
             } for e in profile.educations
         ]
     })
-

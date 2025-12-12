@@ -20,8 +20,7 @@ import {
   Briefcase 
 } from "lucide-react";
 
-// Main Container Component
-const Chatbot = () => {
+const JobSeekerGenAI = () => {
   const [activeTool, setActiveTool] = useState("chatbot");
 
   return (
@@ -70,12 +69,13 @@ const ToolButton = ({ active, onClick, icon: Icon, label }) => (
   </button>
 );
 
-// --- Sub-Component: Chatbot Tool (Original Logic) ---
+// --- Sub-Component: Chatbot Tool ---
 const ChatbotTool = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
+  
+  const chatContainerRef = useRef(null);
 
   const suggestions = [
     "Check status for my application",
@@ -89,9 +89,20 @@ const ChatbotTool = () => {
     loadHistory();
   }, []);
 
+  // Smart Scroll Logic
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const container = chatContainerRef.current;
+    if (container) {
+      const { scrollHeight, clientHeight } = container;
+      // Only scroll if there is actual overflow (scrollbar exists)
+      if (scrollHeight > clientHeight) {
+        container.scrollTo({
+          top: scrollHeight,
+          behavior: "smooth"
+        });
+      }
+    }
+  }, [messages, loading]); 
 
   const loadHistory = async () => {
     try {
@@ -164,7 +175,10 @@ const ChatbotTool = () => {
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-300">
+        <div 
+            ref={chatContainerRef}
+            className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-300"
+        >
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`flex items-start gap-3 max-w-[80%] ${msg.sender === "user" ? "flex-row-reverse" : "flex-row"}`}>
@@ -201,7 +215,6 @@ const ChatbotTool = () => {
                </div>
              </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         <div className="p-4 bg-white border-t border-gray-200">
@@ -231,7 +244,7 @@ const ChatbotTool = () => {
 
 // --- Sub-Component: Cover Letter Generator Tool ---
 const CoverLetterTool = () => {
-  const [applications, setApplications] = useState([]); // Renamed from jobs
+  const [applications, setApplications] = useState([]); 
   const [selectedJob, setSelectedJob] = useState("");
   const [userNotes, setUserNotes] = useState("");
   const [generatedDraft, setGeneratedDraft] = useState("");
@@ -241,7 +254,7 @@ const CoverLetterTool = () => {
   useEffect(() => {
     async function fetchApps() {
       try {
-        const res = await getApplications(); // Fetch user's applications
+        const res = await getApplications(); 
         setApplications(res || []);
       } catch (err) {
         console.error("Failed to fetch applications");
@@ -365,4 +378,4 @@ const CoverLetterTool = () => {
   );
 };
 
-export default Chatbot;
+export default JobSeekerGenAI;

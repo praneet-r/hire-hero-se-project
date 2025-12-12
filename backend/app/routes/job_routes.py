@@ -13,7 +13,6 @@ job_bp = Blueprint('job_bp', __name__)
 def get_jobs():
     # Helper for pagination
     page = request.args.get('page', 1, type=int)
-    # Changed: No default limit (None). If provided, it will paginate, otherwise return all.
     limit_param = request.args.get('limit', type=int)
 
     jobs = Job.query.all() 
@@ -30,25 +29,46 @@ def get_jobs():
         limit = len(jobs)
         total_pages = 1
 
-    job_list = [{
-        'id': job.id,
-        'title': job.title,
-        'company': job.company,
-        'department': job.department,
-        'description': job.description,
-        'location': job.location,
-        'type': job.type,
-        'remote_option': job.remote_option,
-        'salary': job.salary, 
-        'experience_level': job.experience_level,
-        'education': job.education,
-        'benefits': job.benefits,
-        'application_deadline': job.application_deadline,
-        'tags': job.tags.split(',') if job.tags else [],
-        'created_at': job.created_at,
-        'company_logo_url': getattr(job, 'company_logo_url', ''),
-        'applications_count': len(job.applications)
-    } for job in paginated_jobs]
+    # Check for authenticated user to calculate match score
+    user = get_current_user()
+    profile = user.profile if user else None
+
+    job_list = []
+    for job in paginated_jobs:
+        job_data = {
+            'id': job.id,
+            'title': job.title,
+            'company': job.company,
+            'department': job.department,
+            'description': job.description,
+            'location': job.location,
+            'type': job.type,
+            'remote_option': job.remote_option,
+            'salary': job.salary, 
+            'experience_level': job.experience_level,
+            'education': job.education,
+            'benefits': job.benefits,
+            'application_deadline': job.application_deadline,
+            'tags': job.tags.split(',') if job.tags else [],
+            'created_at': job.created_at,
+            'company_logo_url': getattr(job, 'company_logo_url', ''),
+            'applications_count': len(job.applications)
+        }
+
+        # Calculate AI Match Score if user profile exists
+        if profile:
+            try:
+                score = matching_service.calculate_score(profile, job)
+                job_data['match_score'] = score
+            except Exception as e:
+                print(f"Error calculating score for job {job.id}: {e}")
+                job_data['match_score'] = 0
+
+        job_list.append(job_data)
+
+    # Sort by match score if user is logged in
+    if profile:
+        job_list.sort(key=lambda x: x.get('match_score', 0), reverse=True)
 
     return jsonify({
         'pagination': {
@@ -64,11 +84,14 @@ def get_jobs():
 def search_jobs():
     q = request.args.get('q', '').lower()
     location = request.args.get('location', '').lower()
-    # ... other filters
-
-    # Simple search implementation
+    
     all_jobs = Job.query.all()
     filtered = []
+    
+    # Check for authenticated user
+    user = get_current_user()
+    profile = user.profile if user else None
+
     for job in all_jobs:
         match = True
         if q:
@@ -82,9 +105,9 @@ def search_jobs():
         if match:
             filtered.append(job)
 
-    return jsonify({
-        'pagination': {'total_items': len(filtered)},
-        'jobs': [{
+    job_list = []
+    for job in filtered:
+        job_data = {
             'title': job.title,
             'company': job.company,
             'department': job.department,
@@ -99,7 +122,25 @@ def search_jobs():
             'application_deadline': job.application_deadline,
             'tags': job.tags.split(',') if job.tags else [],
             'created_at': job.created_at,
-        } for job in filtered]
+            'id': job.id
+        }
+        
+        if profile:
+            try:
+                score = matching_service.calculate_score(profile, job)
+                job_data['match_score'] = score
+            except:
+                job_data['match_score'] = 0
+        
+        job_list.append(job_data)
+
+    # Sort by match score
+    if profile:
+        job_list.sort(key=lambda x: x.get('match_score', 0), reverse=True)
+
+    return jsonify({
+        'pagination': {'total_items': len(job_list)},
+        'jobs': job_list
     })
 
 @job_bp.route('/jobs/<int:job_id>', methods=['GET'])

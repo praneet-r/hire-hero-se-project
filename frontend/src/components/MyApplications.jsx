@@ -124,6 +124,7 @@ const MyApplications = ({ onViewJob }) => {
                       app.status === "under_review" ? "bg-yellow-100 text-yellow-700" :
                       app.status === "offer_extended" ? "bg-green-100 text-green-700" :
                       app.status === "accepted" ? "bg-emerald-100 text-emerald-700 border border-emerald-200" :
+                      app.status === "hired" ? "bg-teal-100 text-teal-700 border border-teal-200" :
                       app.status === "rejected" ? "bg-red-100 text-red-700" :
                       "bg-gray-100 text-gray-600"
                     }`}
@@ -140,9 +141,12 @@ const MyApplications = ({ onViewJob }) => {
                     </button>
                   )}
 
-                  <button className="hover:text-red-500 transition" onClick={() => handleWithdraw(app.id)}>
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                  {/* Hide withdraw button if hired */}
+                  {app.status !== 'hired' && (
+                    <button className="hover:text-red-500 transition" onClick={() => handleWithdraw(app.id)}>
+                        <Trash2 className="h-5 w-5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

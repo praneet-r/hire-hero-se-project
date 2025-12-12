@@ -72,17 +72,21 @@ const AnalyticsTab = () => {
         const hiredCount = applications.filter(app => ['hired', 'accepted'].includes(app.status)).length;
         const conversionRate = applications.length ? ((hiredCount / applications.length) * 100).toFixed(1) : 0;
 
-        // Average Employee Salary
+        // Average Employee Salary (Filtered: Full-Time or Part-Time only)
         let totalSalary = 0;
         let salaryCount = 0;
         employees.forEach(emp => {
-            if (emp.salary) {
-                // Remove non-numeric chars except dots
-                const cleanSal = emp.salary.toString().replace(/[^0-9.]/g, '');
-                const val = parseFloat(cleanSal);
-                if (!isNaN(val) && val > 0) {
-                    totalSalary += val;
-                    salaryCount++;
+            const type = (emp.employment_type || "").toLowerCase();
+            // Check for Full-Time or Part-Time
+            if (type === 'full-time' || type === 'part-time') {
+                if (emp.salary) {
+                    // Remove non-numeric chars except dots
+                    const cleanSal = emp.salary.toString().replace(/[^0-9.]/g, '');
+                    const val = parseFloat(cleanSal);
+                    if (!isNaN(val) && val > 0) {
+                        totalSalary += val;
+                        salaryCount++;
+                    }
                 }
             }
         });
@@ -202,7 +206,7 @@ const AnalyticsTab = () => {
             sub="Application to Hire"
         />
         <MetricCard 
-            title="Avg Salary" 
+            title="Avg Salary (Full-time/Part-time)" 
             value={metrics.avgSalary} 
             icon={IndianRupee} 
             color="text-blue-600" 

@@ -1,3 +1,5 @@
+// frontend/src/services/api.js
+
 import axios from "axios";
 
 const API_BASE = "/api";
@@ -24,7 +26,7 @@ axiosAuth.interceptors.request.use((config) => {
     return config;
 });
 
-// --- NEW RESPONSE INTERCEPTOR (ADD THIS) ---
+// --- NEW RESPONSE INTERCEPTOR ---
 axiosAuth.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -32,10 +34,8 @@ axiosAuth.interceptors.response.use(
             error.response &&
             (error.response.status === 401 || error.response.status === 403)
         ) {
-            // Token is invalid or expired
             localStorage.removeItem("token");
             localStorage.removeItem("user_id");
-            // Optional: Redirect to login
             if (!window.location.pathname.includes("/login")) {
                 window.location.href = "/login";
             }
@@ -47,7 +47,7 @@ axiosAuth.interceptors.response.use(
 // --- Auth Endpoints ---
 export const login = async (email, password) => {
     const res = await axios.post(`${AUTH_BASE}/login`, { email, password });
-    if (res.data && res.data.token) setToken(res.data.token); // Note: Backend returns 'token' not 'access_token' in Phase 1
+    if (res.data && res.data.token) setToken(res.data.token);
     if (res.data && res.data.id)
         localStorage.setItem("user_id", String(res.data.id));
     return res.data;
@@ -61,13 +61,11 @@ export const register = async (userData) => {
     return res.data;
 };
 
-// Uses axiosAuth (baseURL='/api'), so we just append '/auth/me'
 export const getCurrentUser = async () => {
     const res = await axiosAuth.get("/auth/me");
     return res.data;
 };
 
-// Uses axiosAuth, so we just append '/auth/change-password'
 export const changePassword = async (passwordData) => {
     const res = await axiosAuth.put("/auth/change-password", passwordData);
     return res.data;
@@ -84,7 +82,6 @@ export const getJobs = async (limit) => {
 
 export const applyToJob = async (jobId) => {
     const userId = localStorage.getItem("user_id") || "1";
-    // Note: Backend now expects just job_id in body for authenticated user
     const res = await axiosAuth.post("/applications", {
         job_id: jobId,
         user_id: userId,
@@ -98,8 +95,6 @@ export const withdrawApplication = async (appId) => {
 };
 
 export const getApplications = async () => {
-    // Backend returns: [{ application_details: {...}, job_details: {...} }]
-    // Frontend expects: [{ id, status, title, company, ... }]
     const res = await axiosAuth.get("/applications/my");
 
     if (Array.isArray(res.data)) {
@@ -119,7 +114,6 @@ export const getApplications = async () => {
 };
 
 export const getProfileMe = async (userId) => {
-    // userId param is legacy override, prefer token
     const res = await axiosAuth.get("/profiles/me", {
         headers: userId ? { "X-User-Id": userId } : {},
     });
@@ -159,7 +153,6 @@ export const deleteEducation = async (id) => {
 export const uploadResume = async (userId, file) => {
     const formData = new FormData();
     formData.append("resume", file);
-    // Use axiosAuth for token
     const res = await axiosAuth.post("/profiles/me/resume", formData, {
         headers: {
             "Content-Type": "multipart/form-data",
@@ -194,7 +187,6 @@ export const getMyInterviews = async () => {
 };
 
 export const scheduleInterview = async (interviewData) => {
-    // interviewData: { application_id, scheduled_at, location_type, location_detail, stage }
     const res = await axiosAuth.post("/hr/interviews", interviewData);
     return res.data;
 };
@@ -203,19 +195,16 @@ export const scheduleInterview = async (interviewData) => {
 
 export const getEmployees = async () => {
     const res = await axiosAuth.get("/hr/employees");
-    // Backend returns { pagination: ..., employees: [...] }
     if (res.data.employees) return res.data.employees;
     return res.data;
 };
 
 export const getCandidates = async () => {
-    // Uses auth endpoint to get basic user info for candidates
     const res = await axiosAuth.get("/auth/users/basic");
     return res.data;
 };
 
 export const getCompanyApplications = async (jobId = null) => {
-    // Append job_id query param if provided
     const url = jobId ? `/hr/applications?job_id=${jobId}` : "/hr/applications";
     const res = await axiosAuth.get(url);
     if (res.data.applications) return res.data.applications;
@@ -250,11 +239,11 @@ export const createJob = async (jobData) => {
         department: jobData.department || "",
         location: jobData.location,
         type: jobData.type,
-        remote_option: jobData.remote_option || "", // Map to correct field
+        remote_option: jobData.remote_option || "",
         experience_level: jobData.experience_level || "",
         education: jobData.education || "",
         salary: jobData.salary,
-        tags: jobData.requiredSkills || [], // Send as list
+        tags: jobData.requiredSkills || [],
         benefits: Array.isArray(jobData.benefits)
             ? jobData.benefits.join(",")
             : jobData.benefits || "",
@@ -279,10 +268,17 @@ export const getProfiles = async () => {
     return [];
 };
 
-// --- Public Profile API ---
+// --- Public Profile API (UPDATED for Self-View Check) ---
 export const getPublicProfile = async (userId) => {
-    // Standard axios request without auth headers
-    const res = await axios.get(`${API_BASE}/public/profile/${userId}`);
+    // Manually attach token if exists, so backend knows who is viewing
+    const token = localStorage.getItem("token");
+    const config = {};
+    if (token) {
+        config.headers = { Authorization: `Bearer ${token}` };
+    }
+    // Use plain axios (not axiosAuth) to allow call even if token is expired/invalid
+    // but pass the header if we have it
+    const res = await axios.get(`${API_BASE}/public/profile/${userId}`, config);
     return res.data;
 };
 
@@ -293,25 +289,22 @@ export const askChatbot = async (prompt) => {
     return res.data;
 };
 
-// Get Chat History
 export const getChatHistory = async () => {
     const res = await axiosAuth.get("/gen-ai/history");
     return res.data;
 };
 
-// Clear Chat History
 export const clearChatHistory = async () => {
     const res = await axiosAuth.delete("/gen-ai/history");
     return res.data;
 };
 
-export const getPerformanceInsights = async () => {
-    const res = await axiosAuth.get("/analytics/insights");
+export const generatePerformanceInsights = async () => {
+    const res = await axiosAuth.post("/gen-ai/performance-insights");
     return res.data;
 };
 
 export const generateCoverLetter = async (data) => {
-    // data = { job_id, user_notes }
     const res = await axiosAuth.post("/gen-ai/generate-cover-letter", data);
     return res.data;
 };

@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom"; 
+import { useLocation, useNavigate } from "react-router-dom"; 
 import { getEmployees, getMyJobs, getCompanyApplications } from "../services/api";
-import { Download, Sparkles, AlertCircle, Users, Plus, Briefcase, FileText, BarChart2, Calendar, TrendingUp, CheckCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { 
+  Download, Sparkles, AlertCircle, Users, Plus, Briefcase, 
+  FileText, BarChart2, Calendar, TrendingUp, CheckCircle, 
+  Clock, Activity, ChevronRight, UserCheck
+} from "lucide-react";
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend 
+} from 'recharts';
 import RecruitmentTab from "../components/RecruitmentTab";
 import EmployeesTab from "../components/EmployeesTab";
 import PerformanceTab from "../components/PerformanceTab";
@@ -13,19 +19,22 @@ import TopNavbarHR from "../components/TopNavbarHR";
 
 export default function DashboardHR() {
     const location = useLocation(); 
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("dashboard");
     const [username, setUsername] = useState("");
     
-    // Updated Metrics State
+    // Metrics State
     const [metrics, setMetrics] = useState({
       totalEmployees: 0,
       newHires: 0,
       openPositions: 0,
-      pipelineConversion: 0,
+      activeCandidates: 0, // Changed from pipelineConversion
     });
 
-    const [qualityDistribution, setQualityDistribution] = useState([]);
+    const [qualityData, setQualityData] = useState([]);
     const [actionItems, setActionItems] = useState([]);
+    const [recentActivity, setRecentActivity] = useState([]);
+    const [activeInterviews, setActiveInterviews] = useState([]);
 
     // Check for incoming tab state on mount
     useEffect(() => {
@@ -69,45 +78,51 @@ export default function DashboardHR() {
           ]);
 
           // --- Filter Applications for Current HR's Jobs ---
+          // This ensures we only count applicants for jobs posted by the logged-in HR
           const myJobIds = new Set(myJobs.map(j => j.id));
           const myApps = applications.filter(app => myJobIds.has(app.job_id));
 
           // 1. Calculate Core Metrics
           const totalEmployees = employees.length;
           const openPositions = myJobs.filter(j => !j.status || j.status.toLowerCase() === 'open').length;
+          
+          // New Hires: Only count 'hired' or 'accepted' statuses from MY jobs
           const newHires = myApps.filter(app => ['hired', 'accepted'].includes(app.status)).length;
 
-          // Pipeline Conversion: (Interviewing + Offer + Hired) / Total Apps
-          const funnelSteps = new Set(['interviewing', 'under_review', 'offer_extended', 'accepted', 'hired']);
-          const converted = myApps.filter(app => funnelSteps.has(app.status)).length;
-          const pipelineConversion = myApps.length > 0 ? Math.round((converted / myApps.length) * 100) : 0;
+          // Active Candidates: Count those in the middle of the pipeline
+          // Excludes: applied (too early), hired/accepted (done), rejected/withdrawn (out)
+          const activeStages = new Set(['interviewing', 'under_review', 'offer_extended']);
+          const activeCandidates = myApps.filter(app => activeStages.has(app.status)).length;
 
           setMetrics({
             totalEmployees,
             newHires,
             openPositions,
-            pipelineConversion,
+            activeCandidates,
           });
 
-          // 2. Candidate Quality Distribution (Bar Chart)
-          const buckets = [
-            { name: 'Low Match (0-49%)', range: [0, 49], count: 0, color: '#EF4444' },     // Red
-            { name: 'Potential (50-79%)', range: [50, 79], count: 0, color: '#F59E0B' },   // Yellow
-            { name: 'Top Talent (80%+)', range: [80, 100], count: 0, color: '#10B981' }, // Green
-          ];
+          // 2. Candidate Quality Distribution (Pie Chart)
+          const buckets = {
+            high: 0,
+            med: 0,
+            low: 0
+          };
 
           myApps.forEach(app => {
             const score = app.match_score || 0;
-            if (score >= 80) buckets[2].count++;
-            else if (score >= 50) buckets[1].count++;
-            else buckets[0].count++;
+            if (score >= 80) buckets.high++;
+            else if (score >= 50) buckets.med++;
+            else buckets.low++;
           });
-          setQualityDistribution(buckets);
+
+          setQualityData([
+            { name: 'Top Talent (80%+)', value: buckets.high, color: '#10B981' },
+            { name: 'Potential (50-79%)', value: buckets.med, color: '#F59E0B' },
+            { name: 'Low Match (<50%)', value: buckets.low, color: '#EF4444' },
+          ].filter(item => item.value > 0)); // Only show non-zero slices
 
           // 3. Smart Action Items
           const actions = [];
-
-          // Alert: High Match Candidates Pending Review
           const pendingHighMatch = myApps.filter(app => app.status === 'applied' && (app.match_score || 0) >= 80).length;
           if (pendingHighMatch > 0) {
             actions.push({
@@ -117,17 +132,15 @@ export default function DashboardHR() {
             });
           }
 
-          // Alert: Active Interviews
-          const activeInterviews = myApps.filter(app => app.status === 'interviewing').length;
-          if (activeInterviews > 0) {
+          const activeInterviewCount = myApps.filter(app => app.status === 'interviewing').length;
+          if (activeInterviewCount > 0) {
             actions.push({
               type: 'info',
               title: 'Interview Stage',
-              desc: `You have ${activeInterviews} candidates currently in the interview stage.`
+              desc: `You have ${activeInterviewCount} candidates currently in the interview stage.`
             });
           }
 
-          // Alert: New Applications (Last 24h)
           const oneDayAgo = new Date();
           oneDayAgo.setDate(oneDayAgo.getDate() - 1);
           const newApps = myApps.filter(app => new Date(app.applied_at) > oneDayAgo).length;
@@ -142,8 +155,68 @@ export default function DashboardHR() {
           if (actions.length === 0) {
             actions.push({ type: 'neutral', title: 'All Caught Up', desc: 'No urgent items requiring attention right now.' });
           }
-
           setActionItems(actions);
+
+          // 4. Recent Activity Feed
+          const activities = [];
+          
+          // Add Jobs
+          myJobs.forEach(job => {
+              if (job.created_at) {
+                  activities.push({
+                      type: 'job',
+                      title: `Posted new job: ${job.title}`,
+                      date: new Date(job.created_at),
+                      icon: Briefcase,
+                      color: 'text-blue-600',
+                      bg: 'bg-blue-100'
+                  });
+              }
+          });
+
+          // Add Applications (Filtered by My Jobs)
+          myApps.forEach(app => {
+              if (app.applied_at) {
+                  activities.push({
+                      type: 'application',
+                      title: `New application for ${app.job_title || 'a job'}`,
+                      date: new Date(app.applied_at),
+                      icon: FileText,
+                      color: 'text-purple-600',
+                      bg: 'bg-purple-100'
+                  });
+              }
+          });
+
+          // Add Employees (Hires) - These are already filtered by 'hired_by' in getEmployees
+          employees.forEach(emp => {
+              if (emp.hired_at) {
+                  activities.push({
+                      type: 'hire',
+                      title: `Hired ${emp.name}`,
+                      date: new Date(emp.hired_at),
+                      icon: UserCheck,
+                      color: 'text-green-600',
+                      bg: 'bg-green-100'
+                  });
+              }
+          });
+
+          // Sort descending and take top 10
+          activities.sort((a, b) => b.date - a.date);
+          setRecentActivity(activities.slice(0, 10));
+
+          // 5. Active Interviews List
+          const interviewingCandidates = myApps
+            .filter(app => app.status === 'interviewing')
+            .map(app => ({
+                id: app.id,
+                name: app.candidate_name,
+                role: app.job_title,
+                score: Math.round(app.match_score || 0)
+            }))
+            .slice(0, 5); // Limit to 5
+          setActiveInterviews(interviewingCandidates);
 
         } catch (err) {
           console.error("Error fetching dashboard data:", err);
@@ -152,6 +225,22 @@ export default function DashboardHR() {
       fetchData();
     }, []);
 
+    // Helper for "Time Ago"
+    const timeAgo = (date) => {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + " years ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + " months ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + " days ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + " hours ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + " minutes ago";
+        return "Just now";
+    };
+
   return (
     <section className="min-h-screen flex bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] font-inter">
       <SidebarHR />
@@ -159,10 +248,6 @@ export default function DashboardHR() {
         <TopNavbarHR
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          onLogout={() => {
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-          }}
           tabConfig={[
             { tab: "dashboard", icon: BarChart2 },
             { tab: "employees", icon: Users },
@@ -172,106 +257,204 @@ export default function DashboardHR() {
           ]}
         />
 
-        {/* Dashboard Content - Tabs */}
+        {/* Dashboard Content */}
         <div className="p-8 flex flex-col gap-6">
           {activeTab === "dashboard" && (
             <>
+              {/* Header Row */}
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-extrabold text-[#013362]">
-                  Welcome, <span className="font-semibold">{username || "User"}</span>
+                  Welcome back, <span className="font-semibold">{username || "User"}</span>
                 </h1>
-                <button
-                  className="bg-gradient-to-r from-[#013362] to-[#005193] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-md flex items-center gap-2 hover:opacity-90"
-                  onClick={() => alert("Export feature coming soon!")}
-                >
-                  <Download className="h-4 w-4" /> Export
-                </button>
               </div>
 
-              {/* Metrics */}
-              <div className="grid grid-cols-4 gap-6">
+              {/* Metrics Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
                   { label: "Total Employees", value: metrics.totalEmployees, icon: Users },
-                  { label: "New Hires (My Jobs)", value: metrics.newHires, icon: Plus },
+                  { label: "New Hires via HireHero", value: metrics.newHires, icon: Plus },
                   { label: "Open Positions", value: metrics.openPositions, icon: Briefcase },
-                  { label: "Pipeline Conversion", value: `${metrics.pipelineConversion}%`, icon: TrendingUp },
+                  { label: "Active Candidates", value: metrics.activeCandidates, icon: Users }, // Changed Icon & Label
                 ].map((item, i) => (
                   <div
                     key={i}
-                    className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm text-center hover:shadow-md transition flex flex-col items-center"
+                    className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm flex items-center justify-between hover:shadow-md transition"
                   >
-                    <item.icon className="h-7 w-7 mb-2 text-[#005193]" />
-                    <h3 className="text-3xl font-extrabold text-[#013362]">{item.value}</h3>
-                    <p className="text-gray-500 mt-1 text-sm font-medium">{item.label}</p>
+                    <div>
+                        <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{item.label}</p>
+                        <h3 className="text-2xl font-extrabold text-[#013362]">{item.value}</h3>
+                    </div>
+                    <div className="bg-blue-50 p-3 rounded-full">
+                        <item.icon className="h-6 w-6 text-[#005193]" />
+                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* Data Visualization Grid */}
+              {/* Main 2-Column Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* Candidate Quality Distribution Chart */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col">
-                  <h2 className="text-lg font-bold text-[#013362] mb-6 flex items-center gap-2">
-                    <BarChart2 className="h-5 w-5 text-[#005193]" /> Candidate Quality Distribution
-                  </h2>
-                  <div className="flex-1 w-full min-h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={qualityDistribution} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis 
-                          dataKey="name" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: '#4B5563', fontSize: 12 }} 
-                          dy={10}
-                        />
-                        <YAxis 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: '#9CA3AF', fontSize: 12 }} 
-                        />
-                        <Tooltip 
-                          cursor={{ fill: '#F3F4F6' }}
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                        />
-                        <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={60}>
-                          {qualityDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                {/* --- LEFT COLUMN (66%) --- */}
+                <div className="lg:col-span-2 space-y-6">
+                    
+                    {/* Candidate Quality Pie Chart */}
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <h2 className="text-lg font-bold text-[#013362] mb-2 flex items-center gap-2">
+                            <BarChart2 className="h-5 w-5 text-[#005193]" /> Applicant Quality Distribution
+                        </h2>
+                        <div className="flex flex-col md:flex-row items-center">
+                            <div className="w-full md:w-1/2 h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={qualityData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {qualityData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="w-full md:w-1/2 space-y-4 pl-4">
+                                {qualityData.map((entry, i) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                                            <span className="text-sm font-medium text-gray-700">{entry.name}</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-gray-900">{entry.value}</span>
+                                    </div>
+                                ))}
+                                <div className="pt-4 border-t border-gray-100">
+                                    <p className="text-xs text-gray-500">
+                                        * Based on AI Match Scores against Job Descriptions.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Recent Activity Feed */}
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-[#005193]" /> Recent Activity
+                        </h2>
+                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            {recentActivity.map((act, i) => (
+                                <div key={i} className="flex items-start gap-4 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
+                                    <div className={`p-2 rounded-full mt-1 ${act.bg}`}>
+                                        <act.icon className={`w-4 h-4 ${act.color}`} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-semibold text-gray-800">{act.title}</p>
+                                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                                            <Clock className="w-3 h-3" /> {timeAgo(act.date)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                            {recentActivity.length === 0 && (
+                                <p className="text-sm text-gray-500 italic text-center py-4">No recent activity.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Smart Action Items */}
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                      <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-[#005193]" /> Smart Action Items
+                      </h2>
+                      <div className="space-y-4">
+                        {actionItems.map((action, i) => (
+                          <div key={i} className="border border-gray-200 rounded-xl p-4 flex items-start gap-3 hover:bg-gray-50 transition">
+                            {action.type === 'urgent' && <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />}
+                            {action.type === 'info' && <Calendar className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />}
+                            {action.type === 'success' && <Sparkles className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />}
+                            {action.type === 'neutral' && <CheckCircle className="h-5 w-5 text-gray-400 mt-0.5 shrink-0" />}
+                            <div>
+                              <p className="font-bold text-[#013362] text-sm">{action.title}</p>
+                              <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                                {action.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                 </div>
 
-                {/* Smart Action Items */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                  <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-[#005193]" /> Smart Action Items
-                  </h2>
-                  <div className="space-y-4">
-                    {actionItems.map((action, i) => (
-                      <div key={i} className="border border-gray-200 rounded-xl p-4 flex items-start gap-3 hover:bg-gray-50 transition">
-                        {action.type === 'urgent' && <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />}
-                        {action.type === 'info' && <Calendar className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />}
-                        {action.type === 'success' && <Sparkles className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />}
-                        {action.type === 'neutral' && <CheckCircle className="h-5 w-5 text-gray-400 mt-0.5 shrink-0" />}
-                        <div>
-                          <p className="font-bold text-[#013362] text-sm">{action.title}</p>
-                          <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-                            {action.desc}
-                          </p>
+                {/* --- RIGHT COLUMN (33%) --- */}
+                <div className="space-y-6">
+                    
+                    {/* Active Interviews Panel */}
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm h-fit">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-bold text-[#013362] flex items-center gap-2">
+                                <Calendar className="h-5 w-5 text-[#005193]" /> Active Interviews
+                            </h2>
+                            <span className="bg-blue-100 text-[#005193] text-xs font-bold px-2 py-1 rounded-full">
+                                {activeInterviews.length}
+                            </span>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-6 pt-4 border-t border-gray-100">
-                    <p className="text-xs text-center text-gray-400">
-                      Insights generated based on real-time data
-                    </p>
-                  </div>
+                        
+                        <div className="space-y-3">
+                            {activeInterviews.length > 0 ? activeInterviews.map((interview, i) => (
+                                <div key={i} className="p-3 border border-gray-100 rounded-xl hover:bg-blue-50 transition group cursor-pointer" onClick={() => navigate("/dashboard-hr", { state: { activeTab: "recruitment" } })}>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-bold text-gray-800 text-sm">{interview.name}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">{interview.role}</p>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                                {interview.score}% Match
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center">
+                                        <span className="text-xs text-blue-600 font-semibold group-hover:underline">View Application</span>
+                                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                    <Calendar className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-500">No active interviews.</p>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <button 
+                            onClick={() => navigate("/dashboard-hr", { state: { activeTab: "recruitment" } })}
+                            className="w-full mt-4 py-2 text-sm text-[#005193] font-semibold border border-blue-100 rounded-lg hover:bg-blue-50 transition"
+                        >
+                            View Recruitment Board
+                        </button>
+                    </div>
+
+                    {/* Quick Access Card */}
+                    <div className="bg-gradient-to-br from-[#005193] to-[#013362] rounded-2xl p-6 shadow-md text-white">
+                        <h3 className="text-lg font-bold mb-2">Need Help?</h3>
+                        <p className="text-sm text-blue-100 mb-4">
+                            Use our AI Assistant to generate JDs, interview guides, or summarize feedback instantly.
+                        </p>
+                        <button 
+                            onClick={() => navigate("/hr-genai")}
+                            className="w-full bg-white text-[#005193] py-2.5 rounded-xl font-bold text-sm hover:bg-blue-50 transition flex items-center justify-center gap-2 shadow-sm"
+                        >
+                            <Sparkles className="w-4 h-4" /> Open GenAI Studio
+                        </button>
+                    </div>
+
                 </div>
 
               </div>

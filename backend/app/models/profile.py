@@ -9,6 +9,7 @@ class Profile(db.Model):
     summary = db.Column(db.Text)
     profile_pic = db.Column(db.String(255))
     resume = db.Column(db.String(255))  # Path to uploaded resume file
+    views = db.Column(db.Integer, default=0)
     completeness = db.Column(db.Integer, default=0)
     user = db.relationship('User', back_populates='profile')
     experiences = db.relationship('Experience', back_populates='profile', cascade='all, delete-orphan')
