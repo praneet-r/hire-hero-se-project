@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { createJob } from "../services/api";
+import React, { useState, useEffect } from "react";
+import { createJob, getDepartments, getCurrentUser } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
@@ -28,10 +28,41 @@ const PostJob = () => {
   
   const [status, setStatus] = useState({ message: "", type: "" }); 
 
-  const benefitsOptions = ["Health Insurance", "Remote Work", "Paid Leave"];
+  // Removed "Remote Work" from benefits options
+  const benefitsOptions = ["Health Insurance", "Paid Leave"];
+  const [departments, setDepartments] = useState([]);
+
+  // Fetch Departments
+  useEffect(() => {
+    async function fetchDepts() {
+      try {
+        const data = await getDepartments();
+        setDepartments(data);
+      } catch (err) {
+        console.error("Failed to fetch departments", err);
+      }
+    }
+    fetchDepts();
+  }, []);
+
+  // Fetch Current User (HR) Info to pre-fill Company Name
+  useEffect(() => {
+    async function fetchUserInfo() {
+        try {
+            const user = await getCurrentUser();
+            if (user && user.company_name) {
+                setFormData(prev => ({ ...prev, company: user.company_name }));
+            }
+        } catch (err) {
+            console.error("Failed to fetch user info", err);
+        }
+    }
+    fetchUserInfo();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
     if (type === "checkbox" && benefitsOptions.includes(value)) {
       setFormData((prev) => ({
         ...prev,
@@ -41,6 +72,15 @@ const PostJob = () => {
       }));
     } else if (type === "checkbox") {
       setFormData((prev) => ({ ...prev, [name]: checked }));
+    } else if (name === "remote_option") {
+      // Logic for Remote Option changes
+      if (value === "Remote") {
+        // If Remote is selected, auto-fill location
+        setFormData((prev) => ({ ...prev, [name]: value, location: "Remote" }));
+      } else {
+        // If switching to Hybrid or On-site, reset location to blank
+        setFormData((prev) => ({ ...prev, [name]: value, location: "" }));
+      }
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -98,7 +138,7 @@ const PostJob = () => {
 
     let finalSalary = "Undisclosed";
     if (salaryMode === 'fixed') {
-        finalSalary = `${salaryAmount} LPA`;
+        finalSalary = salaryAmount;
     } else if (salaryMode === 'negotiable') {
         finalSalary = "Negotiable";
     }
@@ -114,7 +154,7 @@ const PostJob = () => {
       showPill("Job published successfully!", "success");
       setTimeout(() => {
         navigate("/dashboard-hr", { state: { activeTab: "recruitment" } });
-      }, 1500);
+      }, 1000);
     } catch (err) {
       showPill("Failed to publish job. Please try again.", "error");
     }
@@ -179,11 +219,26 @@ const PostJob = () => {
                     <h2 className="text-lg font-semibold mb-4">Job Information</h2>
                     <div className="grid md:grid-cols-2 gap-4">
                       <Input label="Job Title *" name="title" value={formData.title} onChange={handleChange} />
-                      <Input label="Company Name *" name="company" value={formData.company} onChange={handleChange} />
-                      <Select label="Select Department *" name="department" value={formData.department} onChange={handleChange} options={["Engineering", "HR", "Marketing", "Finance", "Sales", "Product"]} />
+                      
+                      {/* Updated Company Name Input: Disabled */}
+                      <Input 
+                        label="Company Name *" 
+                        name="company" 
+                        value={formData.company} 
+                        onChange={handleChange} 
+                        disabled={true} 
+                      />
+                      
+                      <Select label="Select Department *" name="department" value={formData.department} onChange={handleChange} options={departments} />
                       <Select label="Employment Type *" name="type" value={formData.type} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
                       <Select label="Remote Option *" name="remote_option" value={formData.remote_option} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />
-                      <Input label="Location *" name="location" value={formData.location} onChange={handleChange} />
+                      <Input 
+                        label="Location *" 
+                        name="location" 
+                        value={formData.location} 
+                        onChange={handleChange} 
+                        disabled={formData.remote_option === "Remote"}
+                      />
                     </div>
                     <div className="mt-4">
                       <label className="text-sm font-medium mb-1 block">Description *</label>
@@ -264,12 +319,11 @@ const PostJob = () => {
                             <div className="flex items-center gap-2">
                                 <input 
                                     type="number" 
-                                    placeholder="e.g. 12" 
+                                    placeholder="e.g. 50000" 
                                     value={salaryAmount} 
                                     onChange={(e) => setSalaryAmount(e.target.value)} 
-                                    className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 w-32"
+                                    className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 w-48"
                                 />
-                                <span className="text-gray-700 font-semibold">LPA</span>
                             </div>
                         )}
                     </div>
@@ -299,33 +353,11 @@ const PostJob = () => {
                           <label className="text-sm font-medium block mb-1">Application Deadline</label>
                           <input type="date" name="application_deadline" value={formData.application_deadline} onChange={handleChange} className="w-full p-2 border rounded-xl" />
                         </div>
-                        <label className="flex items-center gap-2 text-sm">
+                        {/* <label className="flex items-center gap-2 text-sm">
                           <input type="checkbox" name="enableAIScreening" checked={formData.enableAIScreening} onChange={handleChange} />
                           Enable AI screening
-                        </label>
+                        </label> */}
                       </div>
-                    </div>
-                    {/* AI Recommendations */}
-                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-inner">
-                      <h2 className="text-lg font-semibold mb-3">AI Recommendations</h2>
-                      <div className="mb-4">
-                        <h3 className="font-medium mb-1">Suggested Skills</h3>
-                        <div className="flex gap-2 flex-wrap">
-                          {["React", "Node.js", "TypeScript"].map((skill) => (
-                            <span key={skill} className="bg-blue-100 text-blue-700 text-sm px-2 py-1 rounded-full">{skill}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="mb-3 flex items-center gap-2">
-                        <Wallet className="w-5 h-5 text-[#005193]" />
-                        <h3 className="font-medium mb-1">Salary Range</h3>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">Market rate: 10 LPA - 18 LPA</p>
-                      <div className="flex items-center gap-2">
-                        <BarChart2 className="w-5 h-5 text-[#005193]" />
-                        <h3 className="font-medium mb-1">Market Demand</h3>
-                      </div>
-                      <p className="text-sm text-gray-600">High demand React roles</p>
                     </div>
                   </div>
                 </div>
@@ -338,7 +370,7 @@ const PostJob = () => {
   );
 };
 
-const Input = ({ label, name, value, onChange, type = "text" }) => (
+const Input = ({ label, name, value, onChange, type = "text", disabled = false }) => (
   <div className="flex flex-col">
     <label className="text-sm font-medium mb-1">{label}</label>
     <input
@@ -346,7 +378,10 @@ const Input = ({ label, name, value, onChange, type = "text" }) => (
       name={name}
       value={value}
       onChange={onChange}
-      className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500"
+      disabled={disabled}
+      className={`p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 ${
+        disabled ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""
+      }`}
     />
   </div>
 );

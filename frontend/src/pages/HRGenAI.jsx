@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { askChatbot, axiosAuth, getChatHistory, clearChatHistory } from "../services/api";
-import { Send, Plus, Bot, BarChart2, FileText, Sparkles, MessageSquare, ClipboardList, PenTool, CheckCircle, Users, Briefcase } from "lucide-react";
+import { askChatbot, axiosAuth, getChatHistory, clearChatHistory, getCurrentUser, getDepartments } from "../services/api";
+import { Send, Plus, Bot, BarChart2, FileText, Sparkles, MessageSquare, ClipboardList, PenTool, CheckCircle, Users, Briefcase, Trash2 } from "lucide-react";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
 
@@ -180,9 +180,45 @@ const ChatbotTool = ({ onNewChat }) => {
 };
 
 const JDGeneratorTool = () => {
-    const [formData, setFormData] = useState({ title: "", company_name: "" });
+    const [formData, setFormData] = useState({ title: "", company_name: "", department: "" });
+    const [departments, setDepartments] = useState([]);
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    // Get User ID for Cache Key
+    const userId = localStorage.getItem("user_id");
+    const cacheKey = `hr_jd_generator_${userId || 'guest'}`;
+
+    useEffect(() => {
+        async function initData() {
+            try {
+                // Restore from Cache (Scoped to User)
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const { result: savedResult, formData: savedForm } = JSON.parse(cached);
+                    setResult(savedResult);
+                    setFormData(prev => ({ ...prev, ...savedForm }));
+                }
+
+                // Fetch real data
+                const [user, depts] = await Promise.all([
+                    getCurrentUser(),
+                    getDepartments()
+                ]);
+                
+                setDepartments(depts || []);
+                
+                // Ensure company name is always up to date
+                setFormData(prev => ({
+                    ...prev,
+                    company_name: user.company_name || ""
+                }));
+            } catch (err) {
+                console.error("Failed to load user info or departments", err);
+            }
+        }
+        initData();
+    }, [cacheKey]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -190,10 +226,22 @@ const JDGeneratorTool = () => {
         try {
             const res = await axiosAuth.post('/gen-ai/generate-jd', formData);
             setResult(res.data);
+            
+            // Save to Cache
+            localStorage.setItem(cacheKey, JSON.stringify({
+                result: res.data,
+                formData: formData
+            }));
         } catch (err) {
             alert("Error generating JD");
         }
         setLoading(false);
+    };
+
+    const clearCache = () => {
+        setResult(null);
+        setFormData(prev => ({ ...prev, title: "", department: "" }));
+        localStorage.removeItem(cacheKey);
     };
 
     return (
@@ -203,15 +251,47 @@ const JDGeneratorTool = () => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                        <input className="w-full border border-gray-300 rounded-lg px-4 py-2" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
+                        <input 
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#005193] outline-none" 
+                            value={formData.title} 
+                            onChange={e => setFormData({...formData, title: e.target.value})} 
+                            required 
+                            placeholder="e.g. Senior Frontend Engineer"
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                        <input className="w-full border border-gray-300 rounded-lg px-4 py-2" value={formData.company_name} onChange={e => setFormData({...formData, company_name: e.target.value})} required />
+                        <input 
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-100 cursor-not-allowed text-gray-500" 
+                            value={formData.company_name} 
+                            readOnly
+                            disabled
+                        />
                     </div>
-                    <button type="submit" disabled={loading} className="w-full bg-[#005193] text-white py-2 rounded-lg font-semibold disabled:opacity-50">
-                        {loading ? "Generating..." : "Generate JD"}
-                    </button>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                        <select
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#005193] outline-none"
+                            value={formData.department}
+                            onChange={e => setFormData({...formData, department: e.target.value})}
+                            required
+                        >
+                            <option value="">Select Department...</option>
+                            {departments.map((dept, i) => (
+                                <option key={i} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex gap-2">
+                        <button type="submit" disabled={loading || !formData.company_name} className="flex-1 bg-[#005193] text-white py-2 rounded-lg font-semibold disabled:opacity-50 hover:opacity-90 transition">
+                            {loading ? "Generating..." : "Generate JD"}
+                        </button>
+                        {result && (
+                            <button type="button" onClick={clearCache} className="px-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200" title="Clear Result">
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                 </form>
             </div>
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 overflow-auto max-h-[600px]">
@@ -252,14 +332,39 @@ const InterviewGuideTool = () => {
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    // Get User ID for Cache Key
+    const userId = localStorage.getItem("user_id");
+    const cacheKey = `hr_interview_guide_${userId || 'guest'}`;
+
+    useEffect(() => {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            const { result: savedResult, jdText: savedText } = JSON.parse(cached);
+            setResult(savedResult);
+            setJdText(savedText);
+        }
+    }, [cacheKey]);
+
     const handleSubmit = async () => {
         if (!jdText) return;
         setLoading(true);
         try {
             const res = await axiosAuth.post('/gen-ai/generate-interview-guide', { job_description: jdText });
             setResult(res.data);
+            
+            // Save to Cache
+            localStorage.setItem(cacheKey, JSON.stringify({
+                result: res.data,
+                jdText: jdText
+            }));
         } catch (err) { alert("Error"); }
         setLoading(false);
+    };
+
+    const clearCache = () => {
+        setResult(null);
+        setJdText("");
+        localStorage.removeItem(cacheKey);
     };
 
     return (
@@ -273,9 +378,16 @@ const InterviewGuideTool = () => {
                     value={jdText}
                     onChange={(e) => setJdText(e.target.value)}
                 ></textarea>
-                <button onClick={handleSubmit} disabled={loading} className="w-full bg-[#005193] text-white py-2 rounded-lg font-semibold mt-4 disabled:opacity-50">
-                    {loading ? "Generating..." : "Generate Guide"}
-                </button>
+                <div className="flex gap-2 mt-4">
+                    <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-[#005193] text-white py-2 rounded-lg font-semibold disabled:opacity-50 hover:opacity-90 transition">
+                        {loading ? "Generating..." : "Generate Guide"}
+                    </button>
+                    {result && (
+                        <button onClick={clearCache} className="px-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200" title="Clear">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 overflow-auto max-h-[600px]">
                 {result ? (
@@ -314,14 +426,39 @@ const FeedbackSummarizerTool = () => {
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    // Get User ID for Cache Key
+    const userId = localStorage.getItem("user_id");
+    const cacheKey = `hr_feedback_summary_${userId || 'guest'}`;
+
+    useEffect(() => {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            const { result: savedResult, notes: savedNotes } = JSON.parse(cached);
+            setResult(savedResult);
+            setNotes(savedNotes);
+        }
+    }, [cacheKey]);
+
     const handleSubmit = async () => {
         if (!notes) return;
         setLoading(true);
         try {
             const res = await axiosAuth.post('/gen-ai/summarize-feedback', { raw_feedback_notes: notes });
             setResult(res.data);
+            
+            // Save to Cache
+            localStorage.setItem(cacheKey, JSON.stringify({
+                result: res.data,
+                notes: notes
+            }));
         } catch (err) { alert("Error"); }
         setLoading(false);
+    };
+
+    const clearCache = () => {
+        setResult(null);
+        setNotes("");
+        localStorage.removeItem(cacheKey);
     };
 
     return (
@@ -335,9 +472,16 @@ const FeedbackSummarizerTool = () => {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                 ></textarea>
-                <button onClick={handleSubmit} disabled={loading} className="w-full bg-[#005193] text-white py-2 rounded-lg font-semibold mt-4 disabled:opacity-50">
-                    {loading ? "Summarizing..." : "Summarize Feedback"}
-                </button>
+                <div className="flex gap-2 mt-4">
+                    <button onClick={handleSubmit} disabled={loading} className="flex-1 bg-[#005193] text-white py-2 rounded-lg font-semibold disabled:opacity-50 hover:opacity-90 transition">
+                        {loading ? "Summarizing..." : "Summarize Feedback"}
+                    </button>
+                    {result && (
+                        <button onClick={clearCache} className="px-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200" title="Clear">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 overflow-auto max-h-[600px]">
                 {result ? (

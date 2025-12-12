@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { createEmployee, axiosAuth, updateApplicationStatus } from "../services/api";
+import { createEmployee, axiosAuth, updateApplicationStatus, getDepartments } from "../services/api";
 import { getProfileByUserId } from "../services/api";
 import { useNavigate, useLocation } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
@@ -21,6 +21,8 @@ const AddEmployee = () => {
     phone: "",
     jobTitle: "",
     department: "",
+    employmentType: "",
+    salary: "",
     manager: "",
     startDate: "",
     photo: null,
@@ -31,6 +33,7 @@ const AddEmployee = () => {
 
   const [selectedUserId, setSelectedUserId] = useState("");
   const [applicationId, setApplicationId] = useState(null);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
 
   const showPill = (message, type) => {
     setStatus({ message, type });
@@ -39,11 +42,9 @@ const AddEmployee = () => {
 
   useEffect(() => {
     if (location.state && location.state.activeTab) {
-      // If navigating specifically to this page, keep it as 'addEmployee'
       if(location.state.activeTab === 'addEmployee') {
           setActiveTab("addEmployee");
       } else {
-          // If for some reason we land here with another tab state, redirect
           navigate("/dashboard-hr", { state: { activeTab: location.state.activeTab } });
       }
     }
@@ -58,10 +59,20 @@ const AddEmployee = () => {
       setFormData(prev => ({
         ...prev,
         jobTitle: location.state.job_title || "",
-        department: location.state.department || ""
+        department: location.state.department || "",
+        salary: location.state.salary || "",
+        employmentType: location.state.employment_type || "",
+        locationType: location.state.location_type || "",
+        specificLocation: location.state.specific_location || ""
       }));
     }
   }, [location.state, navigate]);
+
+  useEffect(() => {
+    getDepartments()
+      .then(data => setDepartmentOptions(data))
+      .catch(err => console.error("Failed to fetch departments", err));
+  }, []);
 
   useEffect(() => {
     if (selectedUserId) {
@@ -83,8 +94,13 @@ const AddEmployee = () => {
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
+    
     if (name === "photo") {
       setFormData((prev) => ({ ...prev, photo: files[0] }));
+    } else if (name === "phone" || name === "salary") {
+      // Restriction: Allow only numbers
+      const numericValue = value.replace(/\D/g, "");
+      setFormData((prev) => ({ ...prev, [name]: numericValue }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -93,6 +109,9 @@ const AddEmployee = () => {
   const handleSave = async (e) => {
     e.preventDefault();
 
+    // --- VALIDATION START ---
+    
+    // 1. Mandatory Fields Check
     if (!selectedUserId) {
         if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
             showPill("Please fill in all personal information fields.", "error");
@@ -100,7 +119,8 @@ const AddEmployee = () => {
         }
     }
 
-    if (!formData.jobTitle || !formData.department || !formData.startDate || !formData.locationType) {
+    // Include employmentType in validation
+    if (!formData.jobTitle || !formData.department || !formData.employmentType || !formData.startDate || !formData.locationType || !formData.salary) {
         showPill("Please fill in all job details.", "error");
         return;
     }
@@ -109,6 +129,21 @@ const AddEmployee = () => {
         showPill("Please specify the location name.", "error");
         return;
     }
+
+    // 2. Email Format Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+        showPill("Please enter a valid email address.", "error");
+        return;
+    }
+
+    // 3. Phone Number Validation
+    if (formData.phone.length < 10) {
+        showPill("Please enter a valid phone number (at least 10 digits).", "error");
+        return;
+    }
+
+    // --- VALIDATION END ---
 
     try {
       let photoPath = formData.photoUrl || "";
@@ -134,10 +169,12 @@ const AddEmployee = () => {
       let payload = {
         job_title: formData.jobTitle,
         department: formData.department,
+        employment_type: formData.employmentType, // Send Job Type
         manager: formData.manager,
         start_date: formData.startDate,
         photo: photoPath,
-        job_location: finalLocation
+        job_location: finalLocation,
+        salary: formData.salary
       };
 
       if (selectedUserId) {
@@ -161,6 +198,7 @@ const AddEmployee = () => {
 
       showPill("Employee added successfully!", "success");
       
+      // Clear Form
       setFormData({
         firstName: "",
         lastName: "",
@@ -168,6 +206,8 @@ const AddEmployee = () => {
         phone: "",
         jobTitle: "",
         department: "",
+        employmentType: "",
+        salary: "",
         manager: "",
         startDate: "",
         photo: null,
@@ -177,6 +217,11 @@ const AddEmployee = () => {
       });
       setSelectedUserId("");
       setApplicationId(null);
+
+      // Redirect after 1 second
+      setTimeout(() => {
+        navigate("/dashboard-hr", { state: { activeTab: "employees" } });
+      }, 1000);
       
     } catch (err) {
       showPill("Failed to add employee. Please try again.", "error");
@@ -191,6 +236,8 @@ const AddEmployee = () => {
       phone: "",
       jobTitle: "",
       department: "",
+      employmentType: "",
+      salary: "",
       manager: "",
       startDate: "",
       photo: null,
@@ -210,13 +257,10 @@ const AddEmployee = () => {
     { tab: "analytics", icon: BarChart2 },
   ];
 
-  // UPDATED: Navigation logic
   const handleTabClick = (tab) => {
-    // Always redirect to dashboard for these tabs
     navigate("/dashboard-hr", { state: { activeTab: tab } });
   };
 
-  // Helper to construct image source
   const getPhotoSrc = () => {
     if (formData.photo) {
       return URL.createObjectURL(formData.photo);
@@ -229,6 +273,9 @@ const AddEmployee = () => {
     }
     return null;
   };
+
+  // Helper to determine if fields should be disabled (Autofill mode)
+  const isAutofillMode = !!selectedUserId;
 
   return (
     <section className="min-h-screen flex bg-gradient-to-br from-[#F7F8FF] via-[#e3e9ff] to-[#dbeafe] font-inter">
@@ -251,8 +298,6 @@ const AddEmployee = () => {
         )}
 
         <div className="p-8 flex flex-col gap-6">
-          {/* UPDATED: Removed conditional rendering of other tabs */}
-          
           {activeTab === "addEmployee" && (
             <>
               <div className="flex justify-between items-center mb-6">
@@ -282,14 +327,14 @@ const AddEmployee = () => {
                     <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
                     {selectedUserId && (
                       <div className="mb-4 bg-blue-50 text-blue-800 p-3 rounded-lg text-sm border border-blue-100">
-                        <strong>Note:</strong> You are adding a registered candidate as an employee. Their personal details are pre-filled.
+                        <strong>Note:</strong> You are adding a registered candidate as an employee. Personal details are locked.
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
-                      <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
-                      <InputField label="Email" name="email" type="email" value={formData.email} onChange={handleChange} />
-                      <InputField label="Phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} />
+                      <InputField label="First Name *" name="firstName" value={formData.firstName} onChange={handleChange} disabled={isAutofillMode} />
+                      <InputField label="Last Name *" name="lastName" value={formData.lastName} onChange={handleChange} disabled={isAutofillMode} />
+                      <InputField label="Email *" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isAutofillMode} />
+                      <InputField label="Phone *" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isAutofillMode} />
                     </div>
                   </div>
                   <div className="flex flex-col items-center">
@@ -301,26 +346,50 @@ const AddEmployee = () => {
                         <span className="text-gray-500 text-sm">No Photo</span>
                       )}
                     </div>
-                    <input type="file" name="photo" accept="image/*" onChange={handleChange} className="text-sm" />
+                    <input type="file" name="photo" accept="image/*" onChange={handleChange} className="text-sm" disabled={isAutofillMode} />
                   </div>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold mb-4">Job Details</h2>
+                  
+                  {/* Updated Grid for Job Details: 2 columns to accommodate 4 items gracefully */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField label="Job Title" name="jobTitle" value={formData.jobTitle} onChange={handleChange} />
+                    
+                    <InputField label="Job Title *" name="jobTitle" value={formData.jobTitle} onChange={handleChange} disabled={isAutofillMode} />
+                    
+                    {/* New Job Type Dropdown */}
                     <SelectField 
-                        label="Select Department" 
+                        label="Job Type *" 
+                        name="employmentType" 
+                        value={formData.employmentType} 
+                        onChange={handleChange} 
+                        options={["Full-Time", "Part-Time", "Contract", "Internship"]} 
+                    />
+
+                    <SelectField 
+                        label="Select Department *" 
                         name="department" 
                         value={formData.department} 
                         onChange={handleChange} 
-                        options={["Engineering", "HR", "Marketing", "Finance", "Sales", "Design"]} 
+                        options={departmentOptions} 
+                        disabled={isAutofillMode}
+                    />
+                    
+                    <InputField 
+                        label="Salary *" 
+                        name="salary" 
+                        type="number" 
+                        value={formData.salary} 
+                        onChange={handleChange} 
+                        placeholder="e.g. 1200000"
                     />
                   </div>
+
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex gap-2">
                         <div className="flex-1">
                             <SelectField 
-                                label="Job Location Type" 
+                                label="Job Location Type *" 
                                 name="locationType" 
                                 value={formData.locationType} 
                                 onChange={handleChange} 
@@ -330,7 +399,7 @@ const AddEmployee = () => {
                         {(formData.locationType === "On-site" || formData.locationType === "Hybrid") && (
                             <div className="flex-1">
                                 <InputField 
-                                    label={formData.locationType === "Hybrid" ? "Office Location (for Hybrid)" : "Office Location"} 
+                                    label={formData.locationType === "Hybrid" ? "Office Location (Hybrid) *" : "Office Location *"} 
                                     name="specificLocation" 
                                     value={formData.specificLocation} 
                                     onChange={handleChange} 
@@ -340,7 +409,7 @@ const AddEmployee = () => {
                         )}
                     </div>
 
-                    <InputField label="Start Date" name="startDate" type="date" value={formData.startDate} onChange={handleChange} />
+                    <InputField label="Start Date *" name="startDate" type="date" value={formData.startDate} onChange={handleChange} />
                   </div>
                 </div>
               </form>
@@ -352,7 +421,7 @@ const AddEmployee = () => {
   );
 };
 
-const InputField = ({ label, name, value, onChange, type = "text", placeholder }) => (
+const InputField = ({ label, name, value, onChange, type = "text", placeholder, disabled = false }) => (
   <div className="flex flex-col w-full">
     <label className="text-sm font-medium mb-1">{label}</label>
     <input
@@ -361,19 +430,25 @@ const InputField = ({ label, name, value, onChange, type = "text", placeholder }
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full"
+      disabled={disabled}
+      className={`p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full ${
+        disabled ? "opacity-60 cursor-not-allowed bg-gray-200" : ""
+      }`}
     />
   </div>
 );
 
-const SelectField = ({ label, name, value, onChange, options = [] }) => (
+const SelectField = ({ label, name, value, onChange, options = [], disabled = false }) => (
   <div className="flex flex-col w-full">
     <label className="text-sm font-medium mb-1">{label}</label>
     <select
       name={name}
       value={value}
       onChange={onChange}
-      className="p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full"
+      disabled={disabled}
+      className={`p-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none w-full ${
+        disabled ? "opacity-60 cursor-not-allowed bg-gray-200" : ""
+      }`}
     >
       <option value="">Select...</option>
       {options.map((opt) => (

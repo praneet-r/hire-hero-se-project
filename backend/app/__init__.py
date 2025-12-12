@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, send_from_directory
 from .config import Config
+import uuid
 import os
 from .database import db
 
@@ -22,13 +23,14 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # This ID changes every time you restart the backend, used for clearing client localStorage
+    app.config['SERVER_INSTANCE_ID'] = str(uuid.uuid4())
+
     # Init DB
     db.init_app(app)
 
     with app.app_context():
         db.create_all()
-        from .seed_data import seed_database
-        seed_database()
 
     # Register Blueprints
     # Note: url_prefix='/api' is common. Some routes might define their own paths if needed,

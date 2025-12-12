@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Users } from "lucide-react";
 
 export default function Register() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -14,14 +15,15 @@ export default function Register() {
     role: 'hr' // Default role selected
   });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [status, setStatus] = useState({ message: "", type: "" });
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
+    setStatus({ message: "", type: "" });
+
     // Compose registration payload
     const payload = {
       firstName: form.firstName,
@@ -32,10 +34,19 @@ export default function Register() {
       role: form.role,
       companyName: form.role === 'hr' ? form.companyName : '', // Only send company name if HR
     };
+
     try {
       const res = await register(payload);
       if (res.user_id) localStorage.setItem('user_id', res.user_id);
-      setSuccess(res.message || 'Registration successful!');
+      
+      // Show Success Pill
+      setStatus({ message: "Registration successful! Redirecting...", type: "success" });
+      
+      // Redirect after 1 second
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
     }
@@ -71,6 +82,17 @@ export default function Register() {
           </div>
         </div>
       </header>
+
+      {/* Success/Status Pill */}
+      {status.message && (
+        <div className={`fixed top-28 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full font-bold shadow-lg text-sm animate-bounce ${
+            status.type === 'success' 
+            ? 'bg-green-100 text-green-700 border border-green-300' 
+            : 'bg-red-100 text-red-700 border border-red-300'
+        }`}>
+          {status.message}
+        </div>
+      )}
 
       <section className="min-h-[calc(100vh-5rem)] bg-[#F7F8FF] flex items-center justify-center">
         <div className="max-w-7xl w-full mx-auto grid md:grid-cols-2 rounded-3xl shadow-sm border border-gray-200 bg-white overflow-hidden">
@@ -191,9 +213,8 @@ export default function Register() {
                 </p>
               </div>
 
-              {/* Error/Success Messages */}
-              {error && <div className="text-red-500 text-sm">{error}</div>}
-              {success && <div className="text-green-600 text-sm">{success}</div>}
+              {/* Error Messages */}
+              {error && <div className="text-red-500 text-sm font-medium">{error}</div>}
 
               {/* Submit Button */}
               <button

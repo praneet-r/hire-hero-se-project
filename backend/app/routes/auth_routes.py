@@ -77,6 +77,36 @@ def login():
         return jsonify({'message': 'Login successful', 'token': token, 'role': user.role, 'user_id': user_id, 'id': user.id}), 200
     return jsonify({'error': 'Invalid credentials'}), 401
 
+@auth_bp.route('/change-password', methods=['PUT'])
+def change_password():
+    # Verify Token
+    auth_header = request.headers.get('Authorization', None)
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Missing or invalid token'}), 401
+    token = auth_header.split(' ')[1]
+    try:
+        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+        user = User.query.get(payload.get('user_id'))
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+    except Exception:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    data = request.json
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+
+    if not current_password or not new_password:
+        return jsonify({'error': 'Current and new passwords are required'}), 400
+
+    if not user.check_password(current_password):
+        return jsonify({'error': 'Incorrect current password'}), 400
+
+    user.set_password(new_password)
+    db.session.commit()
+
+    return jsonify({'message': 'Password updated successfully'}), 200
+
 @auth_bp.route('/google-login')
 def google_login():
     role = request.args.get('role')

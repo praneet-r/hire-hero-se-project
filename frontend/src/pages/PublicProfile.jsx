@@ -35,7 +35,11 @@ const PublicProfile = () => {
   if (error) return <div className="min-h-screen flex items-center justify-center text-red-500">{error}</div>;
   if (!profile) return null;
 
-  const BACKEND_BASE = "/api"; // Adjust if needed based on proxy
+  const roleDisplay = profile.role === 'hr' ? 'HR Professional' : 
+                      profile.role === 'employee' ? 'Employee' : 
+                      'Job Seeker';
+
+  const isCandidate = profile.role === 'candidate';
 
   return (
     <div className="min-h-screen bg-gray-50 font-inter">
@@ -73,7 +77,7 @@ const PublicProfile = () => {
           
           <div className="flex-1">
             <h1 className="text-3xl font-extrabold text-[#013362]">{profile.full_name}</h1>
-            <p className="text-lg text-gray-600 font-medium mt-1">{profile.role === 'candidate' ? 'Job Seeker' : profile.role}</p>
+            <p className="text-lg text-gray-600 font-medium mt-1">{roleDisplay}</p>
             
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-3 text-sm text-gray-500">
               {profile.location && <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {profile.location}</span>}
@@ -88,7 +92,7 @@ const PublicProfile = () => {
           </div>
 
           <div className="flex flex-col gap-3">
-             {profile.resume_url && (
+             {profile.resume_url && isCandidate && (
                 <a 
                   href={profile.resume_url.startsWith("http") ? profile.resume_url : `/api${profile.resume_url}`} 
                   target="_blank" 
@@ -101,49 +105,52 @@ const PublicProfile = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Work Experience */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-xl font-bold text-[#013362] mb-4 flex items-center gap-2">
-              <Briefcase className="w-5 h-5" /> Work Experience
-            </h3>
-            <div className="space-y-6">
-              {profile.experiences?.length > 0 ? profile.experiences.map((exp, i) => (
-                <div key={i} className="border-l-2 border-gray-100 pl-4 relative">
-                  <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-200"></div>
-                  <h4 className="font-bold text-gray-800">{exp.title}</h4>
-                  <div className="text-sm font-semibold text-[#005193]">{exp.company}</div>
-                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {formatDate(exp.start_date)} - {formatDate(exp.end_date)}
+        {/* Only show Work Experience & Education for Candidates */}
+        {isCandidate && (
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Work Experience */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-xl font-bold text-[#013362] mb-4 flex items-center gap-2">
+                <Briefcase className="w-5 h-5" /> Work Experience
+              </h3>
+              <div className="space-y-6">
+                {profile.experiences?.length > 0 ? profile.experiences.map((exp, i) => (
+                  <div key={i} className="border-l-2 border-gray-100 pl-4 relative">
+                    <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-200"></div>
+                    <h4 className="font-bold text-gray-800">{exp.title}</h4>
+                    <div className="text-sm font-semibold text-[#005193]">{exp.company}</div>
+                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {formatDate(exp.start_date)} - {formatDate(exp.end_date)}
+                    </div>
+                    {exp.description && <p className="text-sm text-gray-600 mt-2">{exp.description}</p>}
                   </div>
-                  {exp.description && <p className="text-sm text-gray-600 mt-2">{exp.description}</p>}
-                </div>
-              )) : <p className="text-gray-500 italic text-sm">No work experience listed.</p>}
+                )) : <p className="text-gray-500 italic text-sm">No work experience listed.</p>}
+              </div>
             </div>
-          </div>
 
-          {/* Education */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-xl font-bold text-[#013362] mb-4 flex items-center gap-2">
-              <BookOpen className="w-5 h-5" /> Education
-            </h3>
-            <div className="space-y-6">
-              {profile.educations?.length > 0 ? profile.educations.map((edu, i) => (
-                <div key={i} className="border-l-2 border-gray-100 pl-4 relative">
-                  <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-200"></div>
-                  <h4 className="font-bold text-gray-800">{edu.degree}</h4>
-                  <div className="text-sm font-semibold text-[#005193]">{edu.institution}</div>
-                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {formatDate(edu.start_date)} - {formatDate(edu.end_date)}
+            {/* Education */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-xl font-bold text-[#013362] mb-4 flex items-center gap-2">
+                <BookOpen className="w-5 h-5" /> Education
+              </h3>
+              <div className="space-y-6">
+                {profile.educations?.length > 0 ? profile.educations.map((edu, i) => (
+                  <div key={i} className="border-l-2 border-gray-100 pl-4 relative">
+                    <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-200"></div>
+                    <h4 className="font-bold text-gray-800">{edu.degree}</h4>
+                    <div className="text-sm font-semibold text-[#005193]">{edu.institution}</div>
+                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {formatDate(edu.start_date)} - {formatDate(edu.end_date)}
+                    </div>
+                    {edu.description && <p className="text-sm text-gray-600 mt-2">{edu.description}</p>}
                   </div>
-                  {edu.description && <p className="text-sm text-gray-600 mt-2">{edu.description}</p>}
-                </div>
-              )) : <p className="text-gray-500 italic text-sm">No education listed.</p>}
+                )) : <p className="text-gray-500 italic text-sm">No education listed.</p>}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

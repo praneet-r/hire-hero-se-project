@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify, current_app
 from ..database import db
 from ..models import Application, User, Job
 from ..utils import get_current_user
+from ..services.matching_service import matching_service
+import json
 
 application_bp = Blueprint('application_bp', __name__)
 
@@ -43,10 +45,15 @@ def create_application():
     if existing:
         return jsonify({'error': 'You have already applied to this job'}), 400 # YAML says 400 for bad request
 
+    # Calculate Match Score & Explanation
+    score = matching_service.calculate_score(user.profile, job)
+
     app = Application(
         user_id=user.id,
         job_id=job_id,
-        status='applied' # Default status
+        status='applied', # Default status
+        match_score=score,
+        match_explanation=None
     )
     # TODO: Handle cover_letter if model supports
     db.session.add(app)
@@ -82,7 +89,11 @@ def get_my_applications():
                 'company': job.company if job else '',
                 'tags': job.tags.split(',') if job and job.tags else [],
                 'description': job.description if job else '',
-                'salary': job.salary if job else 'Not disclosed'
+                'salary': job.salary if job else 'Not disclosed',
+                'experience_level': job.experience_level if job else '',
+                'education': job.education if job else '',
+                'remote_option': job.remote_option if job else '',
+                'benefits': job.benefits if job else ''
             }
         })
     return jsonify(enriched)
@@ -163,6 +174,23 @@ def get_company_applications():
     for app in applications:
         job = app.job
         user = User.query.get(app.user_id)
+
+        try:
+            analysis = json.loads(app.match_explanation) if app.match_explanation else None
+        except:
+            analysis = None
+
+        # Fetch Interview Details
+        interview_info = None
+        if app.interviews:
+            # Sort to get the latest interview
+            latest_interview = sorted(app.interviews, key=lambda x: x.scheduled_at, reverse=True)[0]
+            interview_info = {
+                'scheduled_at': latest_interview.scheduled_at.isoformat(),
+                'location_type': latest_interview.location_type,
+                'location_detail': latest_interview.location_detail
+            }
+
         enriched.append({
             'id': app.id,
             'user_id': app.user_id,
@@ -170,7 +198,10 @@ def get_company_applications():
             'status': app.status,
             'applied_at': app.applied_at,
             'candidate_name': f"{user.first_name} {user.last_name}" if user else 'Unknown',
-            'job_title': job.title if job else ''
+            'job_title': job.title if job else '',
+            'match_score': app.match_score,
+            'match_analysis': analysis,
+            'interview_details': interview_info # Added interview info
         })
     return jsonify({'pagination': {}, 'applications': enriched})
 
@@ -208,6 +239,39 @@ def update_application_status(app_id):
         app.status = status
     db.session.commit()
     return jsonify({'message': 'Application status updated'})
+
+@application_bp.route('/hr/applications/<int:app_id>/explanation', methods=['GET'])
+def get_application_explanation(app_id):
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    app = Application.query.get_or_404(app_id)
+    
+    # 1. Check if explanation already exists
+    if app.match_explanation:
+        # Return existing (cached) explanation
+        try:
+            return jsonify(json.loads(app.match_explanation))
+        except:
+            return jsonify({'error': 'Invalid stored data'}), 500
+
+    # 2. If not, generate it now (Incurs API cost)
+    candidate_profile = app.user.profile
+    job = app.job
+    
+    # Generate
+    explanation_json_str = matching_service.generate_explanation(
+        candidate_profile, 
+        job, 
+        app.match_score
+    )
+    
+    # 3. Save to DB for future use
+    app.match_explanation = explanation_json_str
+    db.session.commit()
+    
+    return jsonify(json.loads(explanation_json_str))
 
 # --- HR - Screening & Feedback (Scaffold) ---
 
