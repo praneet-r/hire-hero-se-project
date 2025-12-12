@@ -204,7 +204,7 @@ export default function DashboardHR() {
             .filter(app => app.status === 'interviewing')
             .map(app => ({
                 id: app.id,
-                user_id: app.user_id, // Ensure user_id is passed
+                user_id: app.user_id,
                 name: app.candidate_name,
                 role: app.job_title,
                 score: Math.round(app.match_score || 0),
@@ -407,12 +407,12 @@ export default function DashboardHR() {
                                             <p className="font-bold text-gray-800 text-sm">{interview.name}</p>
                                             <p className="text-xs text-gray-500 mt-0.5">{interview.role}</p>
                                             
-                                            {/* Interview Details on Card (Compact) */}
+                                            {/* Interview Details on Card (Compact) with UK Date Format */}
                                             {interview.interview && (
                                                 <div className="mt-2 text-xs text-gray-600 space-y-1">
                                                     <p className="flex items-center gap-1">
                                                         <Clock className="w-3 h-3 text-[#005193]" />
-                                                        {new Date(interview.interview.scheduled_at).toLocaleDateString()}
+                                                        {new Date(interview.interview.scheduled_at).toLocaleDateString('en-GB')}
                                                     </p>
                                                     <p className="flex items-center gap-1">
                                                         {interview.interview.location_type === 'phone' ? (
@@ -526,7 +526,8 @@ export default function DashboardHR() {
                                 <div>
                                     <p className="text-xs text-gray-500 font-bold uppercase tracking-wide">Date & Time</p>
                                     <p className="text-sm font-medium text-gray-800">
-                                        {new Date(selectedInterview.interview.scheduled_at).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                        {/* Updated to UK format in Modal */}
+                                        {new Date(selectedInterview.interview.scheduled_at).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                     </p>
                                     <p className="text-sm text-gray-600">
                                         {new Date(selectedInterview.interview.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -580,7 +581,6 @@ export default function DashboardHR() {
                         <button 
                             onClick={() => {
                                 setSelectedInterview(null);
-                                // Optional: Navigate to recruitment tab to take action
                                 navigate("/dashboard-hr", { state: { activeTab: "recruitment" } });
                             }} 
                             className="flex-1 py-2 text-center text-sm font-semibold text-white bg-[#005193] rounded-lg hover:opacity-90 transition shadow-md"

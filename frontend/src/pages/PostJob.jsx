@@ -353,10 +353,10 @@ const PostJob = () => {
                           <label className="text-sm font-medium block mb-1">Application Deadline</label>
                           <input type="date" name="application_deadline" value={formData.application_deadline} onChange={handleChange} className="w-full p-2 border rounded-xl" />
                         </div>
-                        <label className="flex items-center gap-2 text-sm">
+                        {/* <label className="flex items-center gap-2 text-sm">
                           <input type="checkbox" name="enableAIScreening" checked={formData.enableAIScreening} onChange={handleChange} />
                           Enable AI screening
-                        </label>
+                        </label> */}
                       </div>
                     </div>
                   </div>

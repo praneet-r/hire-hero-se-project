@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from ..services.llm_service import llm_service
-from ..models import Job, Application, User, ChatMessage, Employee
-from ..database import db # <--- Added db
+from ..models import Job, Application, User, ChatMessage, Employee # Added Employee
+from ..database import db
 from ..utils import get_current_user
 import json
 
@@ -101,8 +101,9 @@ def generate_jd():
     data = request.json
     title = data.get('title')
     company = data.get('company_name')
+    department = data.get('department', 'General') # Get Department
 
-    # UPDATED PROMPT: Explicitly ask for JSON structure
+    # UPDATED PROMPT: Include Department info
     system_prompt = """You are an expert HR assistant. Generate a detailed job description in strict JSON format. 
     The JSON must have the following keys:
     - "generated_description": A professional summary of the role.
@@ -110,13 +111,15 @@ def generate_jd():
     - "generated_qualifications": A list of strings (3-5 bullet points).
     Do not include any markdown formatting like ```json ... ```."""
     
-    user_prompt = f"Generate a JD for {title} at {company}."
+    user_prompt = f"Generate a detailed Job Description for the position of '{title}' at '{company}' in the '{department}' department."
 
     response_text = llm_service.generate_text(system_prompt, user_prompt)
 
     # Clean up markdown if Gemini adds it despite instructions
     if response_text.startswith("```json"):
         response_text = response_text.replace("```json", "").replace("```", "")
+    elif response_text.startswith("```"):
+        response_text = response_text.replace("```", "")
 
     try:
         response_json = json.loads(response_text)
@@ -252,101 +255,8 @@ def summarize_feedback():
 
     return jsonify(response_json)
 
-@genai_bp.route('/gen-ai/performance-insights', methods=['POST'])
-def generate_performance_insights():
-    user = get_current_user()
-    if not user or user.role != 'hr':
-        return jsonify({'error': 'Unauthorized'}), 403
+# --- NEW: Mock Interview Endpoints ---
 
-    # 1. Fetch Data
-    employees = Employee.query.filter_by(hired_by=user.id).all()
-    if not employees:
-        return jsonify([])
-
-    # 2. Pre-process Stats (Python side)
-    dept_scores = {}
-    recent_comments = []
-    total_rating = 0
-    rating_count = 0
-    
-    for emp in employees:
-        emp_ratings = [p.rating for p in emp.performances if p.rating]
-        if emp_ratings:
-            avg = sum(emp_ratings) / len(emp_ratings)
-            
-            # Dept Stats
-            dept = emp.department or "Unknown"
-            if dept not in dept_scores:
-                dept_scores[dept] = {'sum': 0, 'count': 0}
-            dept_scores[dept]['sum'] += avg
-            dept_scores[dept]['count'] += 1
-            
-            total_rating += avg
-            rating_count += 1
-
-        # Collect last 2 comments per employee
-        if emp.performances:
-            # Sort reviews by date descending
-            sorted_reviews = sorted(emp.performances, key=lambda x: x.date, reverse=True)
-            for p in sorted_reviews[:2]:
-                if p.comments:
-                    recent_comments.append(f"[{emp.department}] {p.comments}")
-
-    # Limit comments to avoid token limits
-    recent_comments = recent_comments[:15]
-
-    # 3. Construct Prompts Locally
-    dept_summary = ", ".join([
-        f"{d}: {round(v['sum']/v['count'], 1)}" 
-        for d, v in dept_scores.items()
-    ])
-    
-    global_avg = round(total_rating / rating_count, 1) if rating_count else 0
-
-    stats_context = f"""
-    Global Average Rating: {global_avg}/5.0
-    Department Averages: {dept_summary}
-    Recent Review Sample:
-    {chr(10).join(recent_comments)}
-    """
-
-    system_prompt = """
-    You are an HR Data Analyst for HireHero. Analyze the provided performance metrics and review comments.
-    Generate exactly 3 actionable insights in strict JSON format.
-    
-    The JSON output must be a list of objects with these keys:
-    - "title": Short headline (e.g., "Engineering Risk", "Top Talent").
-    - "detail": A 1-2 sentence explanation of the finding.
-    - "type": One of "success" (positive), "warning" (negative/risk), "info" (neutral).
-
-    Focus on:
-    1. Identifying departments with high/low averages.
-    2. Spotting sentiment trends in recent comments (e.g., burnout, high energy).
-    3. Flagging potential retention risks or training needs.
-    
-    Do not include markdown formatting like ```json ... ```.
-    """
-    
-    user_prompt = f"Performance Data Analysis:\n{stats_context}"
-
-    # 4. Call AI
-    response_text = llm_service.generate_text(system_prompt, user_prompt)
-
-    # Clean up markdown if Gemini adds it
-    if response_text.startswith("```json"):
-        response_text = response_text.replace("```json", "").replace("```", "")
-    elif response_text.startswith("```"):
-        response_text = response_text.replace("```", "")
-
-    try:
-        insights = json.loads(response_text)
-        return jsonify(insights)
-    except Exception as e:
-        print(f"Insight Generation Error: {e}")
-        return jsonify([
-            {"title": "Analysis Error", "detail": "Could not generate insights from the data provided.", "type": "info"}
-        ])
-    
 @genai_bp.route('/gen-ai/mock-interview/start', methods=['POST'])
 def start_mock_interview():
     user = get_current_user()
@@ -437,3 +347,96 @@ def submit_mock_interview():
         return jsonify(evaluation)
     except:
         return jsonify({'error': 'Failed to generate evaluation'}), 500
+
+@genai_bp.route('/gen-ai/performance-insights', methods=['POST'])
+def generate_performance_insights():
+    user = get_current_user()
+    if not user or user.role != 'hr':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    # 1. Fetch Data
+    employees = Employee.query.filter_by(hired_by=user.id).all()
+    if not employees:
+        return jsonify([])
+
+    # 2. Pre-process Stats (Python side)
+    dept_scores = {}
+    recent_comments = []
+    total_rating = 0
+    rating_count = 0
+    
+    for emp in employees:
+        emp_ratings = [p.rating for p in emp.performances if p.rating]
+        if emp_ratings:
+            avg = sum(emp_ratings) / len(emp_ratings)
+            
+            # Dept Stats
+            dept = emp.department or "Unknown"
+            if dept not in dept_scores:
+                dept_scores[dept] = {'sum': 0, 'count': 0}
+            dept_scores[dept]['sum'] += avg
+            dept_scores[dept]['count'] += 1
+            
+            total_rating += avg
+            rating_count += 1
+
+        # Collect last 2 comments per employee
+        if emp.performances:
+            sorted_reviews = sorted(emp.performances, key=lambda x: x.date, reverse=True)
+            for p in sorted_reviews[:2]:
+                if p.comments:
+                    recent_comments.append(f"[{emp.department}] {p.comments}")
+
+    recent_comments = recent_comments[:15]
+
+    # 3. Construct Context
+    dept_summary = ", ".join([
+        f"{d}: {round(v['sum']/v['count'], 1)}" 
+        for d, v in dept_scores.items()
+    ])
+    
+    global_avg = round(total_rating / rating_count, 1) if rating_count else 0
+
+    stats_context = f"""
+    Global Average Rating: {global_avg}/5.0
+    Department Averages: {dept_summary}
+    Recent Review Sample:
+    {chr(10).join(recent_comments)}
+    """
+
+    # --- UPDATED PROMPT: Enforce 1 of each type ---
+    system_prompt = """
+    You are an HR Data Analyst for HireHero. Analyze the provided performance metrics and review comments.
+    Generate exactly 3 actionable insights in strict JSON format.
+    
+    You MUST generate exactly one insight for each of the following categories:
+    1. A "success" insight: Highlight a high-performing department, positive trend, or praise.
+    2. A "warning" insight: Highlight a low-performing area, risk, or negative sentiment.
+    3. An "info" insight: A neutral observation about the data distribution or volume.
+    
+    The output must be a JSON list of objects with these keys:
+    - "title": Short headline (e.g., "Engineering Exceling").
+    - "detail": A 1-2 sentence explanation.
+    - "type": The category ("success", "warning", or "info").
+    
+    Do not include markdown formatting.
+    """
+    
+    user_prompt = f"Performance Data Analysis:\n{stats_context}"
+
+    # 4. Call AI
+    response_text = llm_service.generate_text(system_prompt, user_prompt)
+
+    if response_text.startswith("```json"):
+        response_text = response_text.replace("```json", "").replace("```", "")
+    elif response_text.startswith("```"):
+        response_text = response_text.replace("```", "")
+
+    try:
+        insights = json.loads(response_text)
+        return jsonify(insights)
+    except Exception as e:
+        print(f"Insight Generation Error: {e}")
+        return jsonify([
+            {"title": "Analysis Error", "detail": "Could not generate insights.", "type": "info"}
+        ])

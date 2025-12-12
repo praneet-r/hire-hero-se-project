@@ -17,9 +17,8 @@ import {
 // Colors for Pie Chart
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-// --- Reusable Metric Card Component (Defined Before Usage) ---
+// --- Reusable Metric Card Component ---
 const MetricCard = ({ title, value, icon: Icon, color, bg, sub }) => {
-    // Safety check: If Icon is undefined (import failed), fallback to Activity
     const ValidIcon = Icon || Activity; 
     
     return (
@@ -77,10 +76,8 @@ const AnalyticsTab = () => {
         let salaryCount = 0;
         employees.forEach(emp => {
             const type = (emp.employment_type || "").toLowerCase();
-            // Check for Full-Time or Part-Time
             if (type === 'full-time' || type === 'part-time') {
                 if (emp.salary) {
-                    // Remove non-numeric chars except dots
                     const cleanSal = emp.salary.toString().replace(/[^0-9.]/g, '');
                     const val = parseFloat(cleanSal);
                     if (!isNaN(val) && val > 0) {
@@ -91,12 +88,11 @@ const AnalyticsTab = () => {
             }
         });
         
-        // Format Salary
         let avgSalaryDisplay = "0";
         if (salaryCount > 0) {
             const avg = totalSalary / salaryCount;
-            if (avg > 100000) avgSalaryDisplay = `₹${(avg / 100000).toFixed(1)} LPA`; // Lakhs
-            else avgSalaryDisplay = `₹${(avg / 1000).toFixed(0)}k`; // Thousands
+            if (avg > 100000) avgSalaryDisplay = `₹${(avg / 100000).toFixed(1)} LPA`; 
+            else avgSalaryDisplay = `₹${(avg / 1000).toFixed(0)}k`; 
         }
 
         setMetrics({
@@ -142,6 +138,14 @@ const AnalyticsTab = () => {
             name: m,
             applications: monthCounts[m]
         }));
+
+        // *** FIX: Sort Months Chronologically ***
+        const monthOrder = {
+            "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+            "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12
+        };
+        processedTrend.sort((a, b) => monthOrder[a.name] - monthOrder[b.name]);
+
         setTrendData(processedTrend);
 
         // --- 4. Process Department Distribution ---
@@ -184,7 +188,6 @@ const AnalyticsTab = () => {
         <h1 className="text-2xl font-extrabold text-[#013362] flex items-center gap-2">
           <Activity className="h-6 w-6 text-[#005193]" /> HR Analytics
         </h1>
-        {/* Filter Button Removed */}
       </div>
 
       {/* Key Metrics Cards */}

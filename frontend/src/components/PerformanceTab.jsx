@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer
 } from "recharts";
 import { Star, User, Download, Activity, Sparkles, RefreshCw, Clock } from "lucide-react";
-import { getEmployees, generatePerformanceInsights } from "../services/api"; // Updated Import
+import { getEmployees, generatePerformanceInsights } from "../services/api";
 
 const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#a855f7"];
 
@@ -21,6 +21,10 @@ const Performance = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Get current user ID to scope the cache
+  const userId = localStorage.getItem("user_id");
+  const insightsCacheKey = `hr_performance_insights_${userId || 'guest'}`;
 
   useEffect(() => {
     async function loadData() {
@@ -67,6 +71,13 @@ const Performance = () => {
                 rating: parseFloat((trendMap[m].sum / trendMap[m].count).toFixed(1))
             }));
 
+            // *** FIX: Sort Months Chronologically ***
+            const monthOrder = {
+                "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+                "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12
+            };
+            performanceTrends.sort((a, b) => monthOrder[a.month] - monthOrder[b.month]);
+
             // Recent Reviews (Reverse Sort)
             const recentReviews = [...allReviews].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
@@ -90,18 +101,18 @@ const Performance = () => {
     }
     loadData();
 
-    // Load Cached AI Insights
-    const cached = localStorage.getItem("hr_performance_insights");
+    // Load Cached AI Insights (Scoped to User)
+    const cached = localStorage.getItem(insightsCacheKey);
     if (cached) {
         try {
             const parsed = JSON.parse(cached);
             setAiInsights(parsed.insights);
             setLastUpdated(parsed.timestamp);
         } catch (e) {
-            localStorage.removeItem("hr_performance_insights");
+            localStorage.removeItem(insightsCacheKey);
         }
     }
-  }, []);
+  }, [insightsCacheKey]);
 
   const handleFetchInsights = async () => {
       setAiLoading(true);
@@ -112,7 +123,7 @@ const Performance = () => {
           setAiInsights(insights);
           setLastUpdated(timestamp);
           
-          localStorage.setItem("hr_performance_insights", JSON.stringify({
+          localStorage.setItem(insightsCacheKey, JSON.stringify({
               insights,
               timestamp
           }));
@@ -139,7 +150,8 @@ const Performance = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <SummaryCard label="Total Employees" value={summary.total} icon={User} />
-        <SummaryCard label="Avg Rating" value={summary.avg} icon={Star} color="text-yellow-500" />
+        {/* Updated Label */}
+        <SummaryCard label="Avg Employee Rating" value={summary.avg} icon={Star} color="text-yellow-500" />
         <SummaryCard label="Total Reviews" value={summary.totalReviews} icon={Activity} />
         <SummaryCard label="Remote / Hybrid" value={`${summary.remote} / ${summary.hybrid}`} icon={User} />
       </div>
@@ -215,7 +227,9 @@ const Performance = () => {
                 <div className="flex items-center justify-end gap-1 text-yellow-500 font-bold">
                     {r.rating} <Star className="w-3 h-3 fill-current" />
                 </div>
-                <span className="text-xs text-gray-400">{new Date(r.date).toLocaleDateString()}</span>
+                <span className="text-xs text-gray-400">
+                    {new Date(r.date).toLocaleDateString('en-GB')}
+                </span>
               </div>
             </div>
           )) : <div className="text-gray-500 italic">No reviews submitted yet.</div>}

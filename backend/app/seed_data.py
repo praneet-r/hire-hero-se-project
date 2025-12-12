@@ -6,16 +6,10 @@ import random
 import csv
 import os
 
-# ==========================================
-# CONFIGURATION
-# Set to False to disable dummy data generation
-# ==========================================
-CREATE_DUMMY_DATA = True
-
 def seed_database():
-    if not CREATE_DUMMY_DATA:
-        return
-
+    """
+    Clears the database and repopulates it with dummy data.
+    """
     print("--- Clearing existing data ---")
     db.drop_all()
     db.create_all()
@@ -71,24 +65,27 @@ def seed_database():
 
     # --- 10 Field Definitions (Grouped by Similarity) ---
     fields_config = [
-        # Group A: Tech
+        # Group A: Tech (UPDATED for better overlap with Data Science)
         {
             "name": "Software Engineering",
             "company": "TechNova Solutions",
             "jobs": ["Senior Full Stack Developer", "DevOps Engineer"],
-            "skills": ["Python", "JavaScript", "React", "AWS", "Docker", "Kubernetes", "SQL", "Git", "CI/CD", "Node.js"],
+            # Added Data/Cloud skills shared with DS
+            "skills": ["Python", "JavaScript", "React", "AWS", "SQL", "Git", "APIs", "Data Integration", "Backend Development", "System Design"],
             "degrees": ["B.Tech in Computer Science", "M.S. in Software Engineering"],
-            "summaries": ["Passionate Software Engineer with 6+ years of experience building scalable web applications. Expert in Python and JavaScript ecosystems.", "DevOps specialist with a background in automating infrastructure and deployment pipelines."]
+            "summaries": ["Full Stack Developer with expertise in building scalable web apps and integrating data-driven backends using Python and SQL.", "DevOps Engineer skilled in cloud infrastructure (AWS) and automating data pipelines for production systems."]
         },
+        # Group B: Data Science (UPDATED for better overlap with Tech)
         {
             "name": "Data Science",
             "company": "TechNova Solutions",
             "jobs": ["Data Scientist", "Machine Learning Engineer"],
-            "skills": ["Python", "Machine Learning", "Pandas", "NumPy", "TensorFlow", "SQL", "Data Analysis", "Statistics", "AWS", "Visualization"],
+            # Added Engineering skills shared with SE
+            "skills": ["Python", "SQL", "Machine Learning", "Pandas", "AWS", "Git", "APIs", "Data Analysis", "Model Deployment", "Software Engineering"],
             "degrees": ["M.S. in Data Science", "B.Tech in Computer Science"],
-            "summaries": ["Analytical Data Scientist with a strong background in machine learning and statistical modeling. Experienced in building predictive models.", "Machine Learning Engineer focused on deploying scalable AI solutions. Proficient in Python and deep learning frameworks."]
+            "summaries": ["Data Scientist with strong software engineering fundamentals. Experienced in building production-ready models and APIs using Python.", "Machine Learning Engineer focused on deploying scalable AI solutions on AWS. Proficient in Python, SQL, and system design."]
         },
-        # Group B: Medical (UPDATED for better overlap with Pharmacy)
+        # Group C: Medical (Keep as is from previous update)
         {
             "name": "Healthcare",
             "company": "City General Hospital",
@@ -105,7 +102,7 @@ def seed_database():
             "degrees": ["Doctor of Pharmacy (Pharm.D.)", "Pharmacy Technician Certification"],
             "summaries": ["Licensed Pharmacist with a focus on patient safety and medication therapy management. Strong knowledge of drug interactions.", "Certified Pharmacy Technician with experience in retail and hospital settings. Efficient and organized."]
         },
-        # Group C: Marketing
+        # Group D: Marketing
         {
             "name": "Digital Marketing",
             "company": "GrowthHive Agency",
@@ -122,7 +119,7 @@ def seed_database():
             "degrees": ["B.A. in Public Relations", "B.A. in Communications"],
             "summaries": ["Strategic Public Relations Manager with a proven track record of managing media relations and corporate communications.", "Content Strategist passionate about storytelling and brand messaging. Experienced in creating engaging content."]
         },
-        # Group D: Legal
+        # Group E: Legal
         {
             "name": "Legal",
             "company": "Vanguard Law Firm",
@@ -139,7 +136,7 @@ def seed_database():
             "degrees": ["Master's in Business Law", "B.S. in Business Administration"],
             "summaries": ["Compliance Officer dedicated to ensuring organizational adherence to laws and regulations. Strong background in risk assessment.", "Risk Manager with experience in identifying and mitigating business risks. Skilled in developing control systems."]
         },
-        # Group E: Finance
+        # Group F: Finance
         {
             "name": "Finance",
             "company": "Summit Capital",
@@ -200,9 +197,20 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
     def gen_phone():
         return f"{random.choice(['9', '8', '7'])}{random.randint(100000000, 999999999)}"
 
-    # --- Helper: Generate Salary ---
-    def gen_salary():
-        return str(random.randint(5, 45) * 100000)
+    # --- Helper: Generate Salary (Updated for Sensible Ranges) ---
+    def gen_salary(emp_type):
+        if emp_type == "Internship":
+            # 10k to 50k per month
+            return str(random.randint(10, 50) * 1000)
+        elif emp_type == "Part-Time":
+            # Avg half of full time (~2.5L to 20L per annum)
+            return str(random.randint(25, 200) * 10000)
+        elif emp_type == "Contract":
+            # Contract (~4L to 35L fixed)
+            return str(random.randint(4, 35) * 100000)
+        else: # Full-Time
+            # 5L to 45L per annum
+            return str(random.randint(5, 45) * 100000)
 
     # --- 1. Create HR Users (5) ---
     print("\n--- Seeding HR Users ---")
@@ -234,80 +242,89 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
             db.session.add(profile)
     db.session.commit()
 
-    # --- 2. Create Employees (15) ---
+    # --- 2. Create Employees (5 per HR = 25 total) ---
     print("\n--- Seeding Employees ---")
+    emp_counter = 1
     
-    for i in range(1, 16):
-        full_name = random.choice(male_names + female_names)
-        is_female = full_name in female_names
-        fname = full_name
-        lname = random.choice(last_names)
-        email = f"employee{i}@gmail.com"
-        
-        assigned_hr, assigned_fields = hr_users[(i-1) % 5]
-        field_data = random.choice(assigned_fields)
-        
-        emp_user = create_user(email, fname, lname, "employee")
-        
-        emp_location = random.choice(locations)
-
-        if not emp_user.profile:
-            profile = Profile(
-                user_id=emp_user.id,
-                phone=gen_phone(),
-                location=emp_location,
-                summary=f"Employee at {field_data['company']}.",
-                profile_pic=f"/uploads/{'woman.png' if is_female else 'man.png'}"
-            )
-            db.session.add(profile)
-            db.session.flush()
-
-        if not emp_user.employee:
-            # Randomize employee job location (On-site, Hybrid, Remote)
-            loc_type = random.choice(["On-site", "Hybrid", "Remote"])
-            if loc_type == "On-site":
-                job_loc = emp_location
-            elif loc_type == "Hybrid":
-                job_loc = f"Hybrid ({emp_location})"
-            else:
-                job_loc = "Remote"
-
-            emp_type = random.choice(["Full-Time", "Part-Time", "Contract", "Internship"])
-
-            emp = Employee(
-                user_id=emp_user.id,
-                job_title=random.choice(field_data["jobs"]),
-                department=field_data["name"],
-                job_location=job_loc,
-                employment_type=emp_type,
-                salary=gen_salary(),
-                hired_at=datetime.utcnow() - timedelta(days=random.randint(30, 1000)),
-                photo=f"/uploads/{'woman.png' if is_female else 'man.png'}",
-                hired_by=assigned_hr.id
-            )
-            db.session.add(emp)
-            db.session.commit()
+    for hr_user, assigned_fields in hr_users:
+        # Create 5 employees for this specific HR
+        for k in range(5):
+            full_name = random.choice(male_names + female_names)
+            is_female = full_name in female_names
+            fname = full_name
+            lname = random.choice(last_names)
+            email = f"employee{emp_counter}@gmail.com"
             
-            # --- PERFORMANCE SEEDING ---
-            for _ in range(random.randint(1, 4)):
-                review_date = datetime.utcnow() - timedelta(days=random.randint(1, 365))
-                rating = round(random.uniform(3.0, 5.0), 1)
-                comments_pool = [
-                    "Exceeds expectations in delivery.",
-                    "Needs to improve communication skills.",
-                    "Great team player, always helpful.",
-                    "Consistent performance throughout the quarter.",
-                    "Showed great initiative on the last project.",
-                    "Technical skills are strong, but missed a few deadlines."
-                ]
-                
-                perf = Performance(
-                    employee_id=emp.id,
-                    rating=rating,
-                    comments=random.choice(comments_pool),
-                    date=review_date
+            field_data = random.choice(assigned_fields)
+            
+            # Employment Type Logic: First 2 are Full-Time, others random
+            if k < 2:
+                emp_type = "Full-Time"
+            else:
+                emp_type = random.choice(["Full-Time", "Part-Time", "Contract", "Internship"])
+            
+            emp_user = create_user(email, fname, lname, "employee")
+            
+            emp_location = random.choice(locations)
+
+            if not emp_user.profile:
+                profile = Profile(
+                    user_id=emp_user.id,
+                    phone=gen_phone(),
+                    location=emp_location,
+                    summary=f"Employee at {field_data['company']}.",
+                    profile_pic=f"/uploads/{'woman.png' if is_female else 'man.png'}"
                 )
-                db.session.add(perf)
+                db.session.add(profile)
+                db.session.flush()
+
+            if not emp_user.employee:
+                # Randomize employee job location (On-site, Hybrid, Remote)
+                loc_type = random.choice(["On-site", "Hybrid", "Remote"])
+                if loc_type == "On-site":
+                    job_loc = emp_location
+                elif loc_type == "Hybrid":
+                    job_loc = f"Hybrid ({emp_location})"
+                else:
+                    job_loc = "Remote"
+
+                emp = Employee(
+                    user_id=emp_user.id,
+                    job_title=random.choice(field_data["jobs"]),
+                    department=field_data["name"],
+                    job_location=job_loc,
+                    employment_type=emp_type,
+                    salary=gen_salary(emp_type), # Use context-aware salary
+                    hired_at=datetime.utcnow() - timedelta(days=random.randint(30, 1000)),
+                    photo=f"/uploads/{'woman.png' if is_female else 'man.png'}",
+                    hired_by=hr_user.id
+                )
+                db.session.add(emp)
+                db.session.commit()
+                
+                # --- PERFORMANCE SEEDING ---
+                for _ in range(random.randint(1, 4)):
+                    review_date = datetime.utcnow() - timedelta(days=random.randint(1, 365))
+                    rating = round(random.uniform(3.0, 5.0), 1)
+                    comments_pool = [
+                        "Exceeds expectations in delivery.",
+                        "Needs to improve communication skills.",
+                        "Great team player, always helpful.",
+                        "Consistent performance throughout the quarter.",
+                        "Showed great initiative on the last project.",
+                        "Technical skills are strong, but missed a few deadlines."
+                    ]
+                    
+                    perf = Performance(
+                        employee_id=emp.id,
+                        rating=rating,
+                        comments=random.choice(comments_pool),
+                        date=review_date
+                    )
+                    db.session.add(perf)
+            
+            emp_counter += 1
+
     db.session.commit()
 
     # --- 3. Create Jobs (10) ---
@@ -331,6 +348,9 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
             rem_opt = random.choice(remote_options)
             if rem_opt == "Remote":
                 job_loc = "Remote"
+            
+            # Determine job type first to generate sensible salary
+            selected_job_type = random.choice(job_types)
 
             # Backdate the Job Posting
             job_posted_date = datetime.utcnow() - timedelta(days=random.randint(30, 60))
@@ -341,11 +361,11 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 department=field_data["name"],
                 description=generate_job_description(title, field_data["company"], field_data["name"]),
                 location=job_loc,
-                type=random.choice(job_types),
+                type=selected_job_type,
                 remote_option=rem_opt,
                 experience_level=random.choice(exp_levels),
                 education=random.choice(edu_reqs),
-                salary=gen_salary(),
+                salary=gen_salary(selected_job_type), # Context-aware salary
                 tags=",".join(field_data["skills"][:5]),
                 benefits=job_benefits,
                 application_deadline=(datetime.utcnow() + timedelta(days=random.randint(10, 60))).strftime('%Y-%m-%d'),
@@ -450,6 +470,7 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 idx = k
                 break
         
+        # Similar department logic (adjacent in list)
         similar_idx = idx + 1 if idx % 2 == 0 else idx - 1
         similar_dept = fields_config[similar_idx]["name"]
         
@@ -501,7 +522,7 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                     db.session.add(interview)
 
     db.session.commit()
-    print(f"  [+] Created {app_count} applications.")
+
     print("--- Database Seed Complete ---")
     print("DEMO CREDENTIALS:")
     print("  HR (Software/Data): hr1@gmail.com / 123")
