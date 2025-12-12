@@ -8,14 +8,14 @@ import os
 
 def seed_database():
     """
-    Clears the database and repopulates it with dummy data.
+    Clears the database and repopulates it with rich, context-aware dummy data.
     """
     print("--- Clearing existing data ---")
     db.drop_all()
     db.create_all()
     print("--- Database cleared ---")
 
-    print("--- Seeding with Dummy Data ---")
+    print("--- Seeding with Rich Contextual Data ---")
     
     # --- Data Lists ---
     male_names = [
@@ -34,13 +34,11 @@ def seed_database():
         "Saxena", "Malhotra", "Bhatia", "Kapoor"
     ]
     
-    # --- Locations List ---
     locations = [
         "Bangalore", "Mumbai", "Delhi", "Hyderabad", "Pune", "Chennai", 
         "Gurgaon", "Noida", "Kolkata", "Ahmedabad"
     ]
 
-    # --- Companies & Institutions ---
     company_names = [
         "TechNova Solutions", "Global Corp", "Innovate Inc", "Apex Systems", 
         "CloudWalkers", "DataMinds", "HealthPlus", "FinServe", "Creative Hive", "SoftSynergy"
@@ -63,36 +61,104 @@ def seed_database():
         "Graduated High School with honors in the Commerce stream. Served as the School Prefect and organized various cultural and sports events."
     ]
 
+    # --- Performance Reviews Pool (Context-Aware) ---
+    # Format: (Min Rating, Max Rating, Comment)
+    performance_reviews = {
+        "Software Engineering": [
+            (4.5, 5.0, "Exceptional code quality and system design skills. Consistently delivers features ahead of schedule and mentors junior developers effectively."),
+            (4.0, 4.5, "Strong problem-solving abilities. Delivered the API migration project with zero downtime. Documentation could be slightly more detailed."),
+            (3.0, 3.8, "Good technical skills but needs to improve on sprint estimation accuracy. Code reviews are sometimes delayed."),
+            (2.5, 3.0, "Struggles with meeting deadlines on complex tasks. Code often requires multiple rounds of refactoring.")
+        ],
+        "Data Science": [
+            (4.7, 5.0, "Developed a predictive model that improved customer retention by 15%. Outstanding analytical skills and business insight."),
+            (4.0, 4.6, "Very proficient in Python and SQL. The data visualization dashboard was well-received by stakeholders."),
+            (3.0, 3.5, "Good at model building but needs to focus more on model deployment and scalability aspects."),
+            (2.0, 3.0, "Analysis often lacks depth. Needs to improve understanding of the core business metrics.")
+        ],
+        "Healthcare": [
+            (4.8, 5.0, "Demonstrates exceptional patient care and empathy. Clinical diagnoses are accurate, and patient feedback is consistently positive."),
+            (4.2, 4.7, "Maintains high standards of hygiene and protocol adherence. Very reliable during high-pressure shifts."),
+            (3.2, 3.8, "Competent in clinical procedures but communication with patients' families needs improvement."),
+            (2.5, 3.0, "Has missed several protocol updates. Needs to be more attentive to patient charts.")
+        ],
+        "Pharmacy": [
+            (4.6, 5.0, "Meticulous attention to detail in dispensing medications. Detected a critical drug interaction that saved a patient from complications."),
+            (4.0, 4.5, "Efficient inventory management. Always ensures essential stocks are available. excellent customer service skills."),
+            (3.0, 3.5, "Generally accurate but prescription processing speed during peak hours needs improvement."),
+            (2.5, 2.9, "Occasional errors in stock counting. Needs to focus more during inventory audits.")
+        ],
+        "Digital Marketing": [
+            (4.7, 5.0, "The recent SEO campaign increased organic traffic by 40%. creative content strategy is driving significant engagement."),
+            (4.0, 4.5, "Great management of PPC budgets. ROI has improved consistently over the last quarter."),
+            (3.0, 3.6, "Social media posts are good but posting consistency has been irregular. Needs better calendar planning."),
+            (2.0, 2.8, "Campaign analysis reports are often late and lack actionable insights.")
+        ],
+        "Public Relations": [
+            (4.8, 5.0, "Excellent crisis management during the recent product recall. Maintained positive media relations throughout."),
+            (4.0, 4.5, "Strong network of media contacts. Successfully placed our story in three major national publications."),
+            (3.0, 3.5, "Press releases are well-written but distribution timing needs better coordination with product launches."),
+            (2.5, 3.0, "Struggles to adapt messaging for different social channels.")
+        ],
+        "Legal": [
+            (4.9, 5.0, "Masterful negotiation on the merger deal. Protected company interests while ensuring a smooth closing."),
+            (4.2, 4.8, "Very thorough in contract review. Identified potential liability risks that were previously overlooked."),
+            (3.5, 3.9, "Solid legal research skills, but turnaround time on drafting agreements needs to be faster."),
+            (2.8, 3.2, "Needs to be more proactive in updating the team on regulatory changes.")
+        ],
+        "Corporate Compliance": [
+            (4.7, 5.0, "Revamped the internal audit process, significantly reducing compliance risks. flawless execution."),
+            (4.0, 4.5, " diligent in risk assessment. Training sessions conducted for staff were very effective."),
+            (3.0, 3.5, "Good understanding of regulations, but internal policy documentation is often delayed."),
+            (2.5, 3.0, "Missed a key update in local compliance laws. Needs to stay more current.")
+        ],
+        "Finance": [
+            (4.8, 5.0, "Financial models for the Q3 forecast were incredibly accurate. Strategic insights helped secure investor funding."),
+            (4.2, 4.6, "Excellent analysis of market trends. Investment recommendations have outperformed the benchmark."),
+            (3.2, 3.8, "Strong Excel skills, but presentation of data to non-financial stakeholders needs simplification."),
+            (2.5, 3.0, "Errors found in the monthly valuation report. Attention to detail is crucial.")
+        ],
+        "Accounting": [
+            (4.9, 5.0, "Managed the year-end audit flawlessly. No discrepancies found. Highly organized and efficient."),
+            (4.1, 4.7, "Streamlined the accounts payable process, reducing processing time by 20%. Great initiative."),
+            (3.5, 4.0, "Reliable with day-to-day bookkeeping, but struggles with complex tax reconciliation tasks."),
+            (2.8, 3.2, "Month-end close process is consistently delayed. Needs better time management.")
+        ]
+    }
+
     # --- 10 Field Definitions (Grouped by Similarity) ---
     fields_config = [
-        # Group A: Tech (UPDATED for better overlap with Data Science)
+        # Group A: Tech (Remote Friendly, High Pay)
         {
             "name": "Software Engineering",
             "company": "TechNova Solutions",
             "jobs": ["Senior Full Stack Developer", "DevOps Engineer"],
-            # Added Data/Cloud skills shared with DS
             "skills": ["Python", "JavaScript", "React", "AWS", "SQL", "Git", "APIs", "Data Integration", "Backend Development", "System Design"],
             "degrees": ["B.Tech in Computer Science", "M.S. in Software Engineering"],
-            "summaries": ["Full Stack Developer with expertise in building scalable web apps and integrating data-driven backends using Python and SQL.", "DevOps Engineer skilled in cloud infrastructure (AWS) and automating data pipelines for production systems."]
+            "summaries": ["Full Stack Developer with expertise in building scalable web apps and integrating data-driven backends using Python and SQL.", "DevOps Engineer skilled in cloud infrastructure (AWS) and automating data pipelines for production systems."],
+            "salary_range": (1200000, 4500000),
+            "remote_allowed": True
         },
-        # Group B: Data Science (UPDATED for better overlap with Tech)
         {
             "name": "Data Science",
             "company": "TechNova Solutions",
             "jobs": ["Data Scientist", "Machine Learning Engineer"],
-            # Added Engineering skills shared with SE
             "skills": ["Python", "SQL", "Machine Learning", "Pandas", "AWS", "Git", "APIs", "Data Analysis", "Model Deployment", "Software Engineering"],
             "degrees": ["M.S. in Data Science", "B.Tech in Computer Science"],
-            "summaries": ["Data Scientist with strong software engineering fundamentals. Experienced in building production-ready models and APIs using Python.", "Machine Learning Engineer focused on deploying scalable AI solutions on AWS. Proficient in Python, SQL, and system design."]
+            "summaries": ["Data Scientist with strong software engineering fundamentals. Experienced in building production-ready models and APIs using Python.", "Machine Learning Engineer focused on deploying scalable AI solutions on AWS. Proficient in Python, SQL, and system design."],
+            "salary_range": (1400000, 4800000),
+            "remote_allowed": True
         },
-        # Group C: Medical (Keep as is from previous update)
+        # Group C: Medical (On-site Only, Moderate Pay)
         {
             "name": "Healthcare",
             "company": "City General Hospital",
             "jobs": ["Nurse Practitioner", "Medical Assistant"],
             "skills": ["Patient Counseling", "Pharmacology", "Medication Administration", "Vital Signs", "Medical Terminology", "EHR", "Inventory Management", "Biology", "Dosage Calculations"],
             "degrees": ["Master of Science in Nursing", "Medical Assistant Diploma"],
-            "summaries": ["Experienced Nurse Practitioner with a strong background in pharmacology and patient counseling. Skilled in managing medication therapies.", "Certified Medical Assistant proficient in medication administration and inventory management. Dedicated to patient care."]
+            "summaries": ["Experienced Nurse Practitioner with a strong background in pharmacology and patient counseling. Skilled in managing medication therapies.", "Certified Medical Assistant proficient in medication administration and inventory management. Dedicated to patient care."],
+            "salary_range": (400000, 1200000),
+            "remote_allowed": False
         },
         {
             "name": "Pharmacy",
@@ -100,16 +166,20 @@ def seed_database():
             "jobs": ["Pharmacist", "Pharmacy Technician"],
             "skills": ["Pharmacology", "Medication Dispensing", "Patient Counseling", "Pharmacy Law", "Drug Interactions", "Inventory Management", "Calculations", "Biology"],
             "degrees": ["Doctor of Pharmacy (Pharm.D.)", "Pharmacy Technician Certification"],
-            "summaries": ["Licensed Pharmacist with a focus on patient safety and medication therapy management. Strong knowledge of drug interactions.", "Certified Pharmacy Technician with experience in retail and hospital settings. Efficient and organized."]
+            "summaries": ["Licensed Pharmacist with a focus on patient safety and medication therapy management. Strong knowledge of drug interactions.", "Certified Pharmacy Technician with experience in retail and hospital settings. Efficient and organized."],
+            "salary_range": (350000, 1500000),
+            "remote_allowed": False
         },
-        # Group D: Marketing
+        # Group D: Marketing (Hybrid Friendly, Medium Pay)
         {
             "name": "Digital Marketing",
             "company": "GrowthHive Agency",
             "jobs": ["Digital Marketing Manager", "SEO Specialist"],
             "skills": ["SEO", "SEM", "Google Analytics", "Content Marketing", "Social Media Management", "Copywriting", "Email Marketing", "PPC"],
             "degrees": ["B.A. in Marketing", "Master's in Digital Communications"],
-            "summaries": ["Results-driven Digital Marketing Manager with a focus on growth strategies and brand development. Expert in SEO and PPC.", "Creative SEO Specialist with a knack for optimizing web content and improving organic search rankings."]
+            "summaries": ["Results-driven Digital Marketing Manager with a focus on growth strategies and brand development. Expert in SEO and PPC.", "Creative SEO Specialist with a knack for optimizing web content and improving organic search rankings."],
+            "salary_range": (600000, 2000000),
+            "remote_allowed": True
         },
         {
             "name": "Public Relations",
@@ -117,16 +187,20 @@ def seed_database():
             "jobs": ["Public Relations Manager", "Content Strategist"],
             "skills": ["Public Relations", "Media Relations", "Press Releases", "Content Strategy", "Crisis Management", "Communications", "Social Media", "Writing"],
             "degrees": ["B.A. in Public Relations", "B.A. in Communications"],
-            "summaries": ["Strategic Public Relations Manager with a proven track record of managing media relations and corporate communications.", "Content Strategist passionate about storytelling and brand messaging. Experienced in creating engaging content."]
+            "summaries": ["Strategic Public Relations Manager with a proven track record of managing media relations and corporate communications.", "Content Strategist passionate about storytelling and brand messaging. Experienced in creating engaging content."],
+            "salary_range": (700000, 2200000),
+            "remote_allowed": True
         },
-        # Group E: Legal
+        # Group E: Legal (Hybrid, High Pay)
         {
             "name": "Legal",
             "company": "Vanguard Law Firm",
             "jobs": ["Corporate Attorney", "Legal Paralegal"],
             "skills": ["Corporate Law", "Contract Negotiation", "Legal Research", "Litigation Support", "Compliance", "Drafting", "Case Management"],
             "degrees": ["Juris Doctor (J.D.)", "Paralegal Certificate"],
-            "summaries": ["Experienced Corporate Attorney specializing in mergers and acquisitions. Strong negotiator with a deep understanding of business law.", "Detail-oriented Paralegal with strong organizational skills and experience in legal research and document preparation."]
+            "summaries": ["Experienced Corporate Attorney specializing in mergers and acquisitions. Strong negotiator with a deep understanding of business law.", "Detail-oriented Paralegal with strong organizational skills and experience in legal research and document preparation."],
+            "salary_range": (1000000, 4000000),
+            "remote_allowed": True
         },
         {
             "name": "Corporate Compliance",
@@ -134,16 +208,20 @@ def seed_database():
             "jobs": ["Compliance Officer", "Risk Manager"],
             "skills": ["Compliance", "Risk Management", "Auditing", "Regulations", "Policy Development", "Legal Research", "Analysis", "Corporate Law"],
             "degrees": ["Master's in Business Law", "B.S. in Business Administration"],
-            "summaries": ["Compliance Officer dedicated to ensuring organizational adherence to laws and regulations. Strong background in risk assessment.", "Risk Manager with experience in identifying and mitigating business risks. Skilled in developing control systems."]
+            "summaries": ["Compliance Officer dedicated to ensuring organizational adherence to laws and regulations. Strong background in risk assessment.", "Risk Manager with experience in identifying and mitigating business risks. Skilled in developing control systems."],
+            "salary_range": (900000, 3000000),
+            "remote_allowed": True
         },
-        # Group F: Finance
+        # Group F: Finance (Hybrid, High Pay)
         {
             "name": "Finance",
             "company": "Summit Capital",
             "jobs": ["Investment Banker", "Financial Analyst"],
             "skills": ["Financial Modeling", "Valuation", "Excel", "Data Analysis", "Accounting", "Risk Management", "Investment Banking", "Reporting"],
             "degrees": ["MBA in Finance", "B.S. in Economics"],
-            "summaries": ["Ambitious Investment Banker with expertise in financial modeling and valuation. Proven ability to analyze complex market data.", "Analytical Financial Analyst with a strong background in budgeting and forecasting. Skilled in providing actionable insights."]
+            "summaries": ["Ambitious Investment Banker with expertise in financial modeling and valuation. Proven ability to analyze complex market data.", "Analytical Financial Analyst with a strong background in budgeting and forecasting. Skilled in providing actionable insights."],
+            "salary_range": (1000000, 4200000),
+            "remote_allowed": True
         },
         {
             "name": "Accounting",
@@ -151,7 +229,9 @@ def seed_database():
             "jobs": ["Senior Accountant", "Tax Consultant"],
             "skills": ["Accounting", "GAAP", "Taxation", "Financial Reporting", "Auditing", "Excel", "Bookkeeping", "Compliance"],
             "degrees": ["B.S. in Accounting", "CPA Certification"],
-            "summaries": ["Senior Accountant with a thorough knowledge of GAAP and financial reporting. Experienced in managing month-end close processes.", "Tax Consultant with expertise in tax planning and compliance. Dedicated to minimizing tax liabilities for clients."]
+            "summaries": ["Senior Accountant with a thorough knowledge of GAAP and financial reporting. Experienced in managing month-end close processes.", "Tax Consultant with expertise in tax planning and compliance. Dedicated to minimizing tax liabilities for clients."],
+            "salary_range": (800000, 2800000),
+            "remote_allowed": True
         }
     ]
 
@@ -197,20 +277,16 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
     def gen_phone():
         return f"{random.choice(['9', '8', '7'])}{random.randint(100000000, 999999999)}"
 
-    # --- Helper: Generate Salary (Updated for Sensible Ranges) ---
-    def gen_salary(emp_type):
+    # --- Helper: Generate Context-Aware Salary ---
+    def gen_salary(emp_type, min_annual, max_annual):
         if emp_type == "Internship":
-            # 10k to 50k per month
-            return str(random.randint(10, 50) * 1000)
+            # Interns get a fraction
+            return str(random.randint(15, 40) * 1000 * 12) 
         elif emp_type == "Part-Time":
-            # Avg half of full time (~2.5L to 20L per annum)
-            return str(random.randint(25, 200) * 10000)
-        elif emp_type == "Contract":
-            # Contract (~4L to 35L fixed)
-            return str(random.randint(4, 35) * 100000)
-        else: # Full-Time
-            # 5L to 45L per annum
-            return str(random.randint(5, 45) * 100000)
+            # ~40-60% of full time
+            return str(random.randint(int(min_annual * 0.4), int(max_annual * 0.4)))
+        else: # Full-Time or Contract
+            return str(random.randint(min_annual, max_annual))
 
     # --- 1. Create HR Users (5) ---
     print("\n--- Seeding HR Users ---")
@@ -257,7 +333,7 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
             
             field_data = random.choice(assigned_fields)
             
-            # Employment Type Logic: First 2 are Full-Time, others random
+            # Employment Type Logic
             if k < 2:
                 emp_type = "Full-Time"
             else:
@@ -279,8 +355,12 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 db.session.flush()
 
             if not emp_user.employee:
-                # Randomize employee job location (On-site, Hybrid, Remote)
-                loc_type = random.choice(["On-site", "Hybrid", "Remote"])
+                # Randomize employee job location based on field allowed types
+                if field_data["remote_allowed"]:
+                    loc_type = random.choice(["On-site", "Hybrid", "Remote"])
+                else:
+                    loc_type = "On-site"
+
                 if loc_type == "On-site":
                     job_loc = emp_location
                 elif loc_type == "Hybrid":
@@ -288,13 +368,15 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 else:
                     job_loc = "Remote"
 
+                min_sal, max_sal = field_data["salary_range"]
+
                 emp = Employee(
                     user_id=emp_user.id,
                     job_title=random.choice(field_data["jobs"]),
                     department=field_data["name"],
                     job_location=job_loc,
                     employment_type=emp_type,
-                    salary=gen_salary(emp_type), # Use context-aware salary
+                    salary=gen_salary(emp_type, min_sal, max_sal),
                     hired_at=datetime.utcnow() - timedelta(days=random.randint(30, 1000)),
                     photo=f"/uploads/{'woman.png' if is_female else 'man.png'}",
                     hired_by=hr_user.id
@@ -302,23 +384,21 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 db.session.add(emp)
                 db.session.commit()
                 
-                # --- PERFORMANCE SEEDING ---
+                # --- CONTEXT-AWARE PERFORMANCE SEEDING ---
+                dept_name = field_data["name"]
+                review_pool = performance_reviews.get(dept_name, performance_reviews["Software Engineering"]) # Fallback
+
                 for _ in range(random.randint(1, 4)):
                     review_date = datetime.utcnow() - timedelta(days=random.randint(1, 365))
-                    rating = round(random.uniform(3.0, 5.0), 1)
-                    comments_pool = [
-                        "Exceeds expectations in delivery.",
-                        "Needs to improve communication skills.",
-                        "Great team player, always helpful.",
-                        "Consistent performance throughout the quarter.",
-                        "Showed great initiative on the last project.",
-                        "Technical skills are strong, but missed a few deadlines."
-                    ]
+                    
+                    # Pick a random template and generate a score within its range
+                    min_r, max_r, comment_text = random.choice(review_pool)
+                    rating = round(random.uniform(min_r, max_r), 1)
                     
                     perf = Performance(
                         employee_id=emp.id,
                         rating=rating,
-                        comments=random.choice(comments_pool),
+                        comments=comment_text,
                         date=review_date
                     )
                     db.session.add(perf)
@@ -333,24 +413,36 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
     
     # Options for randomized job fields
     job_types = ["Full-Time", "Part-Time", "Contract", "Internship"]
-    remote_options = ["Remote", "Hybrid", "On-site"]
     exp_levels = ["Junior", "Mid", "Senior", "Lead"]
     edu_reqs = ["Bachelor's", "Master's", "PhD"]
-    benefit_opts = ["Health Insurance", "Paid Leave", "Remote Work", "Gym Membership", "Stock Options"]
+    benefit_opts = ["Health Insurance", "Paid Leave", "Gym Membership", "Stock Options"]
 
     for hr, assigned_fields in hr_users:
         for field_data in assigned_fields:
             title = field_data["jobs"][0]
             
-            job_benefits = ",".join(random.sample(benefit_opts, k=random.randint(2, 3)))
+            # Select Benefits (Include Remote Work only if allowed)
+            current_benefits = random.sample(benefit_opts, k=random.randint(2, 3))
+            if field_data["remote_allowed"]:
+                current_benefits.append("Remote Work")
             
-            job_loc = random.choice(locations)
-            rem_opt = random.choice(remote_options)
+            job_benefits = ",".join(current_benefits)
+            
+            # Location & Remote Option Logic
+            job_loc_city = random.choice(locations)
+            
+            if field_data["remote_allowed"]:
+                rem_opt = random.choice(["Remote", "Hybrid", "On-site"])
+            else:
+                rem_opt = "On-site"
+
             if rem_opt == "Remote":
                 job_loc = "Remote"
+            else:
+                job_loc = job_loc_city
             
-            # Determine job type first to generate sensible salary
             selected_job_type = random.choice(job_types)
+            min_sal, max_sal = field_data["salary_range"]
 
             # Backdate the Job Posting
             job_posted_date = datetime.utcnow() - timedelta(days=random.randint(30, 60))
@@ -365,7 +457,7 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 remote_option=rem_opt,
                 experience_level=random.choice(exp_levels),
                 education=random.choice(edu_reqs),
-                salary=gen_salary(selected_job_type), # Context-aware salary
+                salary=gen_salary(selected_job_type, min_sal, max_sal),
                 tags=",".join(field_data["skills"][:5]),
                 benefits=job_benefits,
                 application_deadline=(datetime.utcnow() + timedelta(days=random.randint(10, 60))).strftime('%Y-%m-%d'),
@@ -384,7 +476,12 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
     seeker_names = (male_names + female_names)[:20]
     
     for i in range(20):
-        field_idx = i % 10
+        # Force JS1 to be Software Engineer (Index 0 in fields_config)
+        if i == 0:
+            field_idx = 0 
+        else:
+            field_idx = i % 10
+            
         field_data = fields_config[field_idx]
         
         full_name = seeker_names[i]
@@ -458,8 +555,10 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
 
     # --- 5. Create Applications & Interviews ---
     print("\n--- Seeding Applications ---")
-    app_count = 0
-    statuses = ['applied', 'interviewing', 'under_review', 'offer_extended', 'accepted', 'rejected']
+    
+    # Track interviews per HR
+    hr_interview_counts = {hr.id: 0 for hr, _ in hr_users}
+    js1_has_interview = False
 
     for seeker, expert_field_data in seekers:
         expert_dept = expert_field_data["name"]
@@ -470,7 +569,6 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 idx = k
                 break
         
-        # Similar department logic (adjacent in list)
         similar_idx = idx + 1 if idx % 2 == 0 else idx - 1
         similar_dept = fields_config[similar_idx]["name"]
         
@@ -485,13 +583,26 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
             
         for job in target_jobs:
             if not Application.query.filter_by(user_id=seeker.id, job_id=job.id).first():
-                status = random.choice(statuses)
+                
                 score = 0.0
                 try:
                     score = matching_service.calculate_score(seeker.profile, job)
                 except Exception as e:
                     print(f"Error calculating score: {e}")
                 
+                # --- Context-Aware Status Logic ---
+                if score >= 85:
+                    status = random.choice(['interviewing', 'offer_extended', 'accepted'])
+                elif score >= 60:
+                    status = random.choice(['applied', 'interviewing', 'under_review'])
+                else: # Score < 60
+                    status = random.choice(['applied', 'rejected'])
+
+                # Force JS1 to have an interview if not already
+                if seeker.email == "js1@gmail.com" and not js1_has_interview and status != 'rejected':
+                    status = 'interviewing'
+                    js1_has_interview = True
+
                 days_since_post = (datetime.utcnow() - job.created_at).days
                 if days_since_post < 1: days_since_post = 1
                 
@@ -507,23 +618,105 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 )
                 db.session.add(app)
                 db.session.flush()
-                app_count += 1
                 
                 if status == 'interviewing':
-                    interview_date = application_date + timedelta(days=random.randint(1, 5))
+                    # Determine Interview Type based on Department
+                    is_medical = job.department in ["Healthcare", "Pharmacy"]
+                    
+                    if is_medical:
+                        int_type = "in_person"
+                        int_detail = "City General Hospital, Main Wing, Room 302"
+                    else:
+                        int_type = random.choices(["video", "phone", "in_person"], weights=[70, 15, 15])[0]
+                        if int_type == "video":
+                            int_detail = "https://meet.google.com/abc-defg-hij"
+                        elif int_type == "phone":
+                            int_detail = "+91 98765 43210"
+                        else:
+                            int_detail = f"{job.company} HQ, Conf Room A"
+
+                    # Future Interview Date
+                    interview_date = datetime.utcnow() + timedelta(days=random.randint(2, 14))
                     
                     interview = Interview(
                         application_id=app.id,
-                        stage="Technical Round",
+                        stage="Technical Round" if not is_medical else "Clinical Assessment",
                         scheduled_at=interview_date,
-                        location_type="video",
-                        location_detail="https://meet.google.com/abc-defg-hij"
+                        location_type=int_type,
+                        location_detail=int_detail
                     )
                     db.session.add(interview)
+                    hr_interview_counts[job.posted_by] += 1
+
+    db.session.commit()
+
+    # --- 6. Post-Seeding Guarantee: At least 1 Interview per HR ---
+    print("--- Verifying Interview Coverage ---")
+    for hr, _ in hr_users:
+        if hr_interview_counts[hr.id] == 0:
+            hr_job = Job.query.filter_by(posted_by=hr.id).first()
+            if hr_job:
+                app = Application.query.filter_by(job_id=hr_job.id).first()
+                if not app:
+                    dummy_seeker = create_user(f"dummy_cand_{hr.id}@gmail.com", "Dummy", "Candidate", "candidate")
+                    app = Application(user_id=dummy_seeker.id, job_id=hr_job.id, status='interviewing', match_score=75.0)
+                    db.session.add(app)
+                    db.session.flush()
+                
+                app.status = 'interviewing'
+                
+                is_medical = hr_job.department in ["Healthcare", "Pharmacy"]
+                if is_medical:
+                    int_type = "in_person"
+                    int_detail = "City General Hospital, Main Wing, Room 302"
+                else:
+                    int_type = "video"
+                    int_detail = "https://meet.google.com/priority-interview"
+
+                interview = Interview(
+                    application_id=app.id,
+                    stage="Priority Interview",
+                    scheduled_at=datetime.utcnow() + timedelta(days=3),
+                    location_type=int_type,
+                    location_detail=int_detail
+                )
+                db.session.add(interview)
+    
+    # --- 7. Post-Seeding Guarantee: Exactly 1 Hired per HR ---
+    print("--- Setting exactly one 'Hired' per HR ---")
+    for hr, _ in hr_users:
+        # Get all apps for this HR's jobs
+        hr_jobs = Job.query.filter_by(posted_by=hr.id).all()
+        hr_job_ids = [j.id for j in hr_jobs]
+        
+        apps = Application.query.filter(Application.job_id.in_(hr_job_ids)).all()
+        
+        # Reset any accidental hires from random logic to 'offer_extended' first
+        # to ensure exactly one hired per HR.
+        for app in apps:
+            if app.status == 'hired':
+                app.status = 'offer_extended'
+        
+        # Priority 1: Pick a candidate with High Match Score (80%+) who is not currently interviewing
+        candidates_pool = [a for a in apps if a.status != 'interviewing' and a.match_score >= 80]
+        
+        # Priority 2: If none found, pick ANY candidate (not interviewing)
+        if not candidates_pool:
+            candidates_pool = [a for a in apps if a.status != 'interviewing']
+        
+        if candidates_pool:
+            winner = random.choice(candidates_pool)
+            winner.status = 'hired'
+            
+            # FORCE score to be high if it wasn't already (Ensures the 80%+ requirement)
+            if winner.match_score < 80:
+                winner.match_score = round(random.uniform(80.0, 95.0), 1)
+                
+            print(f"  [+] HR {hr.email} hired Applicant {winner.user_id} for Job {winner.job_id} (Score: {winner.match_score})")
 
     db.session.commit()
 
     print("--- Database Seed Complete ---")
     print("DEMO CREDENTIALS:")
     print("  HR (Software/Data): hr1@gmail.com / 123")
-    print("  JS (Software Exp): js1@gmail.com / 123")
+    print("  JS (Software Engineer): js1@gmail.com / 123")
