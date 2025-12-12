@@ -21,7 +21,8 @@ const AddEmployee = () => {
     phone: "",
     jobTitle: "",
     department: "",
-    salary: "", // Added salary field
+    employmentType: "",
+    salary: "",
     manager: "",
     startDate: "",
     photo: null,
@@ -59,7 +60,10 @@ const AddEmployee = () => {
         ...prev,
         jobTitle: location.state.job_title || "",
         department: location.state.department || "",
-        salary: location.state.salary || "" // Autofill salary if passed
+        salary: location.state.salary || "",
+        employmentType: location.state.employment_type || "",
+        locationType: location.state.location_type || "",
+        specificLocation: location.state.specific_location || ""
       }));
     }
   }, [location.state, navigate]);
@@ -115,9 +119,9 @@ const AddEmployee = () => {
         }
     }
 
-    // Added salary to required fields check
-    if (!formData.jobTitle || !formData.department || !formData.startDate || !formData.locationType || !formData.salary) {
-        showPill("Please fill in all job details (including salary).", "error");
+    // Include employmentType in validation
+    if (!formData.jobTitle || !formData.department || !formData.employmentType || !formData.startDate || !formData.locationType || !formData.salary) {
+        showPill("Please fill in all job details.", "error");
         return;
     }
 
@@ -133,7 +137,7 @@ const AddEmployee = () => {
         return;
     }
 
-    // 3. Phone Number Validation (Length check, simple 10 digits common, but >= 10 safe)
+    // 3. Phone Number Validation
     if (formData.phone.length < 10) {
         showPill("Please enter a valid phone number (at least 10 digits).", "error");
         return;
@@ -165,11 +169,12 @@ const AddEmployee = () => {
       let payload = {
         job_title: formData.jobTitle,
         department: formData.department,
+        employment_type: formData.employmentType, // Send Job Type
         manager: formData.manager,
         start_date: formData.startDate,
         photo: photoPath,
         job_location: finalLocation,
-        salary: formData.salary // Sending salary in payload
+        salary: formData.salary
       };
 
       if (selectedUserId) {
@@ -201,6 +206,7 @@ const AddEmployee = () => {
         phone: "",
         jobTitle: "",
         department: "",
+        employmentType: "",
         salary: "",
         manager: "",
         startDate: "",
@@ -212,10 +218,10 @@ const AddEmployee = () => {
       setSelectedUserId("");
       setApplicationId(null);
 
-      // Redirect after 1.5 seconds
+      // Redirect after 1 second
       setTimeout(() => {
         navigate("/dashboard-hr", { state: { activeTab: "employees" } });
-      }, 1500);
+      }, 1000);
       
     } catch (err) {
       showPill("Failed to add employee. Please try again.", "error");
@@ -230,6 +236,7 @@ const AddEmployee = () => {
       phone: "",
       jobTitle: "",
       department: "",
+      employmentType: "",
       salary: "",
       manager: "",
       startDate: "",
@@ -320,11 +327,10 @@ const AddEmployee = () => {
                     <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
                     {selectedUserId && (
                       <div className="mb-4 bg-blue-50 text-blue-800 p-3 rounded-lg text-sm border border-blue-100">
-                        <strong>Note:</strong> You are adding a registered candidate as an employee. Personal details, Job Title, and Department are locked.
+                        <strong>Note:</strong> You are adding a registered candidate as an employee. Personal details are locked.
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Disabled when in autofill mode */}
                       <InputField label="First Name *" name="firstName" value={formData.firstName} onChange={handleChange} disabled={isAutofillMode} />
                       <InputField label="Last Name *" name="lastName" value={formData.lastName} onChange={handleChange} disabled={isAutofillMode} />
                       <InputField label="Email *" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isAutofillMode} />
@@ -340,15 +346,26 @@ const AddEmployee = () => {
                         <span className="text-gray-500 text-sm">No Photo</span>
                       )}
                     </div>
-                    {/* Disable photo upload if in autofill mode as well, as profile pic comes from profile */}
                     <input type="file" name="photo" accept="image/*" onChange={handleChange} className="text-sm" disabled={isAutofillMode} />
                   </div>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold mb-4">Job Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Job Title and Department disabled in autofill mode */}
+                  
+                  {/* Updated Grid for Job Details: 2 columns to accommodate 4 items gracefully */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
                     <InputField label="Job Title *" name="jobTitle" value={formData.jobTitle} onChange={handleChange} disabled={isAutofillMode} />
+                    
+                    {/* New Job Type Dropdown */}
+                    <SelectField 
+                        label="Job Type *" 
+                        name="employmentType" 
+                        value={formData.employmentType} 
+                        onChange={handleChange} 
+                        options={["Full-Time", "Part-Time", "Contract", "Internship"]} 
+                    />
+
                     <SelectField 
                         label="Select Department *" 
                         name="department" 
@@ -357,7 +374,7 @@ const AddEmployee = () => {
                         options={departmentOptions} 
                         disabled={isAutofillMode}
                     />
-                    {/* Salary Field - Required, Number, Editable (Always enabled) */}
+                    
                     <InputField 
                         label="Salary *" 
                         name="salary" 
@@ -367,6 +384,7 @@ const AddEmployee = () => {
                         placeholder="e.g. 1200000"
                     />
                   </div>
+
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex gap-2">
                         <div className="flex-1">

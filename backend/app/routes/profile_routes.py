@@ -74,6 +74,8 @@ def profile_me():
         user.first_name = data['first_name']
     if 'last_name' in data:
         user.last_name = data['last_name']
+    if 'company_name' in data:
+        user.company_name = data['company_name']
 
     for field in allowed_fields:
         if field in data:
@@ -86,7 +88,7 @@ def profile_me():
     return jsonify({'message': 'Profile updated successfully', 'completeness': profile.completeness})
 
 
-# POST /profiles/me/resume (Renamed from /profiles/me/upload_resume)
+# POST /profiles/me/resume
 @profile_bp.route('/profiles/me/resume', methods=['POST'])
 def upload_resume():
     user = get_current_user()
@@ -112,7 +114,7 @@ def upload_resume():
     return jsonify({'message': 'Resume uploaded successfully', 'resume_url': profile.resume, 
                     'completeness': profile.completeness})
 
-# POST /profiles/me/avatar (Renamed from /profiles/me/upload_profile_pic)
+# POST /profiles/me/avatar
 @profile_bp.route('/profiles/me/avatar', methods=['POST'])
 def upload_avatar():
     user = get_current_user()
@@ -251,7 +253,7 @@ def delete_education(edu_id):
 
 # --- HR - Profiles Endpoints ---
 
-# GET /hr/profiles/{user_id} (Renamed from /profiles/user/{user_id})
+# GET /hr/profiles/{user_id}
 @profile_bp.route('/hr/profiles/<int:user_id>', methods=['GET'])
 def get_user_profile_hr(user_id):
     # TODO: Add check for HR role

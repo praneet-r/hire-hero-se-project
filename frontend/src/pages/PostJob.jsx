@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { createJob, getDepartments } from "../services/api";
+import { createJob, getDepartments, getCurrentUser } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import SidebarHR from "../components/SidebarHR";
 import TopNavbarHR from "../components/TopNavbarHR";
@@ -32,6 +32,7 @@ const PostJob = () => {
   const benefitsOptions = ["Health Insurance", "Paid Leave"];
   const [departments, setDepartments] = useState([]);
 
+  // Fetch Departments
   useEffect(() => {
     async function fetchDepts() {
       try {
@@ -44,8 +45,24 @@ const PostJob = () => {
     fetchDepts();
   }, []);
 
+  // Fetch Current User (HR) Info to pre-fill Company Name
+  useEffect(() => {
+    async function fetchUserInfo() {
+        try {
+            const user = await getCurrentUser();
+            if (user && user.company_name) {
+                setFormData(prev => ({ ...prev, company: user.company_name }));
+            }
+        } catch (err) {
+            console.error("Failed to fetch user info", err);
+        }
+    }
+    fetchUserInfo();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
     if (type === "checkbox" && benefitsOptions.includes(value)) {
       setFormData((prev) => ({
         ...prev,
@@ -55,13 +72,17 @@ const PostJob = () => {
       }));
     } else if (type === "checkbox") {
       setFormData((prev) => ({ ...prev, [name]: checked }));
-    } else {
-      // Auto-fill location if Remote is selected
-      if (name === "remote_option" && value === "Remote") {
+    } else if (name === "remote_option") {
+      // Logic for Remote Option changes
+      if (value === "Remote") {
+        // If Remote is selected, auto-fill location
         setFormData((prev) => ({ ...prev, [name]: value, location: "Remote" }));
       } else {
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        // If switching to Hybrid or On-site, reset location to blank
+        setFormData((prev) => ({ ...prev, [name]: value, location: "" }));
       }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
@@ -133,7 +154,7 @@ const PostJob = () => {
       showPill("Job published successfully!", "success");
       setTimeout(() => {
         navigate("/dashboard-hr", { state: { activeTab: "recruitment" } });
-      }, 1500);
+      }, 1000);
     } catch (err) {
       showPill("Failed to publish job. Please try again.", "error");
     }
@@ -198,7 +219,16 @@ const PostJob = () => {
                     <h2 className="text-lg font-semibold mb-4">Job Information</h2>
                     <div className="grid md:grid-cols-2 gap-4">
                       <Input label="Job Title *" name="title" value={formData.title} onChange={handleChange} />
-                      <Input label="Company Name *" name="company" value={formData.company} onChange={handleChange} />
+                      
+                      {/* Updated Company Name Input: Disabled */}
+                      <Input 
+                        label="Company Name *" 
+                        name="company" 
+                        value={formData.company} 
+                        onChange={handleChange} 
+                        disabled={true} 
+                      />
+                      
                       <Select label="Select Department *" name="department" value={formData.department} onChange={handleChange} options={departments} />
                       <Select label="Employment Type *" name="type" value={formData.type} onChange={handleChange} options={["Full-Time", "Part-Time", "Contract", "Internship"]} />
                       <Select label="Remote Option *" name="remote_option" value={formData.remote_option} onChange={handleChange} options={["Remote", "Hybrid", "On-site"]} />

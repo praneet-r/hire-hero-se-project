@@ -9,6 +9,7 @@ class Employee(db.Model):
     job_title = db.Column(db.String(120))
     department = db.Column(db.String(120))
     job_location = db.Column(db.String(50))
+    employment_type = db.Column(db.String(50))
     salary = db.Column(db.String(50))
     hired_at = db.Column(db.DateTime, default=datetime.utcnow)
     photo = db.Column(db.String(255))

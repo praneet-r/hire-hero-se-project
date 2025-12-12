@@ -10,7 +10,7 @@ import os
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = False
+CREATE_DUMMY_DATA = True
 
 def seed_database():
     if not CREATE_DUMMY_DATA:
@@ -272,11 +272,14 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
             else:
                 job_loc = "Remote"
 
+            emp_type = random.choice(["Full-Time", "Part-Time", "Contract", "Internship"])
+
             emp = Employee(
                 user_id=emp_user.id,
                 job_title=random.choice(field_data["jobs"]),
                 department=field_data["name"],
                 job_location=job_loc,
+                employment_type=emp_type,
                 salary=gen_salary(),
                 hired_at=datetime.utcnow() - timedelta(days=random.randint(30, 1000)),
                 photo=f"/uploads/{'woman.png' if is_female else 'man.png'}",

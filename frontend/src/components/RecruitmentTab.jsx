@@ -23,7 +23,7 @@ import {
   HelpCircle,
   X,
   Loader,
-  AlertCircle // Added for Action Items
+  AlertCircle 
 } from "lucide-react";
 
 const RecruitmentTab = () => {
@@ -833,7 +833,12 @@ const RecruitmentTab = () => {
                                             candidate_id: app.user_id,
                                             application_id: app.id, // Passed Application ID
                                             job_title: viewingJob?.title,
-                                            department: viewingJob?.department
+                                            department: viewingJob?.department,
+                                            // New fields passed to AddEmployee
+                                            salary: viewingJob?.salary,
+                                            employment_type: viewingJob?.type,
+                                            location_type: viewingJob?.remote_option,
+                                            specific_location: viewingJob?.location
                                           } 
                                         });
                                       }}

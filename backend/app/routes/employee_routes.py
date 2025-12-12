@@ -48,6 +48,7 @@ def get_employees():
             'job_title': e.job_title,
             'department': e.department,
             'job_location': e.job_location,
+            'employment_type': e.employment_type,
             'salary': e.salary,
             'hired_at': e.hired_at,
             'photo_url': e.photo,
@@ -128,6 +129,7 @@ def create_employee():
         job_title=data.get('job_title'),
         department=data.get('department'),
         job_location=data.get('job_location'),
+        employment_type=data.get('employment_type'),
         salary=data.get('salary'),
         photo=data.get('photo_url') or data.get('photo'),
         hired_at=data.get('hired_at'),
@@ -148,6 +150,7 @@ def update_employee(emp_id):
     if 'department' in data: e.department = data['department']
     if 'photo_url' in data: e.photo = data['photo_url']
     if 'job_location' in data: e.job_location = data['job_location']
+    if 'employment_type' in data: e.employment_type = data['employment_type']
     if 'salary' in data: e.salary = data['salary']
 
     db.session.commit()

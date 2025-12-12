@@ -82,11 +82,12 @@ const Performance = () => {
             const recentReviews = [...allReviews].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
             // 4. Workforce Distribution Data
+            // FIX: Assign specific colors here BEFORE filtering
             const workforce = [
-                { name: "Remote", value: remote },
-                { name: "Hybrid", value: hybrid },
-                { name: "On-site", value: onsite }
-            ].filter(item => item.value > 0); // Only show segments that have data
+                { name: "Remote", value: remote, color: COLORS[0] },
+                { name: "Hybrid", value: hybrid, color: COLORS[1] },
+                { name: "On-site", value: onsite, color: COLORS[2] }
+            ].filter(item => item.value > 0); 
 
             // 5. Insights
             let insights = [];
@@ -130,7 +131,6 @@ const Performance = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <SummaryCard label="Total Employees" value={summary.total} icon={User} />
-        {/* Adjusted to show Hybrid count here or stick to generic workforce stats */}
         <SummaryCard label="Avg Rating" value={summary.avg} icon={Star} color="text-yellow-500" />
         <SummaryCard label="Total Reviews" value={summary.totalReviews} icon={Activity} />
         <SummaryCard label="Remote / Hybrid" value={`${summary.remote} / ${summary.hybrid}`} icon={User} />
@@ -169,8 +169,9 @@ const Performance = () => {
                 outerRadius={80} 
                 paddingAngle={5}
               >
+                {/* FIX: Use entry.color instead of index-based color */}
                 {workforce.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
@@ -183,11 +184,11 @@ const Performance = () => {
               </div>
               <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[1] }}></div> 
-                  On-site
+                  Hybrid
               </div>
               <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[2] }}></div> 
-                  Hybrid
+                  On-site
               </div>
           </div>
         </div>
