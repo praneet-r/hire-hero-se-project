@@ -16,11 +16,33 @@ export const axiosAuth = axios.create({
     baseURL: API_BASE,
     timeout: 100000,
 });
+
+// --- EXISTING REQUEST INTERCEPTOR ---
 axiosAuth.interceptors.request.use((config) => {
     const token = getToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
+
+// --- NEW RESPONSE INTERCEPTOR (ADD THIS) ---
+axiosAuth.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (
+            error.response &&
+            (error.response.status === 401 || error.response.status === 403)
+        ) {
+            // Token is invalid or expired
+            localStorage.removeItem("token");
+            localStorage.removeItem("user_id");
+            // Optional: Redirect to login
+            if (!window.location.pathname.includes("/login")) {
+                window.location.href = "/login";
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 // --- Auth Endpoints ---
 export const login = async (email, password) => {
@@ -39,11 +61,15 @@ export const register = async (userData) => {
     return res.data;
 };
 
+// Uses axiosAuth (baseURL='/api'), so we just append '/auth/me'
+export const getCurrentUser = async () => {
+    const res = await axiosAuth.get("/auth/me");
+    return res.data;
+};
+
+// Uses axiosAuth, so we just append '/auth/change-password'
 export const changePassword = async (passwordData) => {
-    const res = await axiosAuth.put(
-        `${AUTH_BASE}/change-password`,
-        passwordData
-    );
+    const res = await axiosAuth.put("/auth/change-password", passwordData);
     return res.data;
 };
 
@@ -311,7 +337,6 @@ export const getDepartments = async () => {
 };
 
 export const addPerformanceReview = async (empId, reviewData) => {
-    // reviewData: { rating, comments, date }
     const res = await axiosAuth.post(
         `/hr/employees/${empId}/performance-reviews`,
         reviewData

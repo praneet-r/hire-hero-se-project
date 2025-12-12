@@ -176,7 +176,6 @@ const Performance = () => {
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
-          {/* Updated Legend with Hybrid */}
           <div className="flex flex-wrap justify-center gap-4 text-sm mt-2">
               <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[0] }}></div> 
@@ -184,11 +183,11 @@ const Performance = () => {
               </div>
               <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[1] }}></div> 
-                  Hybrid
+                  On-site
               </div>
               <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[2] }}></div> 
-                  On-site
+                  Hybrid
               </div>
           </div>
         </div>
