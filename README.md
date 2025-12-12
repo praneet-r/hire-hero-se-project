@@ -85,9 +85,10 @@ cd backend
 python -m venv venv
 source venv/bin/activate       # or venv\Scripts\activate (Windows)
 pip install -r requirements.txt
+python -m spacy download en_core_web_md  # Local language model for AI Match score
 ```
 
-Create a `.env` file (already provided) and update your credentials:
+Create a `.env` file and update your credentials:
 
 ```bash
 FLASK_ENV=development
@@ -96,17 +97,19 @@ DATABASE_URL=postgresql://username:password@localhost:5432/recruitment_db
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-Run the Flask server:
+Start the server with database Seeding: To populate the database with rich, context-aware dummy data (HRs, Jobs, Candidates, Applications, Performance Reviews):
 
 ```bash
-flask run
+python run.py --seed
+```
+
+or to start server regularly:
+
+```bash
+python run.py
 ```
 
 Backend runs at 👉 **http://localhost:5000**
-
-Auto-Seeding: On startup, the app will automatically wipe the database and repopulate it with 3 HRs, 15 Employees, 15 Job Seekers, and ~25 Job Postings.
-
-To disable this: Open backend/app/seed.py and set CREATE_DUMMY_DATA = False.
 
 ---
 
@@ -134,7 +137,6 @@ Password: 123
 🧑‍💻 Job Seeker (For applying & tracking status)
 Email: js1@gmail.com
 Password: 123
-(Note: This account is set up as a fresh user with a pre-filled profile but no active applications.)
 
 ---
 
@@ -159,11 +161,12 @@ Password: 123
 
 ## 🧰 Scripts
 
-| Command         | Description                   |
-| --------------- | ----------------------------- |
-| `npm run dev`   | Start Vite frontend           |
-| `flask run`     | Start Flask backend           |
-| `npm run build` | Build frontend for production |
+| Command                | Description                   |
+| ---------------------- | ----------------------------- |
+| `npm run dev`          | Start Vite frontend           |
+| `python run.py`        | Start Flask backend           |
+| `python run.py --seed` | Start Flask backend           |
+| `npm run build`        | Build frontend for production |
 
 ---
 
