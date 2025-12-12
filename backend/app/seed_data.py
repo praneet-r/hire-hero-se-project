@@ -10,7 +10,7 @@ import os
 # CONFIGURATION
 # Set to False to disable dummy data generation
 # ==========================================
-CREATE_DUMMY_DATA = False
+CREATE_DUMMY_DATA = True
 
 def seed_database():
     if not CREATE_DUMMY_DATA:
@@ -88,14 +88,14 @@ def seed_database():
             "degrees": ["M.S. in Data Science", "B.Tech in Computer Science"],
             "summaries": ["Analytical Data Scientist with a strong background in machine learning and statistical modeling. Experienced in building predictive models.", "Machine Learning Engineer focused on deploying scalable AI solutions. Proficient in Python and deep learning frameworks."]
         },
-        # Group B: Medical
+        # Group B: Medical (UPDATED for better overlap with Pharmacy)
         {
             "name": "Healthcare",
             "company": "City General Hospital",
-            "jobs": ["Registered Nurse (ICU)", "Medical Laboratory Technician"],
-            "skills": ["Patient Care", "ICU", "Vital Signs", "Phlebotomy", "Medical Terminology", "ACLS", "BLS", "Laboratory Safety", "Biology"],
-            "degrees": ["Bachelor of Science in Nursing", "Associate Degree in Medical Technology"],
-            "summaries": ["Dedicated Registered Nurse with extensive experience in critical care settings. Compassionate and detail-oriented.", "Skilled Medical Laboratory Technician with expertise in diagnostic testing and analysis. Committed to accuracy."]
+            "jobs": ["Nurse Practitioner", "Medical Assistant"],
+            "skills": ["Patient Counseling", "Pharmacology", "Medication Administration", "Vital Signs", "Medical Terminology", "EHR", "Inventory Management", "Biology", "Dosage Calculations"],
+            "degrees": ["Master of Science in Nursing", "Medical Assistant Diploma"],
+            "summaries": ["Experienced Nurse Practitioner with a strong background in pharmacology and patient counseling. Skilled in managing medication therapies.", "Certified Medical Assistant proficient in medication administration and inventory management. Dedicated to patient care."]
         },
         {
             "name": "Pharmacy",
@@ -289,15 +289,9 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
             db.session.commit()
             
             # --- PERFORMANCE SEEDING ---
-            # Create 1-4 reviews per employee
             for _ in range(random.randint(1, 4)):
-                # Generate a random date within the last year
                 review_date = datetime.utcnow() - timedelta(days=random.randint(1, 365))
-                
-                # Generate a realistic rating (mostly 3.0 to 5.0)
                 rating = round(random.uniform(3.0, 5.0), 1)
-                
-                # Generate dummy comments
                 comments_pool = [
                     "Exceeds expectations in delivery.",
                     "Needs to improve communication skills.",
@@ -331,15 +325,15 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
         for field_data in assigned_fields:
             title = field_data["jobs"][0]
             
-            # Pick random benefits (2-3)
             job_benefits = ",".join(random.sample(benefit_opts, k=random.randint(2, 3)))
             
             job_loc = random.choice(locations)
             rem_opt = random.choice(remote_options)
-            
-            # If Remote, location field should explicitly say Remote or a base location
             if rem_opt == "Remote":
                 job_loc = "Remote"
+
+            # Backdate the Job Posting
+            job_posted_date = datetime.utcnow() - timedelta(days=random.randint(30, 60))
 
             job = Job(
                 title=title,
@@ -355,7 +349,8 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 tags=",".join(field_data["skills"][:5]),
                 benefits=job_benefits,
                 application_deadline=(datetime.utcnow() + timedelta(days=random.randint(10, 60))).strftime('%Y-%m-%d'),
-                posted_by=hr.id
+                posted_by=hr.id,
+                created_at=job_posted_date
             )
             db.session.add(job)
             all_jobs.append(job)
@@ -383,33 +378,21 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
         
         if not seeker.profile:
             pic = f"/uploads/{'woman.png' if is_female else 'man.png'}"
-            
             skills_str = ", ".join(field_data["skills"])
             summary_text = f"{random.choice(field_data['summaries'])}\n\nCore Skills: {skills_str}"
             
-            # Calculate Dynamic Completeness
-            comp_score = 0 # Base for having a user
-            if summary_text: comp_score += 10
-            if pic: comp_score += 10
-            # Phone + Location
+            comp_score = 60 # Base
             phone_num = gen_phone()
             loc = random.choice(locations)
-            if phone_num: comp_score += 10
-            if loc: comp_score += 10
-            
-            # We will add education and experience below, so we'll estimate full here or update later.
-            # Let's assume they will have them since we add them right after.
-            comp_score += 20 # Education
-            comp_score += 20 # Experience
 
             profile = Profile(
                 user_id=seeker.id,
                 phone=phone_num,
                 location=loc,
                 summary=summary_text,
-                completeness=min(comp_score, 100),
+                completeness=min(comp_score + 40, 100),
                 profile_pic=pic,
-                views=random.randint(2, 15)
+                views=random.randint(2, 50)
             )
             db.session.add(profile)
             db.session.flush()
@@ -482,18 +465,22 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
         for job in target_jobs:
             if not Application.query.filter_by(user_id=seeker.id, job_id=job.id).first():
                 status = random.choice(statuses)
-                
                 score = 0.0
                 try:
                     score = matching_service.calculate_score(seeker.profile, job)
                 except Exception as e:
                     print(f"Error calculating score: {e}")
                 
+                days_since_post = (datetime.utcnow() - job.created_at).days
+                if days_since_post < 1: days_since_post = 1
+                
+                application_date = job.created_at + timedelta(days=random.randint(0, days_since_post))
+
                 app = Application(
                     user_id=seeker.id,
                     job_id=job.id,
                     status=status,
-                    applied_at=datetime.utcnow() - timedelta(days=random.randint(1, 20)),
+                    applied_at=application_date,
                     match_score=score,
                     match_explanation=None
                 )
@@ -502,10 +489,12 @@ At {company}, we foster a culture of innovation and collaboration. We believe in
                 app_count += 1
                 
                 if status == 'interviewing':
+                    interview_date = application_date + timedelta(days=random.randint(1, 5))
+                    
                     interview = Interview(
                         application_id=app.id,
                         stage="Technical Round",
-                        scheduled_at=datetime.utcnow() + timedelta(days=random.randint(1, 7), hours=random.randint(9, 17)),
+                        scheduled_at=interview_date,
                         location_type="video",
                         location_detail="https://meet.google.com/abc-defg-hij"
                     )

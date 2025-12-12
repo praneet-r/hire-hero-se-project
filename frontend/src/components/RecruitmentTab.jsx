@@ -221,6 +221,19 @@ const RecruitmentTab = () => {
     setShowScheduleModal(true);
   };
 
+  // --- Dynamic Input Handler ---
+  const handleScheduleLinkChange = (e) => {
+    const val = e.target.value;
+    if (scheduleForm.type === 'phone') {
+        // Allow only numbers
+        if (/^\d*$/.test(val)) {
+            setScheduleForm({ ...scheduleForm, link: val });
+        }
+    } else {
+        setScheduleForm({ ...scheduleForm, link: val });
+    }
+  };
+
   const handleScheduleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedAppForInterview) return;
@@ -274,34 +287,24 @@ const RecruitmentTab = () => {
       try {
         const apps = await getCompanyApplications();
         
-        // Create a set of IDs for jobs posted by the current HR user
         const myJobIds = new Set((jobsData || []).map(j => j.id));
 
-        // --- Calculate Pipeline Counts (Filtered by My Jobs) ---
         const counts = {};
         const myApps = [];
 
         apps.forEach(app => {
-            // Only count if the application belongs to a job posted by me
             if (myJobIds.has(app.job_id)) {
-                myApps.push(app); // Keep filtered list for Action Items
+                myApps.push(app); 
                 const s = app.status;
                 counts[s] = (counts[s] || 0) + 1;
             }
         });
         setPipelineCounts(counts);
 
-        // --- Top Candidates Logic ---
-        
-        // Filter: Must be for one of my jobs AND Match score >= 80
         const highMatch = myApps.filter(app => (app.match_score || 0) >= 80);
-        
-        // Sort: Descending by score
         highMatch.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
-        // Take Top 5
         const top5 = highMatch.slice(0, 5);
 
-        // Map for display
         const formattedCandidates = top5.map(app => ({
             ...app,
             name: app.candidate_name,
@@ -310,10 +313,7 @@ const RecruitmentTab = () => {
         }));
         setCandidates(formattedCandidates);
 
-        // --- Smart Action Items Logic ---
         const actions = [];
-
-        // Alert: High Match Candidates Pending Review
         const pendingHighMatch = myApps.filter(app => app.status === 'applied' && (app.match_score || 0) >= 80).length;
         if (pendingHighMatch > 0) {
           actions.push({
@@ -323,7 +323,6 @@ const RecruitmentTab = () => {
           });
         }
 
-        // Alert: Active Interviews
         const activeInterviews = myApps.filter(app => app.status === 'interviewing').length;
         if (activeInterviews > 0) {
           actions.push({
@@ -333,7 +332,6 @@ const RecruitmentTab = () => {
           });
         }
 
-        // Alert: New Applications (Last 24h)
         const oneDayAgo = new Date();
         oneDayAgo.setDate(oneDayAgo.getDate() - 1);
         const newAppsCount = myApps.filter(app => new Date(app.applied_at) > oneDayAgo).length;
@@ -363,9 +361,7 @@ const RecruitmentTab = () => {
       setShowReviewModal(true);
   };
 
-  // Metrics Calculation
   const totalJobPostings = jobs.length;
-  // Calculate total applicants from the jobs array or pipeline counts
   const totalApplicants = jobs.reduce((sum, job) => sum + (job.applications || 0), 0);
   const qualifiedApplicants = jobs.reduce((sum, job) => sum + (job.qualified || 0), 0);
   const topMatchScore = candidates.length > 0 ? candidates[0].match : "0%";
@@ -377,18 +373,29 @@ const RecruitmentTab = () => {
     { label: "Top Match Score", value: topMatchScore, icon: Sparkles },
   ];
 
+  // Helper for dynamic label and placeholder
+  const getDynamicFieldProps = () => {
+      switch(scheduleForm.type) {
+          case 'phone':
+              return { label: 'Phone Number', placeholder: 'e.g. 9876543210' };
+          case 'in_person':
+              return { label: 'Office Address', placeholder: 'e.g. Conference Room A, Building 3' };
+          default:
+              return { label: 'Meeting Link', placeholder: 'e.g. https://meet.google.com/...' };
+      }
+  };
+
+  const fieldProps = getDynamicFieldProps();
+
   return (
     <div className="relative">
-      {/* Pill Message (Stays outside the flow) */}
       {pillMessage && (
         <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-2 rounded-full font-semibold shadow-lg text-sm transition-all duration-300 animate-bounce ${pillType === 'success' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'}`}>
           {pillMessage}
         </div>
       )}
 
-      {/* Main Content Wrapper */}
       <div className="space-y-8">
-        {/* Header */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-extrabold text-[#013362] flex items-center gap-2">
             <Briefcase className="h-6 w-6 text-[#005193]" /> Recruitment
@@ -400,7 +407,6 @@ const RecruitmentTab = () => {
           </div>
         </div>
 
-        {/* Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {metrics.map((metric, i) => (
             <div
@@ -414,9 +420,7 @@ const RecruitmentTab = () => {
           ))}
         </div>
 
-        {/* Active Job Postings + Smart Action Items */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Active Job Postings */}
           <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
             <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
               <Briefcase className="h-5 w-5 text-[#005193]" /> Active Job Postings
@@ -470,7 +474,6 @@ const RecruitmentTab = () => {
                     Edit
                   </button>
                   </div>
-                      {/* Edit Job Description Modal */}
                       {showModal && selectedJob && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                           <div className="bg-white rounded-2xl shadow-lg p-10 w-full max-w-4xl relative">
@@ -632,12 +635,9 @@ const RecruitmentTab = () => {
                         </div>
                       )}
               
-              {/* The Explanation Modal */}
               {explanationModal.show && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-                        
-                        {/* Header */}
                         <div className="bg-gradient-to-r from-[#005193] to-[#013362] px-6 py-4 flex justify-between items-center">
                             <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                 <Sparkles className="w-5 h-5 text-yellow-300" /> AI Match Analysis
@@ -647,7 +647,6 @@ const RecruitmentTab = () => {
                             </button>
                         </div>
 
-                        {/* Body */}
                         <div className="p-6">
                             <p className="text-sm text-gray-500 mb-4">
                                 Analysis for <span className="font-semibold text-gray-800">{explanationModal.candidateName}</span>
@@ -684,7 +683,6 @@ const RecruitmentTab = () => {
                             )}
                         </div>
 
-                        {/* Footer */}
                         <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-end">
                             <button 
                                 onClick={closeExpModal}
@@ -697,11 +695,9 @@ const RecruitmentTab = () => {
                 </div>
               )}
                 
-              {/* View Applicants Modal */}
               {showApplicantsModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                   <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
-                    {/* Modal Header */}
                     <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
                       <div>
                         <h3 className="text-xl font-bold text-[#013362]">Applicants</h3>
@@ -715,7 +711,6 @@ const RecruitmentTab = () => {
                       </button>
                     </div>
 
-                    {/* Modal Content */}
                     <div className="p-6 overflow-y-auto flex-1">
                       {loadingApplicants ? (
                         <div className="flex justify-center py-10 text-gray-500">Loading applicants...</div>
@@ -754,10 +749,8 @@ const RecruitmentTab = () => {
 
                               
                               <div className="flex items-center gap-6">
-                              {/* Actions Group */}
                               <div className="flex items-center gap-2">
                                 
-                                {/* 1. STATUS: APPLIED -> Interview or Reject */}
                                 {app.status === 'applied' && (
                                   <>
                                     <button
@@ -781,7 +774,6 @@ const RecruitmentTab = () => {
                                   </>
                                 )}
 
-                                {/* 2. STATUS: INTERVIEWING -> Complete (Under Review) */}
                                 {app.status === 'interviewing' && (
                                   <>
                                     <button
@@ -796,7 +788,6 @@ const RecruitmentTab = () => {
                                   </>
                                 )}
 
-                                {/* 3. STATUS: UNDER REVIEW -> Offer or Reject */}
                                 {app.status === 'under_review' && (
                                   <>
                                     <button
@@ -820,7 +811,6 @@ const RecruitmentTab = () => {
                                   </>
                                 )}
 
-                                {/* 4. STATUS: ACCEPTED -> Add Employee */}
                                 {app.status === 'accepted' && (
                                   <>
                                     <button
@@ -831,10 +821,9 @@ const RecruitmentTab = () => {
                                         navigate('/add-employee', { 
                                           state: { 
                                             candidate_id: app.user_id,
-                                            application_id: app.id, // Passed Application ID
+                                            application_id: app.id, 
                                             job_title: viewingJob?.title,
                                             department: viewingJob?.department,
-                                            // New fields passed to AddEmployee
                                             salary: viewingJob?.salary,
                                             employment_type: viewingJob?.type,
                                             location_type: viewingJob?.remote_option,
@@ -861,10 +850,8 @@ const RecruitmentTab = () => {
                                   View Profile <ExternalLink className="w-3 h-3" />
                                 </a>
 
-                                {/* Match Score */}
                                 <div className="flex flex-col items-end mr-4 px-4 min-w-[100px]">
                                   <div className="flex items-baseline gap-1">
-                                      {/* Percentage Number */}
                                       <span className={`text-xl font-extrabold leading-none ${
                                           app.match_score >= 80 ? 'text-green-600' : 
                                           app.match_score >= 50 ? 'text-yellow-600' : 'text-red-500'
@@ -872,7 +859,6 @@ const RecruitmentTab = () => {
                                           {app.match_score ? Math.round(app.match_score) : 0}%
                                       </span>
                                       
-                                      {/* Small 'match' text */}
                                       <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
                                           match
                                       </span>
@@ -893,7 +879,6 @@ const RecruitmentTab = () => {
                       )}
                     </div>
                     
-                    {/* Modal Footer */}
                     <div className="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50 rounded-b-2xl">
                       <button 
                         onClick={() => setShowApplicantsModal(false)}
@@ -910,7 +895,6 @@ const RecruitmentTab = () => {
             </div>
           </div>
 
-          {/* Smart Action Items (Replacing AI Insights) */}
           <div className="lg:col-span-1 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
             <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-[#005193]" /> Smart Action Items
@@ -940,9 +924,7 @@ const RecruitmentTab = () => {
           </div>
         </div>
 
-        {/* Recent Candidates + Hiring Pipeline */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Candidates */}
           <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
             <h2 className="text-lg font-bold text-[#013362] mb-4 flex items-center gap-2">
               <Users className="h-5 w-5 text-[#005193]" /> Top Candidates (80%+)
@@ -974,7 +956,6 @@ const RecruitmentTab = () => {
             </div>
           </div>
 
-          {/* Hiring Pipeline */}
           <div className="space-y-6">
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
               <h3 className="text-md font-bold text-[#013362] mb-3">Hiring Pipeline</h3>
@@ -1044,14 +1025,16 @@ const RecruitmentTab = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link / Location</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {fieldProps.label}
+                  </label>
                   <input 
                     type="text" 
                     required
-                    placeholder="e.g. https://meet.google.com/..."
+                    placeholder={fieldProps.placeholder}
                     className="w-full border rounded-lg p-2 text-sm"
                     value={scheduleForm.link}
-                    onChange={e => setScheduleForm({...scheduleForm, link: e.target.value})}
+                    onChange={handleScheduleLinkChange}
                   />
                 </div>
 
@@ -1075,7 +1058,6 @@ const RecruitmentTab = () => {
           </div>
         )}
       </div>
-        {/* Review Candidate Modal */}
         {showReviewModal && reviewApplication && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                 <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -1087,7 +1069,6 @@ const RecruitmentTab = () => {
                         <button onClick={() => setShowReviewModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
                     </div>
                     <div className="p-6">
-                        {/* Reused Row UI */}
                         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-[#F8FAFF]">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-[#005193] font-bold text-lg">
@@ -1115,7 +1096,6 @@ const RecruitmentTab = () => {
 
                               
                               <div className="flex items-center gap-6">
-                              {/* Actions Group */}
                               <div className="flex items-center gap-2">
                                 
                                 {reviewApplication.status === 'applied' && (
@@ -1190,7 +1170,6 @@ const RecruitmentTab = () => {
                                             candidate_id: reviewApplication.user_id,
                                             application_id: reviewApplication.id,
                                             job_title: reviewApplication.job_title,
-                                            // department: viewingJob?.department // Not available here, minor
                                           } 
                                         });
                                       }}
@@ -1213,7 +1192,6 @@ const RecruitmentTab = () => {
                                   View Profile <ExternalLink className="w-3 h-3" />
                                 </a>
 
-                                {/* Match Score */}
                                 <div className="flex flex-col items-end mr-4 px-4 min-w-[100px]">
                                   <div className="flex items-baseline gap-1">
                                       <span className={`text-xl font-extrabold leading-none ${

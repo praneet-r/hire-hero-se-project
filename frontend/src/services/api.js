@@ -336,3 +336,16 @@ export const addPerformanceReview = async (empId, reviewData) => {
     );
     return res.data;
 };
+
+export const startMockInterview = async (jobId) => {
+    const res = await axiosAuth.post("/gen-ai/mock-interview/start", {
+        job_id: jobId,
+    });
+    return res.data;
+};
+
+export const submitMockInterview = async (data) => {
+    // data = { job_id, answers: [{question, answer}] }
+    const res = await axiosAuth.post("/gen-ai/mock-interview/submit", data);
+    return res.data;
+};

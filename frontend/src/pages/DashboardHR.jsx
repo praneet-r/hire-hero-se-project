@@ -4,10 +4,10 @@ import { getEmployees, getMyJobs, getCompanyApplications } from "../services/api
 import { 
   Download, Sparkles, AlertCircle, Users, Plus, Briefcase, 
   FileText, BarChart2, Calendar, TrendingUp, CheckCircle, 
-  Clock, Activity, ChevronRight, UserCheck
+  Clock, Activity, ChevronRight, UserCheck, Video, Phone, MapPin, X, ExternalLink
 } from "lucide-react";
 import { 
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend 
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip 
 } from 'recharts';
 import RecruitmentTab from "../components/RecruitmentTab";
 import EmployeesTab from "../components/EmployeesTab";
@@ -28,13 +28,16 @@ export default function DashboardHR() {
       totalEmployees: 0,
       newHires: 0,
       openPositions: 0,
-      activeCandidates: 0, // Changed from pipelineConversion
+      activeCandidates: 0, 
     });
 
     const [qualityData, setQualityData] = useState([]);
     const [actionItems, setActionItems] = useState([]);
     const [recentActivity, setRecentActivity] = useState([]);
     const [activeInterviews, setActiveInterviews] = useState([]);
+    
+    // New State for Interview Modal
+    const [selectedInterview, setSelectedInterview] = useState(null);
 
     // Check for incoming tab state on mount
     useEffect(() => {
@@ -78,19 +81,13 @@ export default function DashboardHR() {
           ]);
 
           // --- Filter Applications for Current HR's Jobs ---
-          // This ensures we only count applicants for jobs posted by the logged-in HR
           const myJobIds = new Set(myJobs.map(j => j.id));
           const myApps = applications.filter(app => myJobIds.has(app.job_id));
 
           // 1. Calculate Core Metrics
           const totalEmployees = employees.length;
           const openPositions = myJobs.filter(j => !j.status || j.status.toLowerCase() === 'open').length;
-          
-          // New Hires: Only count 'hired' or 'accepted' statuses from MY jobs
           const newHires = myApps.filter(app => ['hired', 'accepted'].includes(app.status)).length;
-
-          // Active Candidates: Count those in the middle of the pipeline
-          // Excludes: applied (too early), hired/accepted (done), rejected/withdrawn (out)
           const activeStages = new Set(['interviewing', 'under_review', 'offer_extended']);
           const activeCandidates = myApps.filter(app => activeStages.has(app.status)).length;
 
@@ -119,7 +116,7 @@ export default function DashboardHR() {
             { name: 'Top Talent (80%+)', value: buckets.high, color: '#10B981' },
             { name: 'Potential (50-79%)', value: buckets.med, color: '#F59E0B' },
             { name: 'Low Match (<50%)', value: buckets.low, color: '#EF4444' },
-          ].filter(item => item.value > 0)); // Only show non-zero slices
+          ].filter(item => item.value > 0)); 
 
           // 3. Smart Action Items
           const actions = [];
@@ -160,7 +157,6 @@ export default function DashboardHR() {
           // 4. Recent Activity Feed
           const activities = [];
           
-          // Add Jobs
           myJobs.forEach(job => {
               if (job.created_at) {
                   activities.push({
@@ -174,7 +170,6 @@ export default function DashboardHR() {
               }
           });
 
-          // Add Applications (Filtered by My Jobs)
           myApps.forEach(app => {
               if (app.applied_at) {
                   activities.push({
@@ -188,7 +183,6 @@ export default function DashboardHR() {
               }
           });
 
-          // Add Employees (Hires) - These are already filtered by 'hired_by' in getEmployees
           employees.forEach(emp => {
               if (emp.hired_at) {
                   activities.push({
@@ -202,7 +196,6 @@ export default function DashboardHR() {
               }
           });
 
-          // Sort descending and take top 10
           activities.sort((a, b) => b.date - a.date);
           setRecentActivity(activities.slice(0, 10));
 
@@ -211,11 +204,13 @@ export default function DashboardHR() {
             .filter(app => app.status === 'interviewing')
             .map(app => ({
                 id: app.id,
+                user_id: app.user_id, // Ensure user_id is passed
                 name: app.candidate_name,
                 role: app.job_title,
-                score: Math.round(app.match_score || 0)
+                score: Math.round(app.match_score || 0),
+                interview: app.interview_details 
             }))
-            .slice(0, 5); // Limit to 5
+            .slice(0, 5); 
           setActiveInterviews(interviewingCandidates);
 
         } catch (err) {
@@ -225,7 +220,6 @@ export default function DashboardHR() {
       fetchData();
     }, []);
 
-    // Helper for "Time Ago"
     const timeAgo = (date) => {
         const seconds = Math.floor((new Date() - date) / 1000);
         let interval = seconds / 31536000;
@@ -257,7 +251,6 @@ export default function DashboardHR() {
           ]}
         />
 
-        {/* Dashboard Content */}
         <div className="p-8 flex flex-col gap-6">
           {activeTab === "dashboard" && (
             <>
@@ -274,7 +267,7 @@ export default function DashboardHR() {
                   { label: "Total Employees", value: metrics.totalEmployees, icon: Users },
                   { label: "New Hires via HireHero", value: metrics.newHires, icon: Plus },
                   { label: "Open Positions", value: metrics.openPositions, icon: Briefcase },
-                  { label: "Active Candidates", value: metrics.activeCandidates, icon: Users }, // Changed Icon & Label
+                  { label: "Active Candidates", value: metrics.activeCandidates, icon: Users },
                 ].map((item, i) => (
                   <div
                     key={i}
@@ -408,11 +401,37 @@ export default function DashboardHR() {
                         
                         <div className="space-y-3">
                             {activeInterviews.length > 0 ? activeInterviews.map((interview, i) => (
-                                <div key={i} className="p-3 border border-gray-100 rounded-xl hover:bg-blue-50 transition group cursor-pointer" onClick={() => navigate("/dashboard-hr", { state: { activeTab: "recruitment" } })}>
+                                <div key={i} className="p-3 border border-gray-100 rounded-xl hover:bg-blue-50 transition group">
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <p className="font-bold text-gray-800 text-sm">{interview.name}</p>
                                             <p className="text-xs text-gray-500 mt-0.5">{interview.role}</p>
+                                            
+                                            {/* Interview Details on Card (Compact) */}
+                                            {interview.interview && (
+                                                <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                                    <p className="flex items-center gap-1">
+                                                        <Clock className="w-3 h-3 text-[#005193]" />
+                                                        {new Date(interview.interview.scheduled_at).toLocaleDateString()}
+                                                    </p>
+                                                    <p className="flex items-center gap-1">
+                                                        {interview.interview.location_type === 'phone' ? (
+                                                            <>
+                                                                <Phone className="w-3 h-3 text-purple-600" />
+                                                                <span className="font-semibold text-purple-600">Phone Interview</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                {interview.interview.location_type === 'video' 
+                                                                    ? <Video className="w-3 h-3 text-blue-600" />
+                                                                    : <MapPin className="w-3 h-3 text-gray-600" />
+                                                                }
+                                                                <span className="truncate max-w-[150px]">{interview.interview.location_detail}</span>
+                                                            </>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex flex-col items-end">
                                             <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
@@ -420,10 +439,12 @@ export default function DashboardHR() {
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center">
-                                        <span className="text-xs text-blue-600 font-semibold group-hover:underline">View Application</span>
-                                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
-                                    </div>
+                                    <button 
+                                        onClick={() => setSelectedInterview(interview)}
+                                        className="w-full mt-3 py-1.5 text-xs text-[#005193] font-semibold border border-blue-100 rounded-lg hover:bg-blue-50 transition flex items-center justify-center gap-1"
+                                    >
+                                        View Details <ChevronRight className="w-3 h-3" />
+                                    </button>
                                 </div>
                             )) : (
                                 <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -468,6 +489,108 @@ export default function DashboardHR() {
           {activeTab === "analytics" && <AnalyticsTab />}
           {activeTab === "profile" && <ProfileHR />}
         </div>
+
+        {/* --- Interview Details Modal --- */}
+        {selectedInterview && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="bg-gradient-to-r from-[#005193] to-[#013362] px-6 py-4 flex justify-between items-center">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <Calendar className="w-5 h-5 text-blue-200" /> Interview Details
+                        </h3>
+                        <button onClick={() => setSelectedInterview(null)} className="text-white/80 hover:text-white transition bg-white/10 p-1 rounded-full">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    
+                    <div className="p-6 space-y-6">
+                        {/* Header Info */}
+                        <div className="flex items-start justify-between border-b border-gray-100 pb-4">
+                            <div>
+                                <h4 className="text-xl font-bold text-gray-800">{selectedInterview.name}</h4>
+                                <p className="text-sm text-gray-500">{selectedInterview.role}</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold">
+                                    {selectedInterview.score}% Match
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="space-y-4">
+                            <div className="flex items-start gap-4">
+                                <div className="bg-blue-50 p-2 rounded-lg text-[#005193]">
+                                    <Clock className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wide">Date & Time</p>
+                                    <p className="text-sm font-medium text-gray-800">
+                                        {new Date(selectedInterview.interview.scheduled_at).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        {new Date(selectedInterview.interview.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-4">
+                                <div className={`p-2 rounded-lg ${selectedInterview.interview.location_type === 'phone' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'}`}>
+                                    {selectedInterview.interview.location_type === 'phone' ? <Phone className="w-5 h-5" /> : selectedInterview.interview.location_type === 'video' ? <Video className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wide">
+                                        {selectedInterview.interview.location_type === 'phone' ? 'Phone Number' : selectedInterview.interview.location_type === 'video' ? 'Meeting Link' : 'Location'}
+                                    </p>
+                                    <div className="text-sm font-medium text-gray-800 mt-1">
+                                        {selectedInterview.interview.location_type === 'video' ? (
+                                            <a 
+                                                href={selectedInterview.interview.location_detail} 
+                                                target="_blank" 
+                                                rel="noreferrer" 
+                                                className="text-blue-600 hover:underline flex items-center gap-1 break-all"
+                                            >
+                                                {selectedInterview.interview.location_detail} <ExternalLink className="w-3 h-3" />
+                                            </a>
+                                        ) : selectedInterview.interview.location_type === 'phone' ? (
+                                            <span className="font-mono text-lg tracking-wide">{selectedInterview.interview.location_detail || "Not provided"}</span>
+                                        ) : (
+                                            <span>{selectedInterview.interview.location_detail}</span>
+                                        )}
+                                    </div>
+                                    {selectedInterview.interview.location_type === 'phone' && (
+                                        <p className="text-xs text-green-600 mt-1 font-semibold flex items-center gap-1">
+                                            <CheckCircle className="w-3 h-3" /> Phone Interview
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-50 px-6 py-4 flex justify-between gap-3 border-t border-gray-100">
+                        <a 
+                            href={`/profile/${selectedInterview.user_id}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="flex-1 py-2 text-center text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm"
+                        >
+                            View Profile
+                        </a>
+                        <button 
+                            onClick={() => {
+                                setSelectedInterview(null);
+                                // Optional: Navigate to recruitment tab to take action
+                                navigate("/dashboard-hr", { state: { activeTab: "recruitment" } });
+                            }} 
+                            className="flex-1 py-2 text-center text-sm font-semibold text-white bg-[#005193] rounded-lg hover:opacity-90 transition shadow-md"
+                        >
+                            Manage Application
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
       </main>
     </section>
   );

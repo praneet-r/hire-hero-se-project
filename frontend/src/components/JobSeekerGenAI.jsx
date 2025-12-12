@@ -5,7 +5,9 @@ import {
   getChatHistory, 
   clearChatHistory, 
   getApplications, 
-  generateCoverLetter 
+  generateCoverLetter,
+  startMockInterview, 
+  submitMockInterview 
 } from '../services/api';
 import { 
   Send, 
@@ -17,7 +19,12 @@ import {
   Sparkles, 
   Copy, 
   Check, 
-  Briefcase 
+  Briefcase, 
+  Mic, 
+  Play, 
+  Award, 
+  ChevronRight, 
+  Loader 
 } from "lucide-react";
 
 const JobSeekerGenAI = () => {
@@ -42,7 +49,13 @@ const JobSeekerGenAI = () => {
             active={activeTool === "cover-letter"} 
             onClick={() => setActiveTool("cover-letter")} 
             icon={FileText} 
-            label="Cover Letter Generator" 
+            label="Cover Letter" 
+          />
+          <ToolButton 
+            active={activeTool === "mock-interview"} 
+            onClick={() => setActiveTool("mock-interview")} 
+            icon={Mic} 
+            label="Mock Interview" 
           />
         </div>
       </div>
@@ -51,6 +64,7 @@ const JobSeekerGenAI = () => {
       <div className="flex-1 bg-white/90 rounded-2xl border border-gray-200 shadow-sm overflow-hidden relative">
         {activeTool === "chatbot" && <ChatbotTool />}
         {activeTool === "cover-letter" && <CoverLetterTool />}
+        {activeTool === "mock-interview" && <MockInterviewTool />}
       </div>
     </div>
   );
@@ -75,6 +89,7 @@ const ChatbotTool = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   
+  // Use a ref for the container instead of a dummy element at the bottom
   const chatContainerRef = useRef(null);
 
   const suggestions = [
@@ -244,7 +259,7 @@ const ChatbotTool = () => {
 
 // --- Sub-Component: Cover Letter Generator Tool ---
 const CoverLetterTool = () => {
-  const [applications, setApplications] = useState([]); 
+  const [applications, setApplications] = useState([]); // Renamed from jobs
   const [selectedJob, setSelectedJob] = useState("");
   const [userNotes, setUserNotes] = useState("");
   const [generatedDraft, setGeneratedDraft] = useState("");
@@ -254,7 +269,7 @@ const CoverLetterTool = () => {
   useEffect(() => {
     async function fetchApps() {
       try {
-        const res = await getApplications(); 
+        const res = await getApplications(); // Fetch user's applications
         setApplications(res || []);
       } catch (err) {
         console.error("Failed to fetch applications");
@@ -376,6 +391,232 @@ const CoverLetterTool = () => {
       </div>
     </div>
   );
+};
+
+// --- Sub-Component: Mock Interview Tool ---
+const MockInterviewTool = () => {
+  const [stage, setStage] = useState('setup'); // setup, active, processing, results
+  const [applications, setApplications] = useState([]);
+  const [selectedJob, setSelectedJob] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  // Interview State
+  const [questions, setQuestions] = useState([]);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [currentAnswer, setCurrentAnswer] = useState("");
+  const [answers, setAnswers] = useState([]); // Array of { question, answer }
+  const [report, setReport] = useState(null);
+
+  useEffect(() => {
+    async function fetchApps() {
+      try {
+        const res = await getApplications();
+        setApplications(res || []);
+      } catch (err) { console.error(err); }
+    }
+    fetchApps();
+  }, []);
+
+  const handleStart = async () => {
+    if (!selectedJob) return alert("Select a job first");
+    setLoading(true);
+    try {
+      const res = await startMockInterview(selectedJob);
+      setQuestions(res.questions);
+      setStage('active');
+      setCurrentQIndex(0);
+      setAnswers([]);
+      setCurrentAnswer("");
+    } catch (err) { alert("Failed to start interview"); }
+    setLoading(false);
+  };
+
+  const handleNextQuestion = () => {
+    if (!currentAnswer.trim()) return alert("Please type an answer.");
+    
+    const newAnswers = [...answers, { 
+        question: questions[currentQIndex], 
+        answer: currentAnswer 
+    }];
+    setAnswers(newAnswers);
+    setCurrentAnswer("");
+
+    if (currentQIndex < questions.length - 1) {
+        setCurrentQIndex(prev => prev + 1);
+    } else {
+        // Finished last question
+        submitInterview(newAnswers);
+    }
+  };
+
+  const submitInterview = async (finalAnswers) => {
+      setStage('processing');
+      try {
+          const result = await submitMockInterview({
+              job_id: selectedJob,
+              answers: finalAnswers
+          });
+          setReport(result);
+          setStage('results');
+      } catch (err) {
+          alert("Error grading interview.");
+          setStage('setup');
+      }
+  };
+
+  const handleRetake = () => {
+      setStage('setup');
+      setReport(null);
+      setAnswers([]);
+  };
+
+  // --- RENDERERS ---
+
+  if (stage === 'setup') {
+      return (
+          <div className="h-full flex flex-col items-center justify-center p-8 bg-gray-50">
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 max-w-md w-full text-center">
+                  <div className="w-16 h-16 bg-blue-50 text-[#005193] rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Mic className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-bold text-[#013362] mb-2">AI Mock Interview</h3>
+                  <p className="text-sm text-gray-500 mb-6">
+                      Select a job you've applied for. The AI will generate 5 relevant questions and grade your answers.
+                  </p>
+                  
+                  <select 
+                    className="w-full p-3 border border-gray-300 rounded-xl mb-4 text-sm focus:ring-2 focus:ring-[#005193] outline-none"
+                    value={selectedJob}
+                    onChange={(e) => setSelectedJob(e.target.value)}
+                  >
+                    <option value="">-- Select Target Job --</option>
+                    {applications.map(app => (
+                        <option key={app.id} value={app.job_id}>{app.title} at {app.company}</option>
+                    ))}
+                  </select>
+
+                  <button 
+                    onClick={handleStart} 
+                    disabled={loading}
+                    className="w-full bg-[#005193] text-white py-3 rounded-xl font-bold shadow hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                    Start Session
+                  </button>
+              </div>
+          </div>
+      );
+  }
+
+  if (stage === 'active') {
+      const progress = ((currentQIndex + 1) / questions.length) * 100;
+      return (
+          <div className="h-full flex flex-col max-w-3xl mx-auto p-8">
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-200 h-2 rounded-full mb-8">
+                  <div className="bg-[#005193] h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+              </div>
+
+              <div className="flex-1 flex flex-col justify-center">
+                  <h4 className="text-gray-500 text-sm uppercase font-bold mb-2">Question {currentQIndex + 1} of {questions.length}</h4>
+                  <h2 className="text-2xl font-bold text-[#013362] mb-6 leading-relaxed">
+                      {questions[currentQIndex]}
+                  </h2>
+                  
+                  <textarea 
+                      className="w-full h-40 p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#005193] outline-none resize-none text-gray-700 leading-relaxed"
+                      placeholder="Type your answer here..."
+                      value={currentAnswer}
+                      onChange={(e) => setCurrentAnswer(e.target.value)}
+                      autoFocus
+                  />
+              </div>
+
+              <div className="mt-8 flex justify-end">
+                  <button 
+                      onClick={handleNextQuestion}
+                      className="bg-[#005193] text-white px-8 py-3 rounded-xl font-bold shadow hover:opacity-90 transition flex items-center gap-2"
+                  >
+                      {currentQIndex === questions.length - 1 ? "Submit Interview" : "Next Question"}
+                      <ChevronRight className="w-4 h-4" />
+                  </button>
+              </div>
+          </div>
+      );
+  }
+
+  if (stage === 'processing') {
+      return (
+          <div className="h-full flex flex-col items-center justify-center text-center">
+              <Loader className="w-12 h-12 text-[#005193] animate-spin mb-4" />
+              <h3 className="text-xl font-bold text-gray-800">Grading your interview...</h3>
+              <p className="text-gray-500 mt-2">Analyzing your answers against the Job Description.</p>
+          </div>
+      );
+  }
+
+  if (stage === 'results' && report) {
+      return (
+          <div className="h-full overflow-y-auto p-8 custom-scrollbar">
+              <div className="max-w-4xl mx-auto">
+                  {/* Header Score */}
+                  <div className="bg-[#005193] text-white rounded-2xl p-8 mb-8 flex items-center justify-between shadow-lg">
+                      <div>
+                          <h2 className="text-3xl font-bold mb-2">Interview Report</h2>
+                          <p className="opacity-90 max-w-xl">{report.overall_feedback}</p>
+                      </div>
+                      <div className="text-center bg-white/10 p-4 rounded-xl backdrop-blur-sm">
+                          <div className="text-4xl font-extrabold">{report.overall_score}/10</div>
+                          <div className="text-xs uppercase font-bold opacity-80 mt-1">Overall Score</div>
+                      </div>
+                  </div>
+
+                  {/* Questions */}
+                  <div className="space-y-6">
+                      {report.question_evaluations.map((evalItem, idx) => (
+                          <div key={idx} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                              <div className="flex justify-between items-start mb-4">
+                                  <h4 className="font-bold text-gray-800 text-lg w-3/4">Q{idx+1}: {evalItem.question}</h4>
+                                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                      evalItem.rating >= 8 ? 'bg-green-100 text-green-700' :
+                                      evalItem.rating >= 5 ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-red-100 text-red-700'
+                                  }`}>
+                                      Rating: {evalItem.rating}/10
+                                  </span>
+                              </div>
+                              
+                              <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                                  <p className="text-xs text-gray-500 uppercase font-bold mb-1">Your Answer</p>
+                                  <p className="text-sm text-gray-700 italic">"{answers[idx]?.answer}"</p>
+                              </div>
+
+                              <div>
+                                  <p className="text-xs text-[#005193] uppercase font-bold mb-1 flex items-center gap-1">
+                                      <Award className="w-3 h-3" /> AI Feedback
+                                  </p>
+                                  <p className="text-sm text-gray-800 leading-relaxed">
+                                      {evalItem.feedback}
+                                  </p>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+
+                  <div className="mt-8 text-center pb-8">
+                      <button 
+                          onClick={handleRetake}
+                          className="text-[#005193] font-bold hover:underline"
+                      >
+                          Start New Session
+                      </button>
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
+  return null;
 };
 
 export default JobSeekerGenAI;

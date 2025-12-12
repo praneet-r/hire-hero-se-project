@@ -180,6 +180,17 @@ def get_company_applications():
         except:
             analysis = None
 
+        # Fetch Interview Details
+        interview_info = None
+        if app.interviews:
+            # Sort to get the latest interview
+            latest_interview = sorted(app.interviews, key=lambda x: x.scheduled_at, reverse=True)[0]
+            interview_info = {
+                'scheduled_at': latest_interview.scheduled_at.isoformat(),
+                'location_type': latest_interview.location_type,
+                'location_detail': latest_interview.location_detail
+            }
+
         enriched.append({
             'id': app.id,
             'user_id': app.user_id,
@@ -189,7 +200,8 @@ def get_company_applications():
             'candidate_name': f"{user.first_name} {user.last_name}" if user else 'Unknown',
             'job_title': job.title if job else '',
             'match_score': app.match_score,
-            'match_analysis': analysis
+            'match_analysis': analysis,
+            'interview_details': interview_info # Added interview info
         })
     return jsonify({'pagination': {}, 'applications': enriched})
 

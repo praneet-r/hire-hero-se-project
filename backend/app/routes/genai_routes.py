@@ -346,3 +346,94 @@ def generate_performance_insights():
         return jsonify([
             {"title": "Analysis Error", "detail": "Could not generate insights from the data provided.", "type": "info"}
         ])
+    
+@genai_bp.route('/gen-ai/mock-interview/start', methods=['POST'])
+def start_mock_interview():
+    user = get_current_user()
+    if not user: return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.json
+    job_id = data.get('job_id')
+    
+    job = Job.query.get(job_id)
+    if not job: return jsonify({'error': 'Job not found'}), 404
+
+    # Prompt for Questions
+    system_prompt = """You are an expert technical interviewer. Generate 5 interview questions for the specified role.
+    - 3 Questions must be Technical (specific to the skills/stack).
+    - 2 Questions must be Behavioral (STAR method style).
+    - Output strict JSON: A simple list of strings. ["Question 1", "Question 2", ...]
+    - Do not include markdown formatting."""
+    
+    user_prompt = f"Role: {job.title}\nCompany: {job.company}\nDescription: {job.description[:500]}..."
+
+    response_text = llm_service.generate_text(system_prompt, user_prompt)
+    
+    # Cleanup & Parse
+    if response_text.startswith("```json"):
+        response_text = response_text.replace("```json", "").replace("```", "")
+    elif response_text.startswith("```"):
+        response_text = response_text.replace("```", "")
+
+    try:
+        questions = json.loads(response_text)
+        return jsonify({'questions': questions})
+    except:
+        # Fallback if AI fails json structure
+        return jsonify({'questions': [
+            "Tell me about yourself.",
+            "What is your greatest strength?",
+            "Describe a technical challenge you faced.",
+            "Why do you want to join us?",
+            "Where do you see yourself in 5 years?"
+        ]})
+
+@genai_bp.route('/gen-ai/mock-interview/submit', methods=['POST'])
+def submit_mock_interview():
+    user = get_current_user()
+    if not user: return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.json
+    job_id = data.get('job_id')
+    transcript = data.get('answers', []) # List of {question, answer}
+
+    job = Job.query.get(job_id)
+    if not job: return jsonify({'error': 'Job not found'}), 404
+
+    # Format Transcript for AI
+    transcript_text = ""
+    for idx, item in enumerate(transcript):
+        transcript_text += f"Q{idx+1}: {item['question']}\nCandidate Answer: {item['answer']}\n\n"
+
+    system_prompt = """You are an expert Hiring Manager. specific job. 
+    Evaluate the candidate's interview session.
+    Output strict JSON with the following structure:
+    {
+        "overall_score": 8,  // Integer 1-10
+        "overall_feedback": "One sentence summary.",
+        "question_evaluations": [
+            {
+                "question": "The question text...",
+                "rating": 7, // 1-10
+                "feedback": "Specific advice on how to improve this specific answer."
+            },
+            ... for all 5 questions
+        ]
+    }
+    Do not include markdown."""
+
+    user_prompt = f"Job: {job.title}\n\nInterview Transcript:\n{transcript_text}"
+
+    response_text = llm_service.generate_text(system_prompt, user_prompt)
+
+    # Cleanup & Parse
+    if response_text.startswith("```json"):
+        response_text = response_text.replace("```json", "").replace("```", "")
+    elif response_text.startswith("```"):
+        response_text = response_text.replace("```", "")
+
+    try:
+        evaluation = json.loads(response_text)
+        return jsonify(evaluation)
+    except:
+        return jsonify({'error': 'Failed to generate evaluation'}), 500
